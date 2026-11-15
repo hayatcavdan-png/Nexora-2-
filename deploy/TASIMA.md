@@ -23,13 +23,15 @@ Gerçek işlem yine KAPALIDIR; taşıma yalnızca paper sistemini taşır.
    ```
 5. **Telefondaki yedeği sunucuya aktar** (Termux: `pkg install openssh`):
    `scp backend/yedekler/nexora_....tar.gz KULLANICI@SUNUCU_TAILSCALE_IP:/tmp/`
-   Sunucuda:
+   Sunucuda (dosya telefondan yalnızca-sahibi izniyle gelir; bu yüzden önce nexora kullanıcısına devredilir):
    ```
-   sudo systemctl stop nexora-takip nexora-sunucu
-   cd /opt/nexora/backend && sudo -u nexora python3 yedek.py --geri /tmp/nexora_....tar.gz
+   sudo systemctl stop nexora-takip nexora-sunucu; cd /opt/nexora/backend
+   F=$(ls -t /tmp/nexora_*.tar.gz | head -1); sudo install -o nexora -m 600 "$F" gelen.tar.gz && \
+   sudo -u nexora python3 yedek.py --geri gelen.tar.gz && sudo rm -f gelen.tar.gz "$F" && \
    sudo systemctl start nexora-sunucu nexora-takip
    ```
-6. **Telefonda eski sistemi durdur:** `./nexora durdur` (ikisi aynı anda çalışırsa Helius kotası iki kat harcanır
+   Not: SSH oturumu, telefon ağ değiştirince (mobil veri ↔ Wi-Fi, Tailscale aç/kapa) kopar; yeniden bağlanın.
+6. **Telefonda eski sistemi durdur** (yedekten ÖNCE yapın): `./nexora durdur` (ikisi aynı anda çalışırsa Helius kotası iki kat harcanır
    ve iki ayrı paper defteri oluşur).
 7. **Uygulamada** Ayarlar → Sunucu adresi `http://SUNUCU_TAILSCALE_IP:8000`, API anahtarı:
    `sudo grep NEXORA_API_KEY /etc/nexora.env`
