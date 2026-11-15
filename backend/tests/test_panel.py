@@ -24,6 +24,8 @@ class PanelTests(unittest.TestCase):
             w.writerow(dict(wallet="W3", karar="kopyalanabilir", kazanma_orani=0.5, kar_faktoru=2, gerceklesen_usd=50, ort_getiri=0.1, medyan_tutma_sn=300, kapanan=10, skor=0.9))
             w.writerow(dict(wallet="W4", karar="zararda", kazanma_orani=0.2, kar_faktoru=0.5, gerceklesen_usd=-5, ort_getiri=-0.1, medyan_tutma_sn="", kapanan=6, skor=0))
         with open("cuzdan_tarama.csv", "w") as f: f.write("wallet,durum\nW1,aday\nW2,aday\nW3,aday\nW4,pasif\n")
+        with open("takip_kaybi.json", "w") as f:
+            json.dump(dict(cuzdanlar=[dict(cuzdan="W1", islem=2, giris_kaybi_ort=0.08, cikis_kaybi_ort=0.12, kaynak_getiri_ort=0.3, bizim_getiri_ort=-0.05)]), f)
         with open("asamalar.json", "w") as f: json.dump(dict(rows=[dict(kod="N0", yuzde=25)], meta=[dict(label="Kaynak", value="test")]), f)
     def tearDown(self): os.chdir(self.cwd)
     def test_gecmis_curve(self):
@@ -40,6 +42,8 @@ class PanelTests(unittest.TestCase):
         r = d["cuzdanlar"][0]
         self.assertEqual((r["karar"], r["kazanma_orani"], r["medyan_tutma_sn"], r["paper_kapanan"]), ("kopyalanabilir", 0.7, 600, 1))
         self.assertGreater(r["paper_kz"], 0)
+        self.assertEqual((r["takip_tur"], r["takip_giris"], r["takip_cikis"]), (2, 0.08, 0.12))
+        self.assertIsNone(d["cuzdanlar"][1]["takip_giris"])
         self.assertEqual((d["cuzdanlar"][1]["karar"], d["cuzdanlar"][2]["durum"]), ("analiz yok", "takip dışı"))
         o = d["ozet"]
         self.assertEqual((o["taranan"], o["analiz"], o["kopyalanabilir"], o["takipte"], o["kara_liste"]), (4, 3, 2, 2, 1))

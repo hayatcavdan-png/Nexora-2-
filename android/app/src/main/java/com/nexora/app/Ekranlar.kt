@@ -236,6 +236,13 @@ fun CuzdanKarti(sira: Int, c: CuzdanSatiri) {
         }
         Text("Paper: ${c.paperKopyalanan} kopyalandı · ${c.paperKapanan} kapandı · ${c.paperAcik} açık · K/Z ${isaretli(c.paperKz)} USDC",
              color = kzRenk(c.paperKz).takeIf { c.paperKapanan > 0 } ?: Nx.Soluk, fontSize = 12.sp)
+        if (c.takipTur > 0) {
+            fun p(x: Double?) = x?.let { (if (it >= 0) "+" else "") + yuzde(it * 100) } ?: "—"
+            val kotu = (c.takipGiris ?: 0.0) + (c.takipCikis ?: 0.0) > 0.10
+            Text("Takip kaybı (${c.takipTur} tur): giriş ${p(c.takipGiris)} · çıkış ${p(c.takipCikis)}",
+                 color = if (kotu) Nx.Sari else Nx.Soluk, fontSize = 12.sp)
+            Text("Kaynak ortalama ${p(c.takipKaynak)} · bizim ortalama ${p(c.takipBizim)}", color = Nx.Soluk, fontSize = 12.sp)
+        }
     }
 }
 
@@ -409,7 +416,7 @@ fun AyarlarEkrani(v: Veri, url: String, key: String, kaydet: (String, String) ->
         AyarSatiri(Icons.Filled.Person, "Solana cüzdan bağlantısı", "Gerçek işlem aşamasında (N12), açık onayınızla")
     }
     Kart(Modifier.fillMaxWidth()) {
-        AyarSatiri(Icons.Filled.Info, "Hakkında", "NEXORA 3.0 · yalnızca paper (sanal) işlem · gerçek işlem kapalı")
+        AyarSatiri(Icons.Filled.Info, "Hakkında", "NEXORA 3.1 · yalnızca paper (sanal) işlem · gerçek işlem kapalı")
     }
 }
 

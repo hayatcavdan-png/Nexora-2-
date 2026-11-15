@@ -49,7 +49,8 @@ def gecmis(paper_path, now=None):
     return dict(baslangic=start, noktalar=pts, guncel=round(guncel, 4))
 
 
-def cuzdanlar(paper_path, tracker_path, analiz_csv="cuzdan_analiz.csv", tarama_csv="cuzdan_tarama.csv"):
+def cuzdanlar(paper_path, tracker_path, analiz_csv="cuzdan_analiz.csv", tarama_csv="cuzdan_tarama.csv",
+              kayip_json="takip_kaybi.json"):
     """Takip edilen ve analiz edilen cüzdanlar: analiz metrikleri + takip durumu + paper performansı."""
     tracked = [w for w in _read_list("wallets.txt") if w not in set(_read_list("kara_liste.txt"))]
     black = _read_list("kara_liste.txt")
@@ -67,6 +68,12 @@ def cuzdanlar(paper_path, tracker_path, analiz_csv="cuzdan_analiz.csv", tarama_c
         finally:
             tc.close()
     perf = {r["wallet"]: r for r in build_report(paper_path, None).get("cuzdanlar", [])}
+    kayip = {}
+    if os.path.exists(kayip_json):
+        try:
+            for w in json.load(open(kayip_json, encoding="utf-8")).get("cuzdanlar", []): kayip[w["cuzdan"]] = w
+        except (ValueError, KeyError, OSError):
+            kayip = {}
 
     def num(r, k, cast=float):
         try: return cast(r.get(k)) if r and r.get(k) not in (None, "") else None
@@ -74,7 +81,7 @@ def cuzdanlar(paper_path, tracker_path, analiz_csv="cuzdan_analiz.csv", tarama_c
 
     out = []
     for w in dict.fromkeys(tracked + [w for w, r in analiz.items() if r.get("karar") == "kopyalanabilir"]):
-        a, s, p = analiz.get(w), status.get(w), perf.get(w, {})
+        a, s, p, k = analiz.get(w), status.get(w), perf.get(w, {}), kayip.get(w, {})
         q = (s or {}).get("quarantined") or 0
         out.append(dict(
             wallet=w, takipte=w in tracked,
@@ -86,7 +93,9 @@ def cuzdanlar(paper_path, tracker_path, analiz_csv="cuzdan_analiz.csv", tarama_c
             kapanan_kaynak=num(a, "kapanan", lambda v: int(float(v))),
             skor=num(a, "skor") or 0.0,
             paper_sinyal=p.get("sinyal", 0), paper_kopyalanan=p.get("kopyalanan", 0),
-            paper_kapanan=p.get("kapanan", 0), paper_kz=p.get("gerceklesen_kz", 0.0), paper_acik=p.get("acik", 0)))
+            paper_kapanan=p.get("kapanan", 0), paper_kz=p.get("gerceklesen_kz", 0.0), paper_acik=p.get("acik", 0),
+            takip_tur=k.get("islem", 0), takip_giris=k.get("giris_kaybi_ort"), takip_cikis=k.get("cikis_kaybi_ort"),
+            takip_kaynak=k.get("kaynak_getiri_ort"), takip_bizim=k.get("bizim_getiri_ort")))
     out.sort(key=lambda r: (not r["takipte"], -(r["skor"] or 0)))
     kararlar = {}
     for r in analiz.values(): kararlar[r.get("karar", "?")] = kararlar.get(r.get("karar", "?"), 0) + 1

@@ -28,7 +28,9 @@ data class Sinyal(val ts: Double, val yon: String, val token: String, val cuzdan
 data class TakipCuzdan(val adres: String, val durum: String, val hata: String)
 data class CuzdanSatiri(val adres: String, val takipte: Boolean, val durum: String, val karar: String,
                         val kazanma: Double?, val karFaktoru: Double?, val kaynakKz: Double?, val ortGetiri: Double?,
-                        val tutmaSn: Int?, val paperKopyalanan: Int, val paperKapanan: Int, val paperKz: Double, val paperAcik: Int)
+                        val tutmaSn: Int?, val paperKopyalanan: Int, val paperKapanan: Int, val paperKz: Double, val paperAcik: Int,
+                        val takipTur: Int = 0, val takipGiris: Double? = null, val takipCikis: Double? = null,
+                        val takipKaynak: Double? = null, val takipBizim: Double? = null)
 data class Asama(val kod: String, val ad: String, val durum: String, val yuzde: Int, val yapilan: String, val eksik: String)
 data class Nokta2(val ts: Double, val deger: Double)
 
@@ -117,7 +119,8 @@ class Veri {
                 CuzdanSatiri(x.str("wallet"), x.optBoolean("takipte"), x.str("durum"), x.str("karar"),
                     x.dbl("kazanma_orani"), x.dbl("kar_faktoru"), x.dbl("kaynak_kz"), x.dbl("ort_getiri"),
                     x.dbl("medyan_tutma_sn")?.toInt(), x.optInt("paper_kopyalanan"), x.optInt("paper_kapanan"),
-                    x.optDouble("paper_kz", 0.0), x.optInt("paper_acik"))
+                    x.optDouble("paper_kz", 0.0), x.optInt("paper_acik"),
+                    x.optInt("takip_tur"), x.dbl("takip_giris"), x.dbl("takip_cikis"), x.dbl("takip_kaynak"), x.dbl("takip_bizim"))
             }
         } catch (e: Exception) { eksik += "cüzdanlar" }
 
