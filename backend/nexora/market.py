@@ -50,10 +50,20 @@ class JupiterQuoter:
             raise QuoteError("teklif miktarı tutarsız")
         if d.get("inputMint", input_mint) != input_mint or d.get("outputMint", output_mint) != output_mint:
             raise QuoteError("teklif token'ları tutarsız")
+        # Jupiter USD fiyatını bilmediği token'larda (yeni token'lar) inUsdValue/outUsdValue 0 olur ve
+        # priceImpact yapay olarak -100 döner. O durumda etki BİLİNMİYOR sayılır (None); karar, token
+        # miktarlarına dayanan al-sat kaybı ölçüsüne bırakılır.
+        def usd(k):
+            v = d.get(k)
+            return float(v) if isinstance(v, (int, float)) and not isinstance(v, bool) else None
+        in_usd, out_usd = usd("inUsdValue"), usd("outUsdValue")
         impact = d.get("priceImpact")
         if isinstance(impact, bool) or not isinstance(impact, (int, float)):
             pct = d.get("priceImpactPct")                       # eski alan: ondalık oran
             try: impact = float(pct) * 100
-            except (TypeError, ValueError): raise QuoteError("fiyat etkisi bilinmiyor") from None
-        return dict(in_amount=int(inn), out_amount=int(out), price_impact_pct=abs(float(impact)),
-                    router=d.get("router"), fee_bps=d.get("feeBps"))
+            except (TypeError, ValueError): impact = None
+        if (in_usd is not None and in_usd <= 0) or (out_usd is not None and out_usd <= 0):
+            impact = None
+        return dict(in_amount=int(inn), out_amount=int(out),
+                    price_impact_pct=None if impact is None else abs(float(impact)),
+                    in_usd=in_usd, out_usd=out_usd, router=d.get("router"), fee_bps=d.get("feeBps"))

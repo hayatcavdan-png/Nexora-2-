@@ -28,7 +28,7 @@ class Decider:
             q = self.quoter.quote(USDC_MINT, token, amount)
         except QuoteError as e:
             return p.reject(event_id, wallet, token, "buy", f"alış teklifi yok: {e}")
-        if q["price_impact_pct"] > CFG["max_price_impact_pct"]:
+        if q["price_impact_pct"] is not None and q["price_impact_pct"] > CFG["max_price_impact_pct"]:
             return p.reject(event_id, wallet, token, "buy", f"fiyat etkisi yüksek (%{q['price_impact_pct']:.2f})")
         try:
             back = self.quoter.quote(token, USDC_MINT, q["out_amount"])
@@ -37,8 +37,9 @@ class Decider:
         rt = (1 - back["out_amount"] / amount) * 100
         if rt > CFG["max_roundtrip_loss_pct"]:
             return p.reject(event_id, wallet, token, "buy", f"al-sat kaybı yüksek (%{rt:.1f})")
+        etki = "etki bilinmiyor" if q["price_impact_pct"] is None else f"etki %{q['price_impact_pct']:.2f}"
         return p.record_buy(event_id, wallet, token, size, q["out_amount"], s["decimals"],
-                            note=f"etki %{q['price_impact_pct']:.2f}, al-sat kaybı %{rt:.1f}")
+                            note=f"{etki}, al-sat kaybı %{rt:.1f}")
 
     def _sell(self, event_id, wallet, token):
         p = self.paper
@@ -48,7 +49,8 @@ class Decider:
         except QuoteError as e:
             return p.reject(event_id, wallet, token, "sell", f"satış teklifi yok, pozisyon açık kaldı: {e}")
         proceeds = q["out_amount"] / 10 ** USDC_DECIMALS
-        return p.record_sell(event_id, wallet, token, proceeds, note=f"etki %{q['price_impact_pct']:.2f}")
+        etki = "etki bilinmiyor" if q["price_impact_pct"] is None else f"etki %{q['price_impact_pct']:.2f}"
+        return p.record_sell(event_id, wallet, token, proceeds, note=etki)
 
     def mark_to_market(self):
         """Açık pozisyonları gerçek satış teklifiyle değerler. Teklif alınamazsa eski fiyat kalır."""

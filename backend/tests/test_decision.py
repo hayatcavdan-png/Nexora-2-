@@ -31,10 +31,18 @@ class QuoterTests(unittest.TestCase):
         for r, msg in [(resp(400), "rota yok"), (resp(429), "429"), (resp(500), "HTTP 500"),
                        (resp(body={"inAmount": "9", "outAmount": "5", "priceImpact": 0}), "tutarsız"),
                        (resp(body={"inAmount": "10", "outAmount": "0", "priceImpact": 0}), "rota yok"),
-                       (resp(body={"inAmount": "10", "outAmount": "5"}), "fiyat etkisi")]:
+                       ]:
             jq, _ = self.q(r)
             with self.assertRaises(QuoteError) as c: jq.quote("A", "B", 10)
             self.assertIn(msg, str(c.exception))
+    def test_unpriced_token_impact_unknown(self):
+        # Gerçek yanıt (15.11.2026, 8z38…mi1m): Jupiter USD fiyatı yok -> outUsdValue 0, priceImpact -100
+        jq, _ = self.q(resp(body={"inAmount": "5000000", "outAmount": "36696720", "inUsdValue": 4.9987,
+                                  "outUsdValue": 0, "priceImpact": -100, "priceImpactPct": "-1", "router": "metis"}))
+        d = jq.quote(USDC_MINT, TOK, 5_000_000)
+        self.assertIsNone(d["price_impact_pct"]); self.assertEqual(d["out_amount"], 36696720)
+        jq, _ = self.q(resp(body={"inAmount": "10", "outAmount": "5"}))         # hiç etki alanı yok
+        self.assertIsNone(jq.quote("A", "B", 10)["price_impact_pct"])
     def test_api_key_header_and_not_in_errors(self):
         jq, s = self.q(resp(400), key="GIZLIANAHTAR")
         with self.assertRaises(QuoteError) as c: jq.quote("A", "B", 10)
@@ -111,6 +119,13 @@ class DecisionTests(unittest.TestCase):
         r = self.make(fail=[(TOK, USDC_MINT)]).decide("e", "W", TOK, "buy", 1)
         self.assertIn("geri satış teklifi yok", r["reason"]); self.assertIsNone(self.p.position(TOK))
         self.assertIn("alış teklifi yok", self.make(fail=[(USDC_MINT, TOK)]).decide("e", "W", TOK, "buy", 1)["reason"])
+    def test_unknown_impact_decided_by_round_trip(self):
+        p, q = Paper(), FakeQuoter(impact=None, back_ratio=0.919); d = Decider(p, q, Safe())
+        r = d.decide("e", "W", TOK, "buy", 1)                                   # 8z38 örneği: %8.1 kayıp
+        self.assertIn("al-sat kaybı yüksek (%8.1)", r["reason"])
+        p, q = Paper(), FakeQuoter(impact=None, back_ratio=0.97); d = Decider(p, q, Safe())
+        r = d.decide("e", "W", TOK, "buy", 1)
+        self.assertEqual(r["decision"], "KOPYALANDI"); self.assertIn("etki bilinmiyor", r["reason"])
     def test_unsafe_token_no_quotes(self):
         p, q = Paper(), FakeQuoter(); d = Decider(p, q, Safe("REDDEDİLDİ"))
         self.assertIn("token REDDEDİLDİ", d.decide("e", "W", TOK, "buy", 1)["reason"]); self.assertEqual(q.calls, [])
