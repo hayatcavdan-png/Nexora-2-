@@ -7,8 +7,8 @@ cd /opt/nexora
 ONCE="$(sudo -u nexora git rev-parse HEAD)"
 sudo -u nexora git pull --ff-only -q
 SONRA="$(sudo -u nexora git rev-parse HEAD)"
-if [ "$ONCE" = "$SONRA" ]; then echo "Zaten güncel ($(git log -1 --format=%s))."; exit 0; fi
-echo "Yeni sürüm: $(git log -1 --format=%s)"
+if [ "$ONCE" = "$SONRA" ]; then echo "Zaten güncel ($(sudo -u nexora git log -1 --format=%s))."; exit 0; fi
+echo "Yeni sürüm: $(sudo -u nexora git log -1 --format=%s)"
 if ! (cd backend && sudo -u nexora python3 -m unittest discover -s tests -q 2>&1 | tail -3); then
   echo "Testler GEÇMEDİ: eski sürüme dönülüyor, servisler değişmedi."
   sudo -u nexora git reset -q --hard "$ONCE"; exit 1
