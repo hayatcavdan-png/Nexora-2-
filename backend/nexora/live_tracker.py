@@ -7,6 +7,7 @@
 Token güvenliği, fiyat ve likidite henüz bilinmediği için sinyaller paper motorunda
 REDDEDİLİR (BİLİNMİYOR = ENGELLE). Bu aşama yalnızca algılamayı ve gecikmeyi ölçer."""
 import sqlite3, threading, time
+from nexora.gizle import gizle
 from collections import defaultdict, deque
 from nexora.swap_decoder import decode_swap
 
@@ -201,7 +202,7 @@ class LiveTracker:
                     self.db.rollback()
                     self.db.execute("""UPDATE tracker_wallets SET errors=errors+1, last_error=?,
                         quarantined=CASE WHEN errors+1>=? THEN 1 ELSE 0 END, updated=? WHERE wallet=?""",
-                        (type(e).__name__ + ": " + str(e)[:120], QUARANTINE_AFTER, self.clock(), w))
+                        (gizle(type(e).__name__ + ": " + str(e))[:140], QUARANTINE_AFTER, self.clock(), w))
                     self.db.commit()
                 report[w] = "hata"
         return report

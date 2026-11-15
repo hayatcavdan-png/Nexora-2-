@@ -7,6 +7,8 @@ Ayarlar (isteğe bağlı):
   TRACK_INTERVAL=60   yoklama aralığı (sn); WebSocket açıkken varsayılan 60, kapalıyken 20"""
 import os, sys, threading, time
 from nexora import settings
+from nexora import gizle as _gizle
+_gizle.kur()
 from nexora.helius_client import HeliusClient, HeliusRPCError
 from nexora.core import Paper
 from nexora.live_tracker import LiveTracker

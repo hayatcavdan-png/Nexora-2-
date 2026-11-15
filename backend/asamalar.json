@@ -4,10 +4,10 @@
    "kod": "N0",
    "ad": "Mevcut sistem denetimi",
    "grup": "Temel",
-   "durum": "devam",
-   "yuzde": 25,
-   "yapilan": "413 cüzdan salt okunur aktarıldı; ~15 eski modül incelendi ve yeniden kullanıldı",
-   "eksik": "375 dosyanın çoğu incelenmedi; 413/414 farkı; üretim izolasyonu kanıtı"
+   "durum": "ileri",
+   "yuzde": 85,
+   "yapilan": "Eski ~/nexora_2 kodunun tamamı salt okunur incelendi (376 Python dosyası, 1.271 test): taşınanlar, taşınmayanlar ve gerekçeleri, riskler docs/N0_denetim.md'de; gizli bilgi taraması temiz; günlük maskeleme filtresi yeni sisteme taşındı",
+   "eksik": "Bekleyen silme planı ve yedek şifreleme anahtarı için sizin kararınız; eski üretim (tradebot_multi_ai) incelenmedi"
   },
   {
    "kod": "N1",
@@ -148,7 +148,7 @@
  "meta": [
   {
    "label": "Kaynak",
-   "value": "Claude'un proje değerlendirmesi, 16.11.2026 03:20. Yüzdeler tahmini; hiçbir aşama kabul kriterleri karşılanmadan tamamlandı sayılmaz."
+   "value": "Claude'un proje değerlendirmesi, 16.11.2026 03:40. Yüzdeler tahmini; hiçbir aşama kabul kriterleri karşılanmadan tamamlandı sayılmaz."
   }
  ]
 }

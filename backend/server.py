@@ -7,6 +7,8 @@ from nexora.core import Paper, CFG
 from nexora.live_tracker import latency_from_db
 from nexora.rapor import build_report
 from nexora import panel
+from nexora import gizle as _gizle
+_gizle.kur()
 import glob, yedek
 
 paper = Paper(os.getenv("NEXORA_DB", "nexora_paper.db"))
