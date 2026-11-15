@@ -18,6 +18,9 @@ CFG = dict(
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS state(k TEXT PRIMARY KEY, v TEXT);
 CREATE TABLE IF NOT EXISTS positions(token TEXT PRIMARY KEY, qty REAL, cost REAL, last_price REAL, wallet TEXT);
+CREATE TABLE IF NOT EXISTS shadow(id INTEGER PRIMARY KEY AUTOINCREMENT, event_id TEXT UNIQUE, wallet TEXT, token TEXT,
+  opened_ts REAL, size_usd REAL, qty_raw TEXT, decimals INTEGER, rt_loss_pct REAL, impact_pct REAL, reason TEXT,
+  status TEXT, closed_ts REAL, proceeds_usd REAL, pnl_usd REAL, close_event TEXT, note TEXT);
 CREATE TABLE IF NOT EXISTS trades(id INTEGER PRIMARY KEY AUTOINCREMENT, ts REAL, event_id TEXT UNIQUE,
   wallet TEXT, token TEXT, side TEXT, qty REAL, price REAL, fee REAL, pnl REAL, decision TEXT, reason TEXT);
 """
@@ -174,6 +177,39 @@ class Paper:
             self.db.execute("UPDATE positions SET last_price=? WHERE token=?", (price, token))
             self._set(f"mark_ts:{token}", time.time())
             self.db.commit()
+
+    # --- Gölge işlemler: reddedilen alımlar için "girseydik ne olurdu" ölçümü -------------------
+    # Nakde, pozisyonlara ve risk limitlerine dokunmaz. Eşik ayarı (N10) için veri toplar.
+    MAX_OPEN_SHADOWS = 50
+
+    def shadow_open(self, event_id, wallet, token, size_usd, qty_raw, decimals, rt_loss_pct, impact_pct, reason):
+        with self.lock:
+            n = self.db.execute("SELECT COUNT(*) c FROM shadow WHERE status='open'").fetchone()["c"]
+            if n >= self.MAX_OPEN_SHADOWS: return False
+            cur = self.db.execute("""INSERT OR IGNORE INTO shadow(event_id,wallet,token,opened_ts,size_usd,qty_raw,decimals,
+                rt_loss_pct,impact_pct,reason,status) VALUES(?,?,?,?,?,?,?,?,?,?,'open')""",
+                (event_id, wallet, token, time.time(), size_usd, str(int(qty_raw)), decimals, rt_loss_pct, impact_pct, reason))
+            self.db.commit()
+            return cur.rowcount == 1
+
+    def open_shadows(self, wallet, token):
+        with self.lock:
+            return [dict(r) for r in self.db.execute(
+                "SELECT * FROM shadow WHERE status='open' AND wallet=? AND token=?", (wallet, token))]
+
+    def shadow_close(self, shadow_id, proceeds_usd, close_event, status="closed", note=None):
+        with self.lock:
+            r = self.db.execute("SELECT size_usd FROM shadow WHERE id=? AND status='open'", (shadow_id,)).fetchone()
+            if not r: return None
+            pnl = proceeds_usd - r["size_usd"] - 2 * CFG["net_fee_usd"]          # iki bacak ağ ücreti
+            self.db.execute("""UPDATE shadow SET status=?, closed_ts=?, proceeds_usd=?, pnl_usd=?, close_event=?, note=?
+                WHERE id=?""", (status, time.time(), proceeds_usd, pnl, close_event, note, shadow_id))
+            self.db.commit()
+            return pnl
+
+    def shadows(self):
+        with self.lock:
+            return [dict(r) for r in self.db.execute("SELECT * FROM shadow ORDER BY id")]
 
     def portfolio(self):
         rows = [dict(r) for r in self.db.execute("SELECT * FROM positions")]
