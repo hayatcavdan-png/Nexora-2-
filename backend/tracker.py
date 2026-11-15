@@ -56,7 +56,14 @@ def main():
     if PAPER_TRADE:
         quoter = JupiterQuoter()
         bilgi = Toplayici(TokenBilgi(api_key=quoter.api_key, throttle=quoter._throttle), paper).baslat()
-        decider = Decider(paper, quoter, TokenSafety(client), bilgi=bilgi, yurutme=YurutmeOlcer(quoter, paper).baslat())
+        puanlar = {}
+        if os.path.exists("cuzdan_analiz.csv"):
+            import csv
+            for r in csv.DictReader(open("cuzdan_analiz.csv", newline="")):
+                try: puanlar[r["wallet"]] = float(r.get("skor") or 0)
+                except ValueError: pass
+        decider = Decider(paper, quoter, TokenSafety(client), bilgi=bilgi, yurutme=YurutmeOlcer(quoter, paper).baslat(),
+                          puanlar=puanlar)
         if not quoter.api_key:
             print("  Not: JUPITER_API_KEY yok, teklifler anahtarsız (0.5 istek/sn). Ücretsiz anahtar hızlandırır.", flush=True)
     tr = LiveTracker(client, paper, os.getenv("TRACKER_DB", "nexora_tracker.db"), wallets, decider=decider)

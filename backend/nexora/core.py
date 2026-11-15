@@ -58,6 +58,7 @@ CREATE TRIGGER IF NOT EXISTS durum_gecis_degismez BEFORE UPDATE ON durum_gecis
   BEGIN SELECT RAISE(ABORT, 'durum geçmişi değiştirilemez'); END;
 CREATE TRIGGER IF NOT EXISTS durum_gecis_silinmez BEFORE DELETE ON durum_gecis
   BEGIN SELECT RAISE(ABORT, 'durum geçmişi silinemez'); END;
+CREATE TABLE IF NOT EXISTS boyut_olcum(event_id TEXT PRIMARY KEY, wallet TEXT, gercek_usd REAL, agirlik REAL, skor REAL);
 CREATE TABLE IF NOT EXISTS stop_tetik(iz_id INTEGER, esik REAL, ts REAL, pnl REAL, PRIMARY KEY(iz_id, esik));
 """
 
@@ -171,6 +172,12 @@ class Paper:
             r = self.db.execute("SELECT * FROM karar_izi WHERE event_id=?", (event_id,)).fetchone()
         if not r: return None
         d = dict(r); d["adimlar"] = json.loads(d["adimlar"] or "[]"); return d
+
+    def boyut_kaydet(self, event_id, wallet, gercek_usd, agirlik, skor):
+        """N7: alternatif büyüklük yöntemleri için ağırlık kaydı (yalnızca ölçüm; gerçek büyüklük değişmez)."""
+        with self.lock:
+            self.db.execute("INSERT OR IGNORE INTO boyut_olcum VALUES(?,?,?,?,?)", (event_id, wallet, gercek_usd, agirlik, skor))
+            self.db.commit()
 
     def yurutme_kaydet(self, event_id, side, token, gecikme_sn, ilk, sonra, hata=None):
         kayip = None if (hata or not ilk or sonra is None) else round((1 - sonra / ilk) * 100, 4)

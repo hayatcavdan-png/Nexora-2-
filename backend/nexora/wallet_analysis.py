@@ -64,9 +64,10 @@ def analyze(transactions, wallet, sol_usd):
     ts = {e["signature"]: e["timestamp_ms"] for e in events}
     to_usd = lambda amount, quote: float(Decimal(amount)) * (sol_usd if quote == NATIVE_SOL else 1.0)
 
-    sells = defaultdict(lambda: dict(pnl=0.0, cost=0.0, holds=[], token=None))
+    sells = defaultdict(lambda: dict(pnl=0.0, cost=0.0, holds=[], token=None, ts=0))
     for m in res["matches"]:
         s = sells[m["sell_signature"]]
+        s["ts"] = ts.get(m["sell_signature"], 0)
         q = m["quote_mint"]
         s["pnl"] += to_usd(m["realized_pnl_quote"], q)
         s["cost"] += to_usd(Decimal(m["buy_cost_quote"]) + Decimal(m["buy_fee_quote"]), q)
@@ -89,6 +90,10 @@ def analyze(transactions, wallet, sol_usd):
     per_token_sells = defaultdict(int)
     for c in closed: per_token_sells[c["token"]] += 1
     times = [r["timestamp_ms"] for r in records]
+    # N4: gerçekleşen K/Z eğrisinde en büyük düşüş (satış zamanına göre birikimli)
+    birikim, zirve, dd = 0.0, 0.0, 0.0
+    for c in sorted(closed, key=lambda c: c["ts"]):
+        birikim += c["pnl"]; zirve = max(zirve, birikim); dd = max(dd, zirve - birikim)
     buy_usd = [to_usd(Decimal(e["quote_amount_raw"]) / 10 ** e["quote_decimals"], e["quote_mint"]) for e in buys]
 
     return dict(
@@ -107,6 +112,8 @@ def analyze(transactions, wallet, sol_usd):
         hesap_ac_kapa=skipped.get("token_account_created_or_closed", 0),   # çözücünün güvenlik gereği atladığı
         sifir_tur_orani=round(flat / len(closed), 3) if closed else 0.0,   # |getiri| < %2 satışların payı
         tek_token_tur=max(per_token_sells.values()) if per_token_sells else 0,
+        max_dusus_usd=round(dd, 2),
+        dusus_kazanc_orani=round(dd / gains, 3) if gains > 0 else (1.0 if dd > 0 else 0.0),  # düşüş / toplam kazanç
     )
 
 def verdict(m, t=THRESHOLDS):

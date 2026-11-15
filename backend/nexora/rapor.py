@@ -107,6 +107,23 @@ def bilgi_summary(iz_rows, shadows, bilgi_rows):
     return dict(olculen=len(bilgi_rows), hatali=sum(1 for b in bilgi_rows if b.get("hata")),
                 sus=sum(1 for b in bilgi.values() if b.get("sus")), kapanan_ornek=len(ornek), boyutlar=boyutlar)
 
+def boyut_summary(iz_rows, boyut_rows, ucret=0.01):
+    """N7: kapanmış kopya pozisyonların üç büyüklük yöntemiyle sonucu. Brüt sonuç büyüklükle orantılı ölçeklenir,
+    ağ ücreti (iki bacak) sabit kalır. Not: büyük tutarda fiyat etkisi artacağı için bu bir yaklaşıktır."""
+    agirlik = {b["event_id"]: b for b in boyut_rows}
+    yontem = {"sabit %5 (şu anki)": [0.0, 0.0], "puan ağırlıklı": [0.0, 0.0], "sabit 1 USDC": [0.0, 0.0]}
+    n = 0
+    for r in iz_rows:
+        if r.get("status") != "closed" or not r.get("cost") or r.get("event_id") not in agirlik: continue
+        n += 1
+        brut = (r["pnl"] or 0) + 2 * ucret
+        for ad, boy in (("sabit %5 (şu anki)", r["cost"]), ("puan ağırlıklı", r["cost"] * (agirlik[r["event_id"]]["agirlik"] or 0.5)),
+                        ("sabit 1 USDC", 1.0)):
+            yontem[ad][0] += brut * boy / r["cost"] - 2 * ucret
+            yontem[ad][1] += boy
+    return dict(kapanan=n, yontemler=[dict(yontem=k, kz=round(v[0], 4), sermaye=round(v[1], 2),
+                                           getiri_pct=round(v[0] / v[1] * 100, 2) if v[1] else None) for k, v in yontem.items()])
+
 def yurutme_summary(rows):
     """Yürütme gecikmesi kaybı: karardan ~3 sn sonraki teklifin ilk teklife göre farkı (pozitif = kayıp)."""
     ok = [r for r in rows if r.get("kayip_pct") is not None]
@@ -134,6 +151,7 @@ def build_report(paper_path, tracker_path=None, now=None):
         tetik = _rows(p, "SELECT * FROM stop_tetik")
         bilgi = _rows(p, "SELECT * FROM token_bilgi")
         yurutme = _rows(p, "SELECT * FROM yurutme_olcum")
+        boyut = _rows(p, "SELECT * FROM boyut_olcum")
         state = {r["k"]: r["v"] for r in _rows(p, "SELECT k, v FROM state")}
     finally:
         p.close()
@@ -195,6 +213,7 @@ def build_report(paper_path, tracker_path=None, now=None):
         zarar_kesme=stop_summary(iz, tetik),
         token_bilgi=bilgi_summary(iz, shadows, bilgi),
         yurutme=yurutme_summary(yurutme),
+        boyut=boyut_summary(iz, boyut),
         gecikme=gecikme,
         kesinlik=kesinlik,
     )
@@ -240,6 +259,10 @@ def as_text(r):
             x = y[side]
             if x["n"]: parca.append(f"{ad} {x['n']} ölçüm, ort. %{x['ort']:+.2f}, en kötü %{x['en_kotu']:+.2f}")
         L += ["", "Yürütme gecikmesi (3 sn geç kalsaydık): " + ("; ".join(parca) or "henüz sonuç yok")]
+    bo = r.get("boyut") or {}
+    if bo.get("kapanan"):
+        L += ["", f"Büyüklük yöntemleri ({bo['kapanan']} kapanmış kopya):"]
+        L += [f"  {x['yontem']:<20} K/Z {x['kz']:+.2f}$  sermaye {x['sermaye']:.2f}$  getiri %{x['getiri_pct']:+.1f}" for x in bo["yontemler"]]
     k = r.get("kesinlik") or {}
     if k:
         L += ["", f"Zincir kesinliği: {k['kesin']} kesinleşti, {k['hatali']} başarısız, {k['dusuruldu']} düştü, "

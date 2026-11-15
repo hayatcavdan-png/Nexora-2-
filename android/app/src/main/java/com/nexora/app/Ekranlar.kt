@@ -235,6 +235,9 @@ fun CuzdanKarti(sira: Int, c: CuzdanSatiri) {
             Etiket(c.karar, kararRengi(c.karar))
             Text("kaynak K/Z ${c.kaynakKz?.let { isaretli(it) } ?: "—"} $", color = Nx.Soluk, fontSize = 12.sp)
         }
+        if (c.maxDusus != null && c.maxDusus > 0)
+            Text("En büyük düşüş ${usd(c.maxDusus)} $" + (c.dususOrani?.let { " (kazancın %${(it * 100).toInt()}'i)" } ?: ""),
+                 color = if ((c.dususOrani ?: 0.0) > 0.5) Nx.Sari else Nx.Soluk, fontSize = 12.sp)
         Text("Paper: ${c.paperKopyalanan} kopyalandı · ${c.paperKapanan} kapandı · ${c.paperAcik} açık · K/Z ${isaretli(c.paperKz)} USDC",
              color = kzRenk(c.paperKz).takeIf { c.paperKapanan > 0 } ?: Nx.Soluk, fontSize = 12.sp)
         if (c.takipTur > 0) {
@@ -398,6 +401,17 @@ fun RaporEkrani(v: Veri) {
             val ort = x.optDouble("ort", 0.0)
             Satir("$ad · ${x.optInt("n")} ölçüm (en kötü %${x.optDouble("en_kotu")})", (if (ort >= 0) "%+" else "%") +
                   String.format(java.util.Locale.US, "%.2f", ort).removePrefix("+"), if (ort > 0.5) Nx.Kirmizi else if (ort > 0) Nx.Sari else Nx.Yesil)
+        }
+    }
+    val bo = r.optJSONObject("boyut")
+    if (bo != null && bo.optInt("kapanan") > 0) Kart(Modifier.fillMaxWidth()) {
+        Text("Pozisyon büyüklüğü yöntemleri", color = Nx.Metin, fontWeight = FontWeight.SemiBold)
+        Text("${bo.optInt("kapanan")} kapanmış kopya işlem üç yöntemle yeniden hesaplandı. Yalnızca ölçüm; gerçek kural sabit %5.",
+             color = Nx.Soluk, fontSize = 12.sp)
+        val ys = bo.optJSONArray("yontemler")
+        if (ys != null) for (i in 0 until ys.length()) {
+            val x = ys.getJSONObject(i); val kz = x.optDouble("kz", 0.0)
+            Satir("${x.str("yontem")} · getiri %${x.optDouble("getiri_pct", 0.0)}", "${isaretli(kz)} $", kzRenk(kz))
         }
     }
     val ks = r.optJSONObject("kesinlik")

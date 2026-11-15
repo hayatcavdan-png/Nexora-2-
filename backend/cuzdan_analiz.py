@@ -19,7 +19,8 @@ OUT_CSV, OUT_TXT = "cuzdan_analiz.csv", "wallets_onerilen.txt"
 ADDR = re.compile(r"^[1-9A-HJ-NP-Za-km-z]{32,44}$")
 FIELDS = ["wallet", "karar", "gerekce", "gerceklesen_usd", "kapanan", "kazanma_orani", "kar_faktoru", "ort_getiri",
           "medyan_tutma_sn", "en_buyuk_token_payi", "token_sayisi", "swap", "alis", "satis", "eslesmeyen_satis",
-          "acik_pozisyon", "ort_alis_usd", "pencere_gun", "islem", "hesap_ac_kapa", "sifir_tur_orani", "tek_token_tur", "skor"]
+          "acik_pozisyon", "ort_alis_usd", "pencere_gun", "islem", "hesap_ac_kapa", "sifir_tur_orani", "tek_token_tur", "skor",
+          "max_dusus_usd", "dusus_kazanc_orani"]
 
 def read_list(path):
     if not os.path.exists(path): return []

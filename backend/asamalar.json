@@ -32,18 +32,18 @@
    "ad": "Cüzdan keşfi",
    "grup": "Seçim",
    "durum": "devam",
-   "yuzde": 50,
-   "yapilan": "413 cüzdan tarandı; 190 aday kârlılık analizinden geçti; bot, pasif, şüpheli ayrımı; hacim botu kalıbı otomatik tespit ediliyor; 3 cüzdan kara listede",
-   "eksik": "Zincirden yeni cüzdan bulma; borsa, LP ve protokol hesaplarını ayırma"
+   "yuzde": 62,
+   "yapilan": "413 cüzdan tarandı; 190 aday kârlılık analizinden geçti; bot, pasif, şüpheli ayrımı; hacim botu kalıbı otomatik tespit ediliyor; 3 cüzdan kara listede; zincirden yeni cüzdan keşfi aracı: kaynakların aldığı token'ları onlardan önce alan cüzdanlar (sınırlı kredi, elle çalışır)",
+   "eksik": "Keşif sonuçlarının analizi; borsa/LP/protokol hesaplarını ayırma"
   },
   {
    "kod": "N4",
    "ad": "Cüzdan kârlılığı",
    "grup": "Seçim",
    "durum": "devam",
-   "yuzde": 62,
-   "yapilan": "FIFO gerçekleşen K/Z, kazanma oranı, kâr faktörü, elde tutma; hesap açma/kapama düzeltmesi; 190 cüzdanda 7 kopyalanabilir; paper portföyde en büyük düşüş (drawdown) ölçümü",
-   "eksik": "Kaynak cüzdanlarda drawdown ve gerçekleşmemiş K/Z; takipçinin uygulanabilir getirisi"
+   "yuzde": 70,
+   "yapilan": "FIFO gerçekleşen K/Z, kazanma oranı, kâr faktörü, elde tutma; hesap açma/kapama düzeltmesi; 190 cüzdanda 7 kopyalanabilir; paper portföyde en büyük düşüş (drawdown) ölçümü; kaynak cüzdanlarda gerçekleşen K/Z eğrisinde en büyük düşüş",
+   "eksik": "Kaynak cüzdanlarda gerçekleşmemiş K/Z"
   },
   {
    "kod": "N5",
@@ -68,9 +68,9 @@
    "ad": "Kopyalama karar motoru",
    "grup": "İşlem",
    "durum": "devam",
-   "yuzde": 65,
-   "yapilan": "Ağsız kurallar, fiyat etkisi, al-sat kaybı, yalnız sahip olunanı satma, cüzdan başına sınır; ilk KOPYALANDI işlemi canlıda gerçekleşti (15.11 22:03, 4Fys…pump, etki %1.09, al-sat kaybı %3.0)",
-   "eksik": "Sabit/oransal/risk ağırlıklı yöntem karşılaştırması"
+   "yuzde": 75,
+   "yapilan": "Ağsız kurallar, fiyat etkisi, al-sat kaybı, yalnız sahip olunanı satma, cüzdan başına sınır; ilk KOPYALANDI işlemi canlıda gerçekleşti (15.11 22:03, 4Fys…pump, etki %1.09, al-sat kaybı %3.0); büyüklük yöntemleri karşılaştırma ölçümü (sabit %5 / puan ağırlıklı / sabit 1 USDC)",
+   "eksik": "Yeterli kapanmış işlemle yöntem kararı"
   },
   {
    "kod": "N8",
@@ -123,7 +123,7 @@
    "grup": "Ürün",
    "durum": "devam",
    "yuzde": 82,
-   "yapilan": "Oracle Always Free sunucuda (Ubuntu 24.04) çalışıyor: systemd ile otomatik başlatma ve yeniden başlatma, Tailscale özel ağ (internete port açık değil), rastgele sunucu anahtarı, gece yedeği (14 gün), telefondaki veri taşındı (16.11.2026); 'takip durdu' ve 'sunucuya ulaşılamıyor' uyarıları; yedek her gün telefona da kopyalanıyor (İndirilenler/NEXORA); testli tek komut güncelleme",
+   "yapilan": "Oracle Always Free sunucuda (Ubuntu 24.04) çalışıyor: systemd ile otomatik başlatma ve yeniden başlatma, Tailscale özel ağ (internete port açık değil), rastgele sunucu anahtarı, gece yedeği (14 gün), telefondaki veri taşındı (16.11.2026); 'takip durdu' ve 'sunucuya ulaşılamıyor' uyarıları; yedek her gün telefona da kopyalanıyor (İndirilenler/NEXORA); testli tek komut güncelleme; sunucuda araç çalıştırıcı (calistir.sh)",
    "eksik": "Uzun süreli kesintisiz çalışma kanıtı"
   },
   {
@@ -132,7 +132,7 @@
    "grup": "Ürün",
    "durum": "devam",
    "yuzde": 85,
-   "yapilan": "Uygulama 3.11: neon arayüz; Ana Panel (bakiye, K/Z, başarı oranı, bot anahtarı, performans grafiği), Bot, Cüzdanlar, İşlemler, Rapor, Yol Haritası, Ayarlar; otomatik APK derleme; arka plan bildirimleri (alım, kapanış, risk, bot); Rapor'da zarar kesme ölçümü; token özellikleri kartı; risk sınırlarını değiştirme; PIN kilidi; bağlantı kopma uyarısı; yedeği telefona indirme; zincir kesinliği kartı; sakin tema; sistem sağlığı ve yürütme gecikmesi kartları; pozisyon durumu etiketi",
+   "yapilan": "Uygulama 3.12: neon arayüz; Ana Panel (bakiye, K/Z, başarı oranı, bot anahtarı, performans grafiği), Bot, Cüzdanlar, İşlemler, Rapor, Yol Haritası, Ayarlar; otomatik APK derleme; arka plan bildirimleri (alım, kapanış, risk, bot); Rapor'da zarar kesme ölçümü; token özellikleri kartı; risk sınırlarını değiştirme; PIN kilidi; bağlantı kopma uyarısı; yedeği telefona indirme; zincir kesinliği kartı; sakin tema; sistem sağlığı ve yürütme gecikmesi kartları; pozisyon durumu etiketi; cüzdan düşüşü ve büyüklük yöntemleri kartları",
    "eksik": "HTTPS (sunucuda Tailscale ile şifreli); biyometrik giriş"
   },
   {
@@ -148,7 +148,7 @@
  "meta": [
   {
    "label": "Kaynak",
-   "value": "Claude'un proje değerlendirmesi, 16.11.2026 03:00. Yüzdeler tahmini; hiçbir aşama kabul kriterleri karşılanmadan tamamlandı sayılmaz."
+   "value": "Claude'un proje değerlendirmesi, 16.11.2026 03:20. Yüzdeler tahmini; hiçbir aşama kabul kriterleri karşılanmadan tamamlandı sayılmaz."
   }
  ]
 }

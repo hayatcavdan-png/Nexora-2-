@@ -107,6 +107,7 @@ def cuzdanlar(paper_path, tracker_path, analiz_csv="cuzdan_analiz.csv", tarama_c
             medyan_tutma_sn=num(a, "medyan_tutma_sn", lambda v: int(float(v))),
             kapanan_kaynak=num(a, "kapanan", lambda v: int(float(v))),
             skor=num(a, "skor") or 0.0,
+            max_dusus_usd=num(a, "max_dusus_usd"), dusus_kazanc_orani=num(a, "dusus_kazanc_orani"),
             paper_sinyal=p.get("sinyal", 0), paper_kopyalanan=p.get("kopyalanan", 0),
             paper_kapanan=p.get("kapanan", 0), paper_kz=p.get("gerceklesen_kz", 0.0), paper_acik=p.get("acik", 0),
             takip_tur=k.get("islem", 0), takip_giris=k.get("giris_kaybi_ort"), takip_cikis=k.get("cikis_kaybi_ort"),

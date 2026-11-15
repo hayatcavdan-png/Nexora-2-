@@ -14,9 +14,18 @@ def _q(q):
                 router=q.get("router"), giris_usd=q.get("in_usd"), cikis_usd=q.get("out_usd"))
 
 
+def puan_agirligi(puanlar, wallet):
+    """Puan ağırlıklı yöntem: en iyi skora göre 0.2-1.0 arası çarpan (üst sınır gerçek %5 kuralı). Skoru bilinmeyen: 0.5."""
+    skor = puanlar.get(wallet)
+    en_iyi = max([v for v in puanlar.values() if v and v > 0], default=0)
+    if skor is None or skor <= 0 or en_iyi <= 0: return skor, 0.5
+    return skor, round(max(0.2, min(1.0, skor / en_iyi)), 4)
+
+
 class Decider:
-    def __init__(self, paper, quoter, safety, bilgi=None, yurutme=None):
+    def __init__(self, paper, quoter, safety, bilgi=None, yurutme=None, puanlar=None):
         self.paper, self.quoter, self.safety = paper, quoter, safety
+        self.puanlar = puanlar or {}  # N7: cüzdan -> analiz skoru (yalnızca büyüklük karşılaştırma ölçümü için)
         self.bilgi = bilgi            # isteğe bağlı token bilgisi toplayıcı (yalnızca ölçüm; kararı etkilemez)
         self.yurutme = yurutme        # isteğe bağlı yürütme gecikmesi ölçer (yalnızca ölçüm)
 
@@ -86,6 +95,8 @@ class Decider:
                          note=f"{etki}, al-sat kaybı %{rt:.1f}")
         if r.get("decision") == "KOPYALANDI":
             self._olc(event_id, token)
+            skor, w = puan_agirligi(self.puanlar, wallet)
+            p.boyut_kaydet(event_id, wallet, size, w, skor)
             if self.yurutme is not None: self.yurutme.enqueue(event_id, "buy", token, USDC_MINT, token, amount, q["out_amount"])
         return r
 
