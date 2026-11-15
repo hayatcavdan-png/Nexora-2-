@@ -8,12 +8,19 @@ import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 
-fun api(base: String, key: String, path: String, post: Boolean = false): String {
+fun api(base: String, key: String, path: String, post: Boolean = false, govde: String = "{}"): String {
     val c = URL(base.trim().trimEnd('/') + path).openConnection() as HttpURLConnection
     c.connectTimeout = 8000; c.readTimeout = 8000
     c.setRequestProperty("X-API-Key", key.trim())
-    if (post) { c.requestMethod = "POST"; c.doOutput = true; c.outputStream.write("{}".toByteArray()) }
-    if (c.responseCode != 200) error("HTTP ${c.responseCode}")
+    if (post) {
+        c.requestMethod = "POST"; c.doOutput = true
+        c.setRequestProperty("Content-Type", "application/json")
+        c.outputStream.write(govde.toByteArray())
+    }
+    if (c.responseCode != 200) {
+        val neden = try { JSONObject(c.errorStream?.bufferedReader()?.readText() ?: "").optString("hata") } catch (e: Exception) { "" }
+        error("HTTP ${c.responseCode}" + if (neden.isNotEmpty()) ": $neden" else "")
+    }
     return c.inputStream.bufferedReader().readText()
 }
 

@@ -2,7 +2,7 @@ plugins { id("com.android.application"); id("org.jetbrains.kotlin.android") }
 android {
     namespace = "com.nexora.app"
     compileSdk = 34
-    defaultConfig { applicationId = "com.nexora.app"; minSdk = 26; targetSdk = 34; versionCode = 8; versionName = "3.4.0" }
+    defaultConfig { applicationId = "com.nexora.app"; minSdk = 26; targetSdk = 34; versionCode = 9; versionName = "3.5.0" }
     signingConfigs {
         // Sabit debug anahtarı: her GitHub derlemesi aynı imzayı kullanır, uygulama üzerine güncellenebilir.
         // Yalnızca test (debug) içindir; Play Store / gerçek dağıtım anahtarı ayrı ve gizli tutulmalıdır.
@@ -13,7 +13,7 @@ android {
     }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
     kotlinOptions { jvmTarget = "17" }
-    buildFeatures { compose = true }
+    buildFeatures { compose = true; buildConfig = true }
     composeOptions { kotlinCompilerExtensionVersion = "1.5.14" }
 }
 dependencies {

@@ -51,7 +51,7 @@ class H(BaseHTTPRequestHandler):
             self._send(200, panel.olaylar(os.getenv("NEXORA_DB", "nexora_paper.db"), os.getenv("TRACKER_DB", "nexora_tracker.db"), son))
             return
         if self.path == "/durum":
-            self._send(200, dict(mod="PAPER", gercek_islem="KAPALI", acil_durdurma=paper.killed(), ayarlar=CFG))
+            self._send(200, dict(mod="PAPER", gercek_islem="KAPALI", acil_durdurma=paper.killed(), ayarlar=paper.ayarlar()["gecerli"]))
         elif self.path == "/portfoy": self._send(200, paper.portfolio())
         elif self.path == "/islemler": self._send(200, paper.trades())
         elif self.path == "/takip": self._send(200, takip_ozeti())
@@ -59,6 +59,7 @@ class H(BaseHTTPRequestHandler):
         elif self.path == "/cuzdanlar":
             self._send(200, panel.cuzdanlar(os.getenv("NEXORA_DB", "nexora_paper.db"), os.getenv("TRACKER_DB", "nexora_tracker.db")))
         elif self.path == "/asamalar": self._send(200, panel.asamalar())
+        elif self.path == "/ayarlar": self._send(200, paper.ayarlar())
         elif self.path == "/rapor":
             self._send(200, build_report(os.getenv("NEXORA_DB", "nexora_paper.db"), os.getenv("TRACKER_DB", "nexora_tracker.db")))
         else: self._send(404, {"hata": "yok"})
@@ -68,6 +69,11 @@ class H(BaseHTTPRequestHandler):
         raw = self.rfile.read(n) if n else b"{}"
         if self.path == "/acil-durdur": paper.set_kill(True); self._send(200, {"acil_durdurma": True})
         elif self.path == "/devam": paper.set_kill(False); self._send(200, {"acil_durdurma": False})
+        elif self.path == "/ayarlar":
+            try:
+                self._send(200, paper.ayar_degistir(json.loads(raw or b"{}")))
+            except ValueError as e:
+                self._send(400, {"hata": str(e)})
         elif self.path == "/sinyal":
             try:
                 s = json.loads(raw)

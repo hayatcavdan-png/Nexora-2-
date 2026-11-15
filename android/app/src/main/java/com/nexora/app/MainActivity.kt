@@ -77,6 +77,13 @@ fun App() {
         try { withContext(Dispatchers.IO) { api(url, key, path, true) }; yenile() }
         catch (e: Exception) { v.hata = "Komut gönderilemedi: ${e.message}" }
     }
+    fun riskKaydet(j: org.json.JSONObject) = scope.launch {
+        try {
+            withContext(Dispatchers.IO) { api(url, key, "/ayarlar", true, j.toString()) }
+            yenile()
+            android.widget.Toast.makeText(ctx, "Risk sınırları kaydedildi", android.widget.Toast.LENGTH_SHORT).show()
+        } catch (e: Exception) { v.hata = "Kaydedilemedi: ${e.message}" }
+    }
     LaunchedEffect(Unit) { while (true) { yenile(); delay(10_000) } }
     BackHandler(enabled = ekran != "panel") { ekran = "panel" }
 
@@ -179,7 +186,7 @@ fun App() {
                                 android.content.pm.PackageManager.PERMISSION_GRANTED) {
                                 izinIste.launch(android.Manifest.permission.POST_NOTIFICATIONS)
                             } else bildirimAyarla(acik)
-                        }) { u, k ->
+                        }, { riskKaydet(it) }) { u, k ->
                             url = u; key = k
                             sp.edit().putString("url", u).putString("key", k).apply()
                             yenile()

@@ -33,7 +33,7 @@ class Decider:
             q = self.quoter.quote(USDC_MINT, token, amount)
         except QuoteError as e:
             return p.reject(event_id, wallet, token, "buy", f"alış teklifi yok: {e}")
-        if q["price_impact_pct"] is not None and q["price_impact_pct"] > CFG["max_price_impact_pct"]:
+        if q["price_impact_pct"] is not None and q["price_impact_pct"] > p.limit("max_price_impact_pct"):
             why = f"fiyat etkisi yüksek (%{q['price_impact_pct']:.2f})"
             if p.shadow_open(event_id, wallet, token, size, q["out_amount"], s["decimals"], None, q["price_impact_pct"], why):
                 self._olc(event_id, token)
@@ -43,7 +43,7 @@ class Decider:
         except QuoteError as e:
             return p.reject(event_id, wallet, token, "buy", f"geri satış teklifi yok, satılamayabilir: {e}")
         rt = (1 - back["out_amount"] / amount) * 100
-        if rt > CFG["max_roundtrip_loss_pct"]:
+        if rt > p.limit("max_roundtrip_loss_pct"):
             why = f"al-sat kaybı yüksek (%{rt:.1f})"
             if p.shadow_open(event_id, wallet, token, size, q["out_amount"], s["decimals"], rt, q["price_impact_pct"], why):
                 self._olc(event_id, token)

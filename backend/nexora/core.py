@@ -17,6 +17,18 @@ CFG = dict(
     max_positions_per_wallet=2,   # tek bir kaynak cüzdan en fazla bu kadar açık pozisyon doldurabilir
 )
 
+# Uygulamadan değiştirilebilen sınırlar: (en düşük, EN YÜKSEK, tür). Üst sınırlar proje kuralındaki başlangıç
+# limitleridir; uygulamadan yalnızca SIKILAŞTIRILABİLİR, gevşetilemez. Doğrulama sunucu tarafındadır.
+AYARLANABILIR = dict(
+    max_pos_pct=(0.005, 0.05, float),
+    daily_loss_pct=(0.005, 0.03, float),
+    max_positions=(1, 5, int),
+    max_positions_per_wallet=(1, 2, int),
+    max_signal_age_s=(3, 10, int),
+    max_price_impact_pct=(0.5, 3.0, float),
+    max_roundtrip_loss_pct=(1.0, 6.0, float),
+)
+
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS state(k TEXT PRIMARY KEY, v TEXT);
 CREATE TABLE IF NOT EXISTS positions(token TEXT PRIMARY KEY, qty REAL, cost REAL, last_price REAL, wallet TEXT);
@@ -29,6 +41,7 @@ CREATE TABLE IF NOT EXISTS pos_iz(id INTEGER PRIMARY KEY AUTOINCREMENT, token TE
   min_pct REAL, max_pct REAL, marks INTEGER DEFAULT 0, tam INTEGER, status TEXT, closed_ts REAL, pnl REAL);
 CREATE TABLE IF NOT EXISTS token_bilgi(event_id TEXT PRIMARY KEY, token TEXT, ts REAL, yas_sn REAL, likidite REAL,
   mcap REAL, sahip REAL, organik REAL, organik_etiket TEXT, top_pct REAL, dev_pct REAL, sus INTEGER, launchpad TEXT, hata TEXT);
+CREATE TABLE IF NOT EXISTS ayar_gecmis(id INTEGER PRIMARY KEY AUTOINCREMENT, ts REAL, ayar TEXT, eski TEXT, yeni TEXT, kaynak TEXT);
 CREATE TABLE IF NOT EXISTS stop_tetik(iz_id INTEGER, esik REAL, ts REAL, pnl REAL, PRIMARY KEY(iz_id, esik));
 """
 
@@ -59,6 +72,47 @@ class Paper:
     def _set(self, k, v):
         self.db.execute("INSERT OR REPLACE INTO state VALUES(?,?)", (k, str(v)))
 
+    def limit(self, k):
+        """Geçerli sınır: uygulamadan kaydedilmiş değer (izinli aralıkta ise), yoksa varsayılan."""
+        v = self._get(f"ayar:{k}")
+        if v is not None and k in AYARLANABILIR:
+            lo, hi, typ = AYARLANABILIR[k]
+            try:
+                x = typ(float(v))
+                if lo <= x <= hi: return x
+            except ValueError:
+                pass
+        return CFG[k]
+
+    def ayarlar(self):
+        with self.lock:
+            gecerli = {**CFG, **{k: self.limit(k) for k in AYARLANABILIR}}
+            gec = [dict(r) for r in self.db.execute("SELECT * FROM ayar_gecmis ORDER BY id DESC LIMIT 20")]
+        return dict(gecerli=gecerli, sinirlar={k: dict(en_dusuk=lo, en_yuksek=hi) for k, (lo, hi, _) in AYARLANABILIR.items()},
+                    gecmis=gec)
+
+    def ayar_degistir(self, degisiklik, kaynak="uygulama"):
+        """Ya hepsi ya hiçbiri: bilinmeyen ayar, yanlış tür ya da izinli aralık dışı değer tümünü reddeder."""
+        if not isinstance(degisiklik, dict) or not degisiklik: raise ValueError("değişiklik yok")
+        temiz = {}
+        for k, v in degisiklik.items():
+            if k not in AYARLANABILIR: raise ValueError(f"{k} uygulamadan değiştirilemez")
+            lo, hi, typ = AYARLANABILIR[k]
+            if isinstance(v, bool) or not isinstance(v, (int, float)): raise ValueError(f"{k}: sayı olmalı")
+            if typ is int and float(v) != int(v): raise ValueError(f"{k}: tam sayı olmalı")
+            x = typ(v)
+            if not lo <= x <= hi: raise ValueError(f"{k}: {lo} ile {hi} arasında olmalı")
+            temiz[k] = x
+        with self.lock:
+            for k, x in temiz.items():
+                eski = self.limit(k)
+                if eski == x: continue
+                self._set(f"ayar:{k}", x)
+                self.db.execute("INSERT INTO ayar_gecmis(ts,ayar,eski,yeni,kaynak) VALUES(?,?,?,?,?)",
+                                (time.time(), k, str(eski), str(x), kaynak))
+            self.db.commit()
+        return self.ayarlar()
+
     def cash(self): return float(self._get("cash"))
     def killed(self): return self._get("kill") == "1"
     def set_kill(self, on):
@@ -88,16 +142,16 @@ class Paper:
             rej = lambda why: self._log(event_id, wallet, token, side, 0, price, 0, 0, "REDDEDİLDİ", why)
             if side not in ("buy", "sell") or price <= 0: return rej("geçersiz sinyal")
             if self.killed(): return rej("acil durdurma aktif")
-            if signal_age_s > CFG["max_signal_age_s"]: return rej("sinyal bayat")
+            if signal_age_s > self.limit("max_signal_age_s"): return rej("sinyal bayat")
             if liquidity_usd < CFG["min_liquidity_usd"]: return rej("likidite yetersiz/bilinmiyor")
 
             if side == "buy":
                 eq, ds = self.equity(), float(self._get("day_start"))
-                if ds > 0 and (ds - eq) / ds >= CFG["daily_loss_pct"]: return rej("günlük zarar limiti")
+                if ds > 0 and (ds - eq) / ds >= self.limit("daily_loss_pct"): return rej("günlük zarar limiti")
                 n = self.db.execute("SELECT COUNT(*) c FROM positions").fetchone()["c"]
                 has = self.db.execute("SELECT 1 FROM positions WHERE token=?", (token,)).fetchone()
-                if n >= CFG["max_positions"] and not has: return rej("maks. eşzamanlı pozisyon")
-                size = eq * CFG["max_pos_pct"]
+                if n >= self.limit("max_positions") and not has: return rej("maks. eşzamanlı pozisyon")
+                size = eq * self.limit("max_pos_pct")
                 if size + CFG["net_fee_usd"] > self.cash(): return rej("yetersiz nakit")
                 slip = CFG["base_slippage"] + size / liquidity_usd
                 fill = price * (1 + slip); qty = size / fill
@@ -138,7 +192,7 @@ class Paper:
             self._roll_day()
             if side not in ("buy", "sell"): return "geçersiz sinyal", 0
             if self.killed(): return "acil durdurma aktif", 0
-            if signal_age_s > CFG["max_signal_age_s"]: return "sinyal bayat", 0
+            if signal_age_s > self.limit("max_signal_age_s"): return "sinyal bayat", 0
             has = self.db.execute("SELECT qty_raw FROM positions WHERE token=?", (token,)).fetchone()
             if side == "sell":
                 if not has: return "sahip olunmayan pozisyon satılamaz", 0
@@ -146,13 +200,13 @@ class Paper:
                 return None, 0
             if has: return "bu token'da zaten pozisyon var", 0
             eq, ds = self.equity(), float(self._get("day_start"))
-            if ds > 0 and (ds - eq) / ds >= CFG["daily_loss_pct"]: return "günlük zarar limiti", 0
+            if ds > 0 and (ds - eq) / ds >= self.limit("daily_loss_pct"): return "günlük zarar limiti", 0
             n = self.db.execute("SELECT COUNT(*) c FROM positions").fetchone()["c"]
-            if n >= CFG["max_positions"]: return "maks. eşzamanlı pozisyon", 0
+            if n >= self.limit("max_positions"): return "maks. eşzamanlı pozisyon", 0
             if wallet is not None:
                 nw = self.db.execute("SELECT COUNT(*) c FROM positions WHERE wallet=?", (wallet,)).fetchone()["c"]
-                if nw >= CFG["max_positions_per_wallet"]: return "bu cüzdan için pozisyon sınırı dolu", 0
-            size = round(eq * CFG["max_pos_pct"], 6)
+                if nw >= self.limit("max_positions_per_wallet"): return "bu cüzdan için pozisyon sınırı dolu", 0
+            size = round(eq * self.limit("max_pos_pct"), 6)
             if size + CFG["net_fee_usd"] + CFG["fee_reserve_usd"] > self.cash():
                 return "yetersiz nakit (ücret rezervi korunuyor)", 0
             return None, size
