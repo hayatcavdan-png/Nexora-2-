@@ -37,7 +37,8 @@ install -m 644 "$HEDEF"/deploy/nexora-*.service "$HEDEF"/deploy/nexora-yedek.tim
 systemctl daemon-reload
 systemctl enable --now nexora-sunucu nexora-takip nexora-yedek.timer
 sleep 3
-systemctl --no-pager --lines=0 status nexora-sunucu nexora-takip | grep -E "●|Active"
+systemctl --no-pager --lines=0 status nexora-sunucu nexora-takip 2>/dev/null | grep -E "●|Active" || true
+[ -f "$HEDEF/backend/wallets.txt" ] || echo "Not: wallets.txt yok; takip, telefondaki yedek geri yüklenene kadar yeniden denemeye devam eder (normal)."
 echo
 echo "Uygulamada sunucu adresi: http://$TS_IP:8000  (telefonda Tailscale açık olmalı)"
 echo "Günlük: journalctl -u nexora-takip -f      Yedekler: $HEDEF/backend/yedekler"
