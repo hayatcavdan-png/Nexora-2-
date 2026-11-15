@@ -19,7 +19,7 @@ OUT_CSV, OUT_TXT = "cuzdan_analiz.csv", "wallets_onerilen.txt"
 ADDR = re.compile(r"^[1-9A-HJ-NP-Za-km-z]{32,44}$")
 FIELDS = ["wallet", "karar", "gerekce", "gerceklesen_usd", "kapanan", "kazanma_orani", "kar_faktoru", "ort_getiri",
           "medyan_tutma_sn", "en_buyuk_token_payi", "token_sayisi", "swap", "alis", "satis", "eslesmeyen_satis",
-          "acik_pozisyon", "ort_alis_usd", "pencere_gun", "islem", "hesap_ac_kapa", "skor"]
+          "acik_pozisyon", "ort_alis_usd", "pencere_gun", "islem", "hesap_ac_kapa", "sifir_tur_orani", "tek_token_tur", "skor"]
 
 def read_list(path):
     if not os.path.exists(path): return []
@@ -96,6 +96,10 @@ def main(client=None, quoter=None, sleep=time.sleep, list_path=None):
               f"kazanma %{100 * r['kazanma_orani']:.0f}  KF {r['kar_faktoru']}  ort %{100 * r['ort_getiri']:.0f}  "
               f"tutma {r['medyan_tutma_sn']} sn  [{r['karar']}]")
     if not good: print("  (gerekçeler cuzdan_analiz.csv dosyasında)")
+    bots = [r for r in rows if r["karar"] == "bot şüphesi"]
+    if bots:
+        print(f"\nHacim botu şüphesi ({len(bots)}): kara_liste.txt'e eklemeyi düşünün (otomatik eklenmez):")
+        for r in bots: print(f"  {r['wallet']}  ({r['gerekce']})")
     sw = sum(r.get("swap", 0) for r in rows); ak = sum(r.get("hesap_ac_kapa", 0) for r in rows)
     print(f"\nVeri kalitesi: {sw} swap çözüldü, {ak} işlem token hesabı açma/kapama nedeniyle atlandı"
           + (" (yüksek: çözücü iyileştirmesi gerekebilir)" if sw and ak > sw * 0.3 else ""))

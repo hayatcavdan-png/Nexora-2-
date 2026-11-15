@@ -29,6 +29,9 @@ THRESHOLDS = dict(
     min_profit_factor=1.3,
     min_mean_return=0.05,  # işlem başına ortalama %5: takipçinin al-sat kaybını karşılamalı
     max_top_token_share=0.8,  # kazancın %80'i tek token'dan geliyorsa şans olabilir
+    bot_flat_return=0.02,     # |getiri| < %2 olan satış "sıfır kârlı tur" sayılır
+    bot_flat_share=0.6,       # satışların %60'ı sıfır kârlı tur ve...
+    bot_same_token=5,         # ...aynı token'da en az 5 tur: hacim botu şüphesi
 )
 
 def _normalize(event):
@@ -82,6 +85,9 @@ def analyze(transactions, wallet, sol_usd):
     per_token = defaultdict(float)
     for c in closed: per_token[c["token"]] += c["pnl"]
     top_share = (max(per_token.values()) / gains) if gains > 0 and per_token else 0.0
+    flat = sum(1 for c in closed if c["cost"] > 0 and abs(c["pnl"] / c["cost"]) < THRESHOLDS["bot_flat_return"])
+    per_token_sells = defaultdict(int)
+    for c in closed: per_token_sells[c["token"]] += 1
     times = [r["timestamp_ms"] for r in records]
     buy_usd = [to_usd(Decimal(e["quote_amount_raw"]) / 10 ** e["quote_decimals"], e["quote_mint"]) for e in buys]
 
@@ -99,15 +105,20 @@ def analyze(transactions, wallet, sol_usd):
         ort_alis_usd=round(sum(buy_usd) / len(buy_usd), 2) if buy_usd else 0.0,
         pencere_gun=round((max(times) - min(times)) / 86_400_000, 2) if len(times) > 1 else 0.0,
         hesap_ac_kapa=skipped.get("token_account_created_or_closed", 0),   # çözücünün güvenlik gereği atladığı
+        sifir_tur_orani=round(flat / len(closed), 3) if closed else 0.0,   # |getiri| < %2 satışların payı
+        tek_token_tur=max(per_token_sells.values()) if per_token_sells else 0,
     )
 
 def verdict(m, t=THRESHOLDS):
-    """(karar, gerekçeler). Karar: kopyalanabilir / zayıf / zararda / çok hızlı / eksik veri / yetersiz veri / swap yok."""
+    """(karar, gerekçeler). Karar: kopyalanabilir / zayıf / zararda / bot şüphesi / çok hızlı / eksik veri / yetersiz veri / swap yok."""
     if m["swap"] == 0: return "swap yok", ["incelenen işlemlerde swap bulunamadı"]
     if m["kapanan"] < t["min_closed"]:
         return "yetersiz veri", [f"yalnızca {m['kapanan']} kapanmış satış (en az {t['min_closed']})"]
     if m["satis"] and m["eslesmeyen_satis"] / m["satis"] > t["max_unmatched"]:
         return "eksik veri", [f"satışların %{100 * m['eslesmeyen_satis'] / m['satis']:.0f}'inin alışı pencerede yok"]
+    if m.get("sifir_tur_orani", 0) >= t["bot_flat_share"] and m.get("tek_token_tur", 0) >= t["bot_same_token"]:
+        return "bot şüphesi", [f"satışların %{100 * m['sifir_tur_orani']:.0f}'i sıfıra yakın getirili tur, "
+                               f"tek token'da {m['tek_token_tur']} tur (hacim botu kalıbı)"]
     if m["medyan_tutma_sn"] is not None and m["medyan_tutma_sn"] < t["min_hold_s"]:
         return "çok hızlı", [f"medyan elde tutma {m['medyan_tutma_sn']} sn: gecikmeyle takip edilemez"]
     if m["gerceklesen_usd"] <= 0: return "zararda", [f"gerçekleşen K/Z {m['gerceklesen_usd']} USD"]

@@ -4,6 +4,7 @@ import os, json, sqlite3
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from nexora.core import Paper, CFG
 from nexora.live_tracker import latency_from_db
+from nexora.rapor import build_report
 
 paper = Paper(os.getenv("NEXORA_DB", "nexora_paper.db"))
 KEY = os.getenv("NEXORA_API_KEY", "")
@@ -46,6 +47,8 @@ class H(BaseHTTPRequestHandler):
         elif self.path == "/portfoy": self._send(200, paper.portfolio())
         elif self.path == "/islemler": self._send(200, paper.trades())
         elif self.path == "/takip": self._send(200, takip_ozeti())
+        elif self.path == "/rapor":
+            self._send(200, build_report(os.getenv("NEXORA_DB", "nexora_paper.db"), os.getenv("TRACKER_DB", "nexora_tracker.db")))
         else: self._send(404, {"hata": "yok"})
     def do_POST(self):
         if not self._ok(): return

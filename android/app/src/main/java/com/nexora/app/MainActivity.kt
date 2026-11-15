@@ -41,6 +41,7 @@ data class Pozisyon(val token: String, val maliyet: Double, val deger: Double)
 data class Sinyal(val ts: Double, val yon: String, val token: String, val cuzdan: String,
                   val gecikme: Double, val kaynak: String, val karar: String, val neden: String)
 data class Cuzdan(val adres: String, val durum: String, val hata: String)
+data class CuzdanPerf(val adres: String, val ozet: String, val kz: Double, val golge: String)
 
 val YESIL = Color(0xFF4CAF50)
 val KIRMIZI = Color(0xFFE57373)
@@ -69,6 +70,13 @@ fun App() {
     var islemler by remember { mutableStateOf(listOf<String>()) }
     var hata by remember { mutableStateOf("") }
     var guncelleme by remember { mutableStateOf("") }
+    var rBugun by remember { mutableStateOf("") }
+    var rKz by remember { mutableDoubleStateOf(0.0) }
+    var rGerekce by remember { mutableStateOf(listOf<String>()) }
+    var rGolge by remember { mutableStateOf(listOf<String>()) }
+    var rGolgeOzet by remember { mutableStateOf("") }
+    var rCuzdan by remember { mutableStateOf(listOf<CuzdanPerf>()) }
+    var rHata by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
 
     fun yenile() = scope.launch {
@@ -106,6 +114,37 @@ fun App() {
                     val q = x.optInt("quarantined", 0)
                     Cuzdan(x.str("wallet"), when (q) { 0 -> "aktif"; 2 -> "bot (durduruldu)"; else -> "karantina" }, x.str("last_error"))
                 }
+                try {
+                    val r = JSONObject(api(url, key, "/rapor"))
+                    if (!r.optBoolean("hazir", false)) {
+                        rHata = r.str("mesaj")
+                    } else {
+                        val b = r.getJSONObject("bugun")
+                        rKz = b.optDouble("gerceklesen_kz", 0.0)
+                        rBugun = "${b.optInt("karar")} karar · ${b.optInt("kopyalanan_alim")} alım kopyalandı · " +
+                                 "${b.optInt("kapanan")} işlem kapandı · ${b.optInt("reddedilen")} red"
+                        val gr = b.getJSONArray("red_gerekceleri")
+                        rGerekce = (0 until gr.length()).map { val x = gr.getJSONObject(it); "${x.optInt("adet")} × ${x.str("gerekce")}" }
+                        val go = r.getJSONObject("golge")
+                        rGolgeOzet = "${go.optInt("toplam")} gölge işlem, ${go.optInt("acik")} açık"
+                        val gg = go.getJSONArray("gruplar")
+                        rGolge = (0 until gg.length()).map {
+                            val x = gg.getJSONObject(it)
+                            "${x.str("grup")}: ${x.optInt("kapanan")} kapanan, ${x.optInt("kazanan")} kazanan, " +
+                            "K/Z ${isaretli(x.optDouble("toplam_kz", 0.0))} $, ort. ${String.format(Locale.US, "%+.1f", x.optDouble("ort_getiri", 0.0))}%" +
+                            (if (x.optInt("satilamadi") > 0) ", satılamadı ${x.optInt("satilamadi")}" else "")
+                        }
+                        val cw = r.getJSONArray("cuzdanlar")
+                        rCuzdan = (0 until cw.length()).map {
+                            val x = cw.getJSONObject(it)
+                            CuzdanPerf(x.str("wallet"),
+                                "${x.optInt("sinyal")} sinyal · ${x.optInt("kopyalanan")} kopyalandı · ${x.optInt("kapanan")} kapandı · ${x.optInt("acik")} açık",
+                                x.optDouble("gerceklesen_kz", 0.0),
+                                "Gölge: ${x.optInt("golge_kapanan")} kapanan, K/Z ${isaretli(x.optDouble("golge_kz", 0.0))} $")
+                        }
+                        rHata = ""
+                    }
+                } catch (e: Exception) { rHata = "Rapor alınamadı (sunucu güncel olmayabilir): ${e.message}" }
                 val g = tk.getJSONObject("gecikme")
                 gecikme = listOf("ws" to "Anlık", "poll" to "Yoklama").filter { g.has(it.first) }.joinToString("\n") {
                     val o = g.getJSONObject(it.first)
@@ -124,7 +163,7 @@ fun App() {
 
     Scaffold(bottomBar = {
         NavigationBar {
-            listOf("Durum", "Portföy", "Sinyaller", "İşlemler").forEachIndexed { i, s ->
+            listOf("Durum", "Portföy", "Rapor", "Sinyaller", "İşlemler").forEachIndexed { i, s ->
                 NavigationBarItem(selected = tab == i, onClick = { tab = i }, label = { Text(s) }, icon = {})
             }
         }
@@ -173,6 +212,41 @@ fun App() {
                     }
                 }
                 2 -> {
+                    item {
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text("Bugün", fontWeight = FontWeight.Bold)
+                            if (rHata.isNotEmpty()) Text(rHata, color = KIRMIZI)
+                            else {
+                                Text(rBugun)
+                                Text("Kapanan işlemlerin K/Z: ${isaretli(rKz)} USDC", fontWeight = FontWeight.Bold,
+                                     color = if (rKz >= 0) YESIL else KIRMIZI)
+                                if (rGerekce.isNotEmpty()) {
+                                    Text("En sık red gerekçeleri", style = MaterialTheme.typography.bodySmall)
+                                    rGerekce.forEach { Text(it) }
+                                }
+                                Spacer(Modifier.height(6.dp))
+                                Text("Gölge işlemler", fontWeight = FontWeight.Bold)
+                                Text("Reddedilen alımlara girseydik ne olurdu: kaynak cüzdan sattığında gerçek teklifle hesaplanır.",
+                                     style = MaterialTheme.typography.bodySmall)
+                                Text(rGolgeOzet)
+                                rGolge.forEach { Text(it) }
+                                Spacer(Modifier.height(6.dp))
+                                Text("Cüzdan bazında (tüm zamanlar)", fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                    items(rCuzdan) { c ->
+                        Card(Modifier.fillMaxWidth()) {
+                            Column(Modifier.padding(12.dp)) {
+                                Text(kisa(c.adres), fontWeight = FontWeight.Bold)
+                                Text(c.ozet, style = MaterialTheme.typography.bodySmall)
+                                Text("Gerçekleşen K/Z ${isaretli(c.kz)} USDC", color = if (c.kz >= 0) YESIL else KIRMIZI)
+                                Text(c.golge, style = MaterialTheme.typography.bodySmall)
+                            }
+                        }
+                    }
+                }
+                3 -> {
                     item {
                         Column {
                             Text("Gecikme", fontWeight = FontWeight.Bold)

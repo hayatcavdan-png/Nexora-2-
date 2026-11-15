@@ -15,7 +15,7 @@ class Decider:
         p = self.paper
         if p.seen(event_id): return dict(decision="ATLANDI", reason="tekrarlanan olay")
         if side == "sell": self._close_shadows(event_id, wallet, token)
-        reason, size = p.precheck(side, token, signal_age_s)
+        reason, size = p.precheck(side, token, signal_age_s, wallet)
         if reason: return p.reject(event_id, wallet, token, side, reason)
         return self._buy(event_id, wallet, token, size) if side == "buy" else self._sell(event_id, wallet, token)
 

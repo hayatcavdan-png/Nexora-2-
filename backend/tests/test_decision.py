@@ -138,12 +138,24 @@ class DecisionTests(unittest.TestCase):
         d.decide("e1", "W", TOK, "buy", 1); self.q.fail.add((TOK, USDC_MINT))
         r = d.decide("s1", "W", TOK, "sell", 1)
         self.assertIn("pozisyon açık kaldı", r["reason"]); self.assertIsNotNone(self.p.position(TOK))
+    def test_per_wallet_position_limit(self):
+        d = self.make()
+        for i in range(CFG["max_positions_per_wallet"]): self.assertEqual(d.decide(f"e{i}", "W1", f"T{i}", "buy", 1)["decision"], "KOPYALANDI")
+        self.assertEqual(d.decide("x", "W1", "T9", "buy", 1)["reason"], "bu cüzdan için pozisyon sınırı dolu")
+        self.assertEqual(d.decide("y", "W2", "T9", "buy", 1)["decision"], "KOPYALANDI")    # başka cüzdan etkilenmez
+    def test_fee_reserve_kept(self):
+        p = Paper(); d = Decider(p, FakeQuoter(), Safe())
+        p.db.execute("UPDATE state SET v='5.5' WHERE k IN ('cash','day_start')"); p.db.commit()   # 5.5 USDC (zarar limiti dışı)
+        r = d.decide("e", "W", TOK, "buy", 1)                                        # 0.275 + 0.01 + 1.0 rezerv <= 5.5: geçer
+        self.assertEqual(r["decision"], "KOPYALANDI")
+        p.db.execute("UPDATE state SET v='1.04' WHERE k IN ('cash','day_start')"); p.db.execute("DELETE FROM positions"); p.db.commit()
+        self.assertIn("ücret rezervi", d.decide("e2", "W2", "T2", "buy", 1)["reason"])
     def test_duplicate_event_skipped(self):
         d = self.make(); d.decide("e1", "W", TOK, "buy", 1)
         self.assertEqual(d.decide("e1", "W", TOK, "buy", 1)["decision"], "ATLANDI")
     def test_max_positions_and_old_schema_migration(self):
         d = self.make()
-        for i in range(CFG["max_positions"]): d.decide(f"e{i}", "W", f"T{i}", "buy", 1)
+        for i in range(CFG["max_positions"]): d.decide(f"e{i}", f"W{i}", f"T{i}", "buy", 1)
         self.assertEqual(d.decide("x", "W", "T9", "buy", 1)["reason"], "maks. eşzamanlı pozisyon")
         import sqlite3, tempfile
         db = os.path.join(tempfile.mkdtemp(), "old.db"); c = sqlite3.connect(db)

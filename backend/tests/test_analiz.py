@@ -53,6 +53,14 @@ class AnalyzeTests(unittest.TestCase):
         sells = [tx(f"s{i}", 1000 + i, f"T{i}", 1000 * q, 0, q_pre=0, q_post=15 * q) for i in range(8)]
         txs = sells + sum((round_trip(i, f"U{i}", 10, 15, 50000 + i * 5000) for i in range(5)), [])
         self.assertEqual(verdict(analyze(txs, W, 150.0))[0], "eksik veri")
+    def test_volume_bot_pattern_826t(self):
+        # 826t örneği: aynı token'ı aynı miktarda alıp neredeyse aynı fiyata geri satan turlar
+        txs = sum((round_trip(i, "CTM", 10, 10, 1000 + i * 600, hold=300) for i in range(8)), [])
+        m = analyze(txs, W, 150.0); k, why = verdict(m)
+        self.assertEqual(k, "bot şüphesi"); self.assertEqual(m["tek_token_tur"], 8); self.assertIn("hacim botu", why[0])
+    def test_real_trader_not_flagged_as_bot(self):
+        txs = sum((round_trip(i, f"T{i}", 10, 15 if i % 2 else 9, 1000 + i * 5000) for i in range(8)), [])
+        self.assertNotEqual(verdict(analyze(txs, W, 150.0))[0], "bot şüphesi")
     def test_sol_and_wsol_match_same_queue_in_usd(self):
         L = 10**9
         buy = tx("b", 1000, "T", 0, 10**6, quote=None, sol_pre=10 * L, sol_post=9 * L)            # 1 SOL ile al (yerel)

@@ -13,6 +13,8 @@ CFG = dict(
     net_fee_usd=0.01,        # ağ + priority fee tahmini
     max_price_impact_pct=3.0,     # Jupiter teklifinde izin verilen en yüksek fiyat etkisi
     max_roundtrip_loss_pct=6.0,   # al-hemen-sat teklif kaybı (spread+etki+ücret) üst sınırı
+    fee_reserve_usd=1.0,          # SOL işlem ücretleri için her zaman ayrılan nakit (alımda kullanılmaz)
+    max_positions_per_wallet=2,   # tek bir kaynak cüzdan en fazla bu kadar açık pozisyon doldurabilir
 )
 
 SCHEMA = """
@@ -119,7 +121,7 @@ class Paper:
             r = self.db.execute("SELECT * FROM positions WHERE token=?", (token,)).fetchone()
             return dict(r) if r else None
 
-    def precheck(self, side, token, signal_age_s):
+    def precheck(self, side, token, signal_age_s, wallet=None):
         """Ağ isteği yapmadan önce kurallar. (red_gerekçesi | None, pozisyon_büyüklüğü_usd)."""
         with self.lock:
             self._roll_day()
@@ -136,8 +138,12 @@ class Paper:
             if ds > 0 and (ds - eq) / ds >= CFG["daily_loss_pct"]: return "günlük zarar limiti", 0
             n = self.db.execute("SELECT COUNT(*) c FROM positions").fetchone()["c"]
             if n >= CFG["max_positions"]: return "maks. eşzamanlı pozisyon", 0
+            if wallet is not None:
+                nw = self.db.execute("SELECT COUNT(*) c FROM positions WHERE wallet=?", (wallet,)).fetchone()["c"]
+                if nw >= CFG["max_positions_per_wallet"]: return "bu cüzdan için pozisyon sınırı dolu", 0
             size = round(eq * CFG["max_pos_pct"], 6)
-            if size + CFG["net_fee_usd"] > self.cash(): return "yetersiz nakit", 0
+            if size + CFG["net_fee_usd"] + CFG["fee_reserve_usd"] > self.cash():
+                return "yetersiz nakit (ücret rezervi korunuyor)", 0
             return None, size
 
     def record_buy(self, event_id, wallet, token, size_usd, qty_raw, decimals, note="ok"):
