@@ -63,7 +63,7 @@ fun KilitEkrani(sp: SharedPreferences, acildi: () -> Unit) {
                 if (yanlis >= 5) { bekle = simdi + 30_000; yanlis = 0; hata = "5 hatalı deneme: 30 sn bekleyin." }
                 else hata = "PIN yanlış (${5 - yanlis} deneme kaldı)"
             }
-        }, colors = ButtonDefaults.buttonColors(containerColor = Nx.Mor), modifier = Modifier.fillMaxWidth()) { Text("Aç") }
+        }, colors = NxButonRenk(), modifier = Modifier.fillMaxWidth()) { Text("Aç") }
         Text("PIN'i unutursanız: telefon Ayarları → Uygulamalar → NEXORA → Verileri temizle (sunucu verisi silinmez; " +
              "adres ve anahtarı yeniden girmeniz gerekir).", color = Nx.Soluk, fontSize = 11.sp)
     }
@@ -98,7 +98,7 @@ fun KilitAyari(sp: SharedPreferences) {
                     pin1 != pin2 -> "PIN'ler aynı değil"
                     else -> { Kilit.ayarla(sp, pin1); acik = true; pin1 = ""; pin2 = ""; "Kilit açıldı" }
                 }
-            }, colors = ButtonDefaults.buttonColors(containerColor = Nx.Mor), modifier = Modifier.fillMaxWidth()) { Text("Kilidi aç") }
+            }, colors = NxButonRenk(), modifier = Modifier.fillMaxWidth()) { Text("Kilidi aç") }
         }
         if (mesaj.isNotEmpty()) Text(mesaj, color = Nx.Soluk, fontSize = 12.sp)
     }

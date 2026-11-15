@@ -31,11 +31,11 @@ class MainActivity : ComponentActivity() {
 }
 
 private val SEKMELER = listOf(
-    Triple("panel", "Ana Panel", Icons.Filled.Home),
+    Triple("panel", "Ana", Icons.Filled.Home),
     Triple("bot", "Bot", Icons.Filled.Face),
-    Triple("cuzdanlar", "Cüzdanlar", Icons.Filled.Person),
-    Triple("islemler", "İşlemler", Icons.Filled.List),
-    Triple("ayarlar", "Ayarlar", Icons.Filled.Settings),
+    Triple("cuzdanlar", "Cüzdanlar", Icons.Filled.Search),
+    Triple("islemler", "Portföy", Icons.Filled.List),
+    Triple("ayarlar", "Profil", Icons.Filled.Person),
 )
 private val ALT_EKRAN = mapOf("rapor" to "Günlük Rapor", "yol" to "Yol Haritası")
 
@@ -126,25 +126,14 @@ fun App() {
             confirmButton = { TextButton({ durdurOnay = false; komut("/acil-durdur") }) { Text("Durdur", color = Nx.Kirmizi) } },
             dismissButton = { TextButton({ durdurOnay = false }) { Text("Vazgeç") } },
             containerColor = Nx.Yuzey2,
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
         )
     }
 
     Scaffold(
         containerColor = Nx.Zemin,
         bottomBar = {
-            NavigationBar(containerColor = Nx.Yuzey) {
-                SEKMELER.forEach { (id, ad, ikon) ->
-                    val secili = ekran == id || (id == "panel" && ekran in ALT_EKRAN)
-                    NavigationBarItem(
-                        selected = secili, onClick = { ekran = id },
-                        icon = { Icon(ikon, ad) }, label = { Text(ad, fontSize = 11.sp, maxLines = 1) },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = Nx.Camgobegi, selectedTextColor = Nx.Camgobegi,
-                            unselectedIconColor = Nx.Soluk, unselectedTextColor = Nx.Soluk,
-                            indicatorColor = Nx.Mor.copy(alpha = 0.25f)),
-                    )
-                }
-            }
+            AltMenu(SEKMELER, if (ekran in ALT_EKRAN) "panel" else ekran) { ekran = it }
         },
     ) { pad ->
         LazyColumn(
@@ -152,16 +141,19 @@ fun App() {
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             item {
-                Column(Modifier.padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    if (ekran == "panel") Logo()
-                    else Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(Modifier.padding(top = 14.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    UstBaslik(Icons.Filled.Notifications, { ekran = "rapor" }, Icons.Filled.Menu, { ekran = "yol" })
+                    DurumSeridi(
+                        if (v.acilDurdurma) "BOT DURDURULDU" else if (v.bagli) "PAPER MODU" else "BAĞLANTI YOK",
+                        if (v.acilDurdurma || !v.bagli) Nx.Kirmizi else Nx.Limon,
+                        "Gerçek emir: KAPALI")
+                    if (ekran != "panel") Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                         if (ekran in ALT_EKRAN) IconButton({ ekran = "panel" }) { Icon(Icons.Filled.ArrowBack, "Geri", tint = Nx.Metin) }
                         Text(ALT_EKRAN[ekran] ?: SEKMELER.first { it.first == ekran }.second,
-                             color = Nx.Metin, fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
+                             color = Nx.Metin, fontSize = 30.sp, fontWeight = FontWeight.Bold)
                     }
                     if (v.hata.isNotEmpty()) Text(v.hata, color = Nx.Kirmizi, fontSize = 13.sp)
-                    else if (v.guncelleme > 0) Text("Son güncelleme ${saat(v.guncelleme)} · PAPER modu · gerçek işlem kapalı",
-                                                    color = Nx.Soluk, fontSize = 12.sp)
+                    else if (v.guncelleme > 0) Text("Son güncelleme ${saat(v.guncelleme)}", color = Nx.Soluk, fontSize = 12.sp)
                 }
             }
             when (ekran) {

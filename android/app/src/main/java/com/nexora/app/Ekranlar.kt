@@ -29,15 +29,15 @@ fun AnaPanel(v: Veri, anahtarVar: Boolean, git: (String) -> Unit, durdurIste: ()
         NeonKart(Modifier.fillMaxWidth()) {
             Text("Sunucuya bağlanın", color = Nx.Metin, fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
             Text("Ayarlar › Bağlantı bölümünden sunucu adresini ve API anahtarını girin.", color = Nx.Soluk, fontSize = 14.sp)
-            Button({ git("ayarlar") }, colors = ButtonDefaults.buttonColors(containerColor = Nx.Mor)) { Text("Ayarlara git") }
+            Button({ git("ayarlar") }, colors = NxButonRenk()) { Text("Ayarlara git") }
         }
         return
     }
     // Bakiye kartı
     NeonKart(Modifier.fillMaxWidth(), dolgu = Nx.DolguMor) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-            Box(Modifier.size(52.dp).clip(RoundedCornerShape(14.dp)).background(Nx.Kenar), contentAlignment = Alignment.Center) {
-                Icon(Icons.Filled.Star, null, tint = Color.White, modifier = Modifier.size(28.dp))
+            Box(Modifier.size(52.dp).clip(RoundedCornerShape(14.dp)).background(Nx.SeciliZemin), contentAlignment = Alignment.Center) {
+                Icon(Icons.Filled.Star, null, tint = Nx.Camgobegi, modifier = Modifier.size(28.dp))
             }
             Column {
                 Text("Sanal bakiye (paper)", color = Nx.Soluk, fontSize = 14.sp)
@@ -54,10 +54,10 @@ fun AnaPanel(v: Veri, anahtarVar: Boolean, git: (String) -> Unit, durdurIste: ()
         }
     }
     // Bot durumu
-    NeonKart(Modifier.fillMaxWidth(), kenar = if (v.acilDurdurma) Brush.linearGradient(listOf(Nx.Kirmizi, Nx.Pembe)) else Nx.KenarYesil) {
+    NeonKart(Modifier.fillMaxWidth(), kenar = if (v.acilDurdurma) Brush.linearGradient(listOf(Nx.Kirmizi.copy(alpha = 0.5f), Nx.Kirmizi.copy(alpha = 0.5f))) else Nx.KenarYesil) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Box(Modifier.size(46.dp).clip(CircleShape).background(Brush.linearGradient(listOf(Nx.Camgobegi, Nx.Mor))), contentAlignment = Alignment.Center) {
-                Icon(Icons.Filled.Face, null, tint = Color.White)
+            Box(Modifier.size(46.dp).clip(CircleShape).background(Nx.Kahraman), contentAlignment = Alignment.Center) {
+                Icon(Icons.Filled.Face, null, tint = Nx.Mor)
             }
             Column(Modifier.weight(1f)) {
                 Text("NEXORA Kopyalama Botu", color = Nx.Metin, fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
@@ -91,8 +91,8 @@ fun AnaPanel(v: Veri, anahtarVar: Boolean, git: (String) -> Unit, durdurIste: ()
     // Canlı takip
     Kart(Modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Box(Modifier.size(42.dp).clip(CircleShape).background(Brush.linearGradient(listOf(Nx.Mor, Nx.Camgobegi))), contentAlignment = Alignment.Center) {
-                Icon(Icons.Filled.Notifications, null, tint = Color.White)
+            Box(Modifier.size(42.dp).clip(CircleShape).background(Brush.linearGradient(listOf(Nx.Kahraman, Nx.Kahraman))), contentAlignment = Alignment.Center) {
+                Icon(Icons.Filled.Notifications, null, tint = Nx.Mor)
             }
             Column(Modifier.weight(1f)) {
                 val aktif = v.takipCuzdanlar.count { it.durum == "aktif" }
@@ -107,7 +107,7 @@ fun AnaPanel(v: Veri, anahtarVar: Boolean, git: (String) -> Unit, durdurIste: ()
 
 @Composable
 fun MiniKutu(baslik: String, deger: String, alt: String, renk: Color, modifier: Modifier) {
-    Column(modifier.clip(RoundedCornerShape(14.dp)).background(Nx.Zemin.copy(alpha = 0.6f)).border(1.dp, Nx.Cizgi, RoundedCornerShape(14.dp)).padding(10.dp),
+    Column(modifier.clip(RoundedCornerShape(14.dp)).background(Nx.Zemin.copy(alpha = 0.45f)).padding(10.dp),
         horizontalAlignment = Alignment.CenterHorizontally) {
         Text(baslik, color = Nx.Soluk, fontSize = 12.sp, maxLines = 1)
         Text(deger, color = renk, fontSize = 18.sp, fontWeight = FontWeight.Bold, maxLines = 1)
@@ -117,8 +117,8 @@ fun MiniKutu(baslik: String, deger: String, alt: String, renk: Color, modifier: 
 
 @Composable
 fun Kisayol(metin: String, ikon: ImageVector, modifier: Modifier, tikla: () -> Unit) {
-    Column(modifier.clip(RoundedCornerShape(16.dp)).background(Nx.DolguMor).border(1.dp, Nx.Kenar, RoundedCornerShape(16.dp))
-        .clickable(onClick = tikla).padding(vertical = 12.dp, horizontal = 4.dp),
+    Column(modifier.clip(RoundedCornerShape(16.dp)).background(Nx.Yuzey)
+        .clickable(onClick = tikla).padding(vertical = 16.dp, horizontal = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Icon(ikon, null, tint = Nx.Camgobegi, modifier = Modifier.size(26.dp))
         Text(metin, color = Nx.Metin, fontSize = 12.sp, lineHeight = 14.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
@@ -284,8 +284,8 @@ fun PozisyonKarti(p: Pozisyon) {
     val yz = if (p.maliyet > 0) kz / p.maliyet * 100 else 0.0
     Kart(Modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Box(Modifier.size(40.dp).clip(CircleShape).background(Brush.linearGradient(listOf(Nx.Mor, Nx.Camgobegi))), contentAlignment = Alignment.Center) {
-                Text(p.token.take(1), color = Color.White, fontWeight = FontWeight.Bold)
+            Box(Modifier.size(40.dp).clip(CircleShape).background(Brush.linearGradient(listOf(Nx.Kahraman, Nx.Kahraman))), contentAlignment = Alignment.Center) {
+                Text(p.token.take(1), color = Nx.Camgobegi, fontWeight = FontWeight.Bold)
             }
             Column(Modifier.weight(1f)) {
                 Text("${kisa(p.token)} / USDC", color = Nx.Metin, fontWeight = FontWeight.SemiBold)
@@ -454,7 +454,7 @@ fun AyarlarEkrani(v: Veri, url: String, key: String, bildirim: Boolean, bildirim
         OutlinedTextField(u, { u = it }, label = { Text("Sunucu adresi") }, singleLine = true, modifier = Modifier.fillMaxWidth())
         OutlinedTextField(k, { k = it }, label = { Text("API anahtarı") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
             visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation())
-        Button({ kaydet(u.trim(), k.trim()) }, colors = ButtonDefaults.buttonColors(containerColor = Nx.Mor), modifier = Modifier.fillMaxWidth()) {
+        Button({ kaydet(u.trim(), k.trim()) }, colors = NxButonRenk(), modifier = Modifier.fillMaxWidth()) {
             Text("Kaydet ve bağlan")
         }
         if (v.eksikUclar.isNotEmpty()) Text("Sunucu eski sürümde olabilir; okunamayan: ${v.eksikUclar.joinToString()}", color = Nx.Sari, fontSize = 12.sp)
@@ -477,7 +477,7 @@ fun AyarlarEkrani(v: Veri, url: String, key: String, bildirim: Boolean, bildirim
     if (v.bagli) Kart(Modifier.fillMaxWidth()) {
         AyarSatiri(Icons.Filled.Done, "Yedek", "Sunucu her gece yedek alır. Bildirimler açıkken uygulama yeni yedeği günde bir " +
             "kez İndirilenler/NEXORA klasörüne kopyalar (son 7 tanesi saklanır). Anahtarlar yedekte yoktur.")
-        Button(yedekIndir, colors = ButtonDefaults.buttonColors(containerColor = Nx.Mor), modifier = Modifier.fillMaxWidth()) {
+        Button(yedekIndir, colors = NxButonRenk(), modifier = Modifier.fillMaxWidth()) {
             Text("Şimdi yedek al ve telefona indir")
         }
     }
@@ -536,7 +536,7 @@ fun RiskAyarlari(ayarlar: org.json.JSONObject, kaydet: (org.json.JSONObject) -> 
                 if (a.tam) j.put(a.anahtar, x.toInt()) else j.put(a.anahtar, x / a.carpan)
             }
             kaydet(j)
-        }, colors = ButtonDefaults.buttonColors(containerColor = Nx.Mor), modifier = Modifier.fillMaxWidth()) {
+        }, colors = NxButonRenk(), modifier = Modifier.fillMaxWidth()) {
             Text("Sınırları kaydet")
         }
     }
