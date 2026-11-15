@@ -6,6 +6,7 @@ from nexora.amounts import raw_to_decimal
 from nexora.swap_decoder import decode_swap
 from nexora.wallet_pnl import compute_wallet_pnl
 from nexora.constants import USDC_MINT
+JUP = "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4"
 
 W, TOK = "WALLET1", "TOKMINT1"
 
@@ -16,8 +17,8 @@ def ev(sig, side, tok_raw, q_raw, ts, quality="verified"):
 
 def tx(sig, tok_pre, tok_post, usdc_pre, usdc_post, t=1000):
     def bal(mint, amt, dec): return dict(accountIndex=1, mint=mint, owner=W, uiTokenAmount=dict(amount=str(amt), decimals=dec))
-    return dict(slot=5, blockTime=t, transaction=dict(signatures=[sig], message=dict(accountKeys=[W, "x"])),
-        meta=dict(err=None, fee=5000, preBalances=[10**9, 0], postBalances=[10**9 - 5000, 0],
+    return dict(slot=5, blockTime=t, transaction=dict(signatures=[sig], message=dict(accountKeys=[W, "x"], instructions=[dict(programId=JUP)])),
+        meta=dict(err=None, fee=5000, logMessages=["Program " + JUP + " invoke [1]"], preBalances=[10**9, 0], postBalances=[10**9 - 5000, 0],
                   preTokenBalances=[bal(TOK, tok_pre, 6), bal(USDC_MINT, usdc_pre, 6)],
                   postTokenBalances=[bal(TOK, tok_post, 6), bal(USDC_MINT, usdc_post, 6)]))
 
@@ -37,14 +38,16 @@ class T(unittest.TestCase):
         for bad in (0, -1, True, "1.5", "abc"):
             with self.assertRaises((ValueError, TypeError)): raw_to_decimal(bad, 6)
     def test_decoder_buy_sell_and_rejects(self):
+        nojup = tx("x", 0, 100_000_000, 50_000_000, 40_000_000); nojup["meta"]["logMessages"] = []; nojup["transaction"]["message"]["instructions"] = []
+        self.assertEqual(decode_swap(nojup, W)["event_type"], "UNKNOWN")   # bilinen swap programı yok
         b = decode_swap(tx("b", 0, 100_000_000, 50_000_000, 40_000_000), W)
         self.assertEqual((b["event_type"], b["token_delta_raw"], b["quote_delta_raw"]), ("BUY", 100_000_000, -10_000_000))
         s = decode_swap(tx("s", 100_000_000, 60_000_000, 40_000_000, 48_000_000), W)
         self.assertEqual(s["event_type"], "SELL")
         failed = tx("f", 0, 1, 5, 4); failed["meta"]["err"] = {"x": 1}
-        self.assertIsNone(decode_swap(failed, W))
-        self.assertIsNone(decode_swap(tx("n", 5, 5, 5, 5), W))          # değişim yok
-        self.assertIsNone(decode_swap(tx("w", 0, 10, 5, 6), W))         # token+ ve quote+ (swap değil)
+        self.assertEqual(decode_swap(failed, W)["event_type"], "UNKNOWN")
+        self.assertEqual(decode_swap(tx("n", 5, 5, 5, 5), W)["event_type"], "UNKNOWN")          # değişim yok
+        self.assertEqual(decode_swap(tx("w", 0, 10, 5, 6), W)["event_type"], "UNKNOWN")         # token+ ve quote+ (swap değil)
     def test_pipeline_pnl(self):
         txs = [tx("b", 0, 100_000_000, 50_000_000, 40_000_000, 1000), tx("s", 100_000_000, 60_000_000, 40_000_000, 48_000_000, 2000)]
         r = compute_wallet_pnl(txs, W)

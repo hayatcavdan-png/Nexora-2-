@@ -1,0 +1,1 @@
+# Her satira bir Solana cuzdan adresi yazin. # ile baslayan satirlar yok sayilir.
