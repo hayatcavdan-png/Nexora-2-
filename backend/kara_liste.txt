@@ -3,3 +3,7 @@
 826tkFbLkXKmz8Pq3bm1VFp7ndq1K12VGxJavd6hoonK
 # FHpc…7wCT: dakikada onlarca SOL<->USDC işlemi, 15.11.2026
 FHpcNSe6tb2n15bAdq4BkeYWGyZKFD7yLYrH92ng7wCT
+# EetL…QQ6V: 826t ile ayni CTM tokeninda al-sat (basim yetkisi acik), 15.11.2026
+EetLS2K1NRHZ3dhEi7mpgUQcEv3kQphhH9dkS711QQ6V
+# EetL…QQ6V: 826t ile ayni CTM tokeninda al-sat (basim yetkisi acik), 15.11.2026
+EetLS2K1NRHZ3dhEi7mpgUQcEv3kQphhH9dkS711QQ6V
