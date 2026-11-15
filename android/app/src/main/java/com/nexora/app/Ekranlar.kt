@@ -379,6 +379,24 @@ fun RaporEkrani(v: Veri) {
         }
         Text("Sağdaki değer, gerçekleşene göre fark. 20 kapanan pozisyondan önce karar verilmez.", color = Nx.Soluk, fontSize = 11.sp)
     }
+    val tb = r.optJSONObject("token_bilgi")
+    if (tb != null) Kart(Modifier.fillMaxWidth()) {
+        Text("Token özelliklerine göre sonuç", color = Nx.Metin, fontWeight = FontWeight.SemiBold)
+        Text("Kopyalanan ve gölge alımlar; alım anındaki token yaşı, likidite, organik skor ve sahip yoğunlaşmasına göre.",
+             color = Nx.Soluk, fontSize = 12.sp)
+        Satir("Ölçülen alım / kapanan", "${tb.optInt("olculen")} / ${tb.optInt("kapanan_ornek")}")
+        val bo = tb.optJSONArray("boyutlar")
+        if (bo != null) for (i in 0 until bo.length()) {
+            val b = bo.getJSONObject(i); val g = b.optJSONArray("gruplar") ?: continue
+            if (g.length() == 0) continue
+            Text(b.str("boyut"), color = Nx.Camgobegi, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+            for (j in 0 until g.length()) {
+                val x = g.getJSONObject(j); val o = x.optDouble("ort_getiri", 0.0)
+                Satir("${x.str("grup")} · ${x.optInt("ornek")} örnek, ${x.optInt("kazanan")} kazanan", "${isaretli(o)}%", kzRenk(o))
+            }
+        }
+        Text("Bir grupta 20 kapanmış örnek olmadan filtre kararı verilmez.", color = Nx.Soluk, fontSize = 11.sp)
+    }
 }
 
 // ---------------------------------------------------------------- Yol haritası

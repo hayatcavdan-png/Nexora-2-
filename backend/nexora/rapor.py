@@ -72,6 +72,41 @@ def stop_summary(iz_rows, tetik_rows):
                 gercek_kz=round(gercek, 2), en_dusuk_ort=ort("min_pct"), en_yuksek_ort=ort("max_pct"),
                 acik_tetik=acik_tetik, esikler=esikler)
 
+BILGI_BOYUTLARI = [
+    ("Token yaşı", "yas_sn", [("1 saatten genç", 0, 3600), ("1-6 saat", 3600, 6 * 3600), ("6-24 saat", 6 * 3600, 86400),
+                              ("1-7 gün", 86400, 7 * 86400), ("7 günden yaşlı", 7 * 86400, 1e18)]),
+    ("Likidite", "likidite", [("10 bin $ altı", 0, 1e4), ("10-50 bin $", 1e4, 5e4), ("50-250 bin $", 5e4, 2.5e5),
+                              ("250 bin $ üstü", 2.5e5, 1e18)]),
+    ("Organik skor", "organik", [("düşük (<30)", 0, 30), ("orta (30-60)", 30, 60), ("yüksek (60+)", 60, 1e9)]),
+    ("İlk 10 sahip payı", "top_pct", [("%20 altı", 0, 20), ("%20-40", 20, 40), ("%40 üstü", 40, 1e9)]),
+]
+
+def bilgi_summary(iz_rows, shadows, bilgi_rows):
+    """Kapanmış kopya pozisyonlar ve kapanmış gölge işlemler, alım anındaki token özelliklerine göre gruplanır.
+    Amaç: hangi token türlerinde kaybettiğimizi görmek (filtre kararı ancak yeterli örnekle verilir)."""
+    bilgi = {b["event_id"]: b for b in bilgi_rows if not b.get("hata")}
+    ornek = []
+    for r in iz_rows:
+        if r.get("status") == "closed" and r.get("event_id") in bilgi and r.get("cost"):
+            ornek.append(("kopya", r["pnl"] or 0.0, r["cost"], bilgi[r["event_id"]]))
+    for s in shadows:
+        if s.get("status") != "open" and s.get("event_id") in bilgi and s.get("size_usd"):
+            ornek.append(("golge", s["pnl_usd"] or 0.0, s["size_usd"], bilgi[s["event_id"]]))
+    boyutlar = []
+    for ad, alan, kovalar in BILGI_BOYUTLARI:
+        satirlar = []
+        for kova, lo, hi in kovalar:
+            rs = [o for o in ornek if o[3].get(alan) is not None and lo <= o[3][alan] < hi]
+            if not rs: continue
+            kop = [o for o in rs if o[0] == "kopya"]
+            satirlar.append(dict(grup=kova, ornek=len(rs), kopya=len(kop), golge=len(rs) - len(kop),
+                                 kazanan=sum(1 for o in rs if o[1] > 0),
+                                 ort_getiri=round(sum(o[1] / o[2] for o in rs) / len(rs) * 100, 1),
+                                 kopya_kz=round(sum(o[1] for o in kop), 2)))
+        boyutlar.append(dict(boyut=ad, gruplar=satirlar))
+    return dict(olculen=len(bilgi_rows), hatali=sum(1 for b in bilgi_rows if b.get("hata")),
+                sus=sum(1 for b in bilgi.values() if b.get("sus")), kapanan_ornek=len(ornek), boyutlar=boyutlar)
+
 def build_report(paper_path, tracker_path=None, now=None):
     now = now if now is not None else time.time()
     since = start_of_local_day(now)
@@ -85,6 +120,7 @@ def build_report(paper_path, tracker_path=None, now=None):
         shadows = _rows(p, "SELECT * FROM shadow ORDER BY id")
         iz = _rows(p, "SELECT * FROM pos_iz ORDER BY id")
         tetik = _rows(p, "SELECT * FROM stop_tetik")
+        bilgi = _rows(p, "SELECT * FROM token_bilgi")
         state = {r["k"]: r["v"] for r in _rows(p, "SELECT k, v FROM state")}
     finally:
         p.close()
@@ -143,6 +179,7 @@ def build_report(paper_path, tracker_path=None, now=None):
                    gruplar=shadow_summary(shadows)),
         cuzdanlar=wallet_rows,
         zarar_kesme=stop_summary(iz, tetik),
+        token_bilgi=bilgi_summary(iz, shadows, bilgi),
         gecikme=gecikme,
     )
 
@@ -168,6 +205,12 @@ def as_text(r):
         for x in z["esikler"]:
             L.append(f"  %{x['esik']:<3} zarar kes: {x['tetiklenen']} kez tetiklenirdi, toplam {x['stoplu_kz']:+.2f}$ "
                      f"(fark {x['fark']:+.2f}$; {x['korudu']} korudu, {x['kacirdi']} toparlanmayı kaçırdı)")
+    tb = r.get("token_bilgi")
+    if tb and tb["olculen"]:
+        L += ["", f"Token özellikleri: {tb['olculen']} alım ölçüldü, {tb['kapanan_ornek']} tanesi kapandı"]
+        for b in tb["boyutlar"]:
+            for x in b["gruplar"]:
+                L.append(f"  {b['boyut']}: {x['grup']:<15} örnek {x['ornek']:>3}, kazanan {x['kazanan']:>3}, ort. {x['ort_getiri']:+.1f}%")
     if r["cuzdanlar"]:
         L += ["", "Cüzdan bazında (tüm zamanlar):"]
         for w in r["cuzdanlar"]:

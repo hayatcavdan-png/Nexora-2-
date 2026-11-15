@@ -25,6 +25,7 @@ Anahtarlar `~/.nexora_env` dosyasında, yalnızca sizin okuyabileceğiniz izinle
 | `python gunluk_rapor.py` | Günlük paper raporu |
 | `python golge_rapor.py` | Reddedilen alımlara girseydik ne olurdu |
 | `python zarar_kesme.py` | Kopyalanan pozisyonlarda %10/20/30/50 zararda satsaydık ne olurdu |
+| `python token_filtre.py` | Token yaşı, likidite, organik skor ve sahip payına göre sonuçlar |
 
 ## Uygulama
 

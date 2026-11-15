@@ -14,6 +14,7 @@ from nexora.ws_listener import WSListener
 from nexora.market import JupiterQuoter
 from nexora.token_safety import TokenSafety
 from nexora.decision import Decider
+from nexora.token_bilgi import TokenBilgi, Toplayici
 
 USE_WS = os.getenv("TRACK_WS", "1") != "0"
 PAPER_TRADE = os.getenv("PAPER_TRADE", "1") != "0"    # 0: eski davranış (fiyat bilinmiyor -> hepsi engellenir)
@@ -51,7 +52,8 @@ def main():
     decider = None
     if PAPER_TRADE:
         quoter = JupiterQuoter()
-        decider = Decider(paper, quoter, TokenSafety(client))
+        bilgi = Toplayici(TokenBilgi(api_key=quoter.api_key, throttle=quoter._throttle), paper).baslat()
+        decider = Decider(paper, quoter, TokenSafety(client), bilgi=bilgi)
         if not quoter.api_key:
             print("  Not: JUPITER_API_KEY yok, teklifler anahtarsız (0.5 istek/sn). Ücretsiz anahtar hızlandırır.", flush=True)
     tr = LiveTracker(client, paper, os.getenv("TRACKER_DB", "nexora_tracker.db"), wallets, decider=decider)

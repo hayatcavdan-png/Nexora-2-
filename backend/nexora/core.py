@@ -27,6 +27,8 @@ CREATE TABLE IF NOT EXISTS trades(id INTEGER PRIMARY KEY AUTOINCREMENT, ts REAL,
   wallet TEXT, token TEXT, side TEXT, qty REAL, price REAL, fee REAL, pnl REAL, decision TEXT, reason TEXT);
 CREATE TABLE IF NOT EXISTS pos_iz(id INTEGER PRIMARY KEY AUTOINCREMENT, token TEXT, wallet TEXT, opened_ts REAL, cost REAL,
   min_pct REAL, max_pct REAL, marks INTEGER DEFAULT 0, tam INTEGER, status TEXT, closed_ts REAL, pnl REAL);
+CREATE TABLE IF NOT EXISTS token_bilgi(event_id TEXT PRIMARY KEY, token TEXT, ts REAL, yas_sn REAL, likidite REAL,
+  mcap REAL, sahip REAL, organik REAL, organik_etiket TEXT, top_pct REAL, dev_pct REAL, sus INTEGER, launchpad TEXT, hata TEXT);
 CREATE TABLE IF NOT EXISTS stop_tetik(iz_id INTEGER, esik REAL, ts REAL, pnl REAL, PRIMARY KEY(iz_id, esik));
 """
 
@@ -44,6 +46,8 @@ class Paper:
         if "qty_raw" not in cols:            # eski şemadan güvenli geçiş
             self.db.execute("ALTER TABLE positions ADD COLUMN qty_raw TEXT")
             self.db.execute("ALTER TABLE positions ADD COLUMN decimals INTEGER")
+        if "event_id" not in {r[1] for r in self.db.execute("PRAGMA table_info(pos_iz)")}:
+            self.db.execute("ALTER TABLE pos_iz ADD COLUMN event_id TEXT")
         if self._get("cash") is None:
             self._set("cash", CFG["start_cash"]); self._set("kill", "0")
             self._set("day", time.strftime("%Y-%m-%d")); self._set("day_start", CFG["start_cash"])
@@ -167,8 +171,8 @@ class Paper:
             self._set("cash", self.cash() - size_usd - fee)
             self.db.execute("INSERT INTO positions(token,qty,cost,last_price,wallet,qty_raw,decimals) VALUES(?,?,?,?,?,?,?)",
                             (token, qty, size_usd, price, wallet, str(int(qty_raw)), decimals))
-            self.db.execute("INSERT INTO pos_iz(token,wallet,opened_ts,cost,tam,status) VALUES(?,?,?,?,1,'open')",
-                            (token, wallet, time.time(), size_usd))
+            self.db.execute("INSERT INTO pos_iz(token,wallet,opened_ts,cost,tam,status,event_id) VALUES(?,?,?,?,1,'open',?)",
+                            (token, wallet, time.time(), size_usd, event_id))
             return self._log(event_id, wallet, token, "buy", qty, price, fee, 0, "KOPYALANDI", note)
 
     def record_sell(self, event_id, wallet, token, proceeds_usd, note="ok"):
@@ -206,6 +210,15 @@ class Paper:
                     if pct <= -e:
                         self.db.execute("INSERT OR IGNORE INTO stop_tetik(iz_id,esik,ts,pnl) VALUES(?,?,?,?)",
                                         (iz, e, time.time(), pnl))
+            self.db.commit()
+
+    def token_bilgi_kaydet(self, event_id, token, ts, d, hata=None):
+        d = d or {}
+        with self.lock:
+            self.db.execute("""INSERT OR REPLACE INTO token_bilgi(event_id,token,ts,yas_sn,likidite,mcap,sahip,organik,organik_etiket,
+                top_pct,dev_pct,sus,launchpad,hata) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                (event_id, token, ts, d.get("yas_sn"), d.get("likidite"), d.get("mcap"), d.get("sahip"), d.get("organik"),
+                 d.get("organik_etiket"), d.get("top_pct"), d.get("dev_pct"), d.get("sus"), d.get("launchpad"), hata))
             self.db.commit()
 
     def _iz(self, token, pos):

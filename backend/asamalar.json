@@ -50,9 +50,9 @@
    "ad": "Cüzdan ve token güvenliği",
    "grup": "Seçim",
    "durum": "devam",
-   "yuzde": 45,
-   "yapilan": "Basım/dondurma yetkisi, Token-2022, satılabilirlik teklifi; hacim botu (wash trading) kalıbı tespiti",
-   "eksik": "Wash trading, sahip yoğunlaşması, likidite derinliği"
+   "yuzde": 50,
+   "yapilan": "Basım/dondurma yetkisi, Token-2022, satılabilirlik teklifi; hacim botu (wash trading) kalıbı tespiti; her alımda token yaşı, likidite, organik skor, sahip yoğunlaşması ve Jupiter şüpheli işareti ölçülüyor",
+   "eksik": "Ölçüme göre filtre kararı (20+ kapanmış örnek); likidite derinliği"
   },
   {
    "kod": "N6",
@@ -95,8 +95,8 @@
    "ad": "Strateji optimizasyonu ve ileri test",
    "grup": "İşlem",
    "durum": "baslamadi",
-   "yuzde": 15,
-   "yapilan": "Gölge işlem kaydı (reddedilen alımlar) ve zarar kesme ölçümü (%10/20/30/50 eşiklerinde satsaydık ne olurdu) veri topluyor; takipçi kaybı ayrıştırması",
+   "yuzde": 20,
+   "yapilan": "Gölge işlem kaydı (reddedilen alımlar) ve zarar kesme ölçümü (%10/20/30/50 eşiklerinde satsaydık ne olurdu) veri topluyor; takipçi kaybı ayrıştırması; token özelliklerine göre sonuç ayrıştırması",
    "eksik": "En az 30 günlük ileri paper testi; eşik kararı için en az 20 kapanmış gölge işlem ve 20 kapanmış pozisyon"
   },
   {
@@ -132,7 +132,7 @@
    "grup": "Ürün",
    "durum": "devam",
    "yuzde": 72,
-   "yapilan": "Uygulama 3.3: neon arayüz; Ana Panel (bakiye, K/Z, başarı oranı, bot anahtarı, performans grafiği), Bot, Cüzdanlar, İşlemler, Rapor, Yol Haritası, Ayarlar; otomatik APK derleme; arka plan bildirimleri (alım, kapanış, risk, bot); Rapor'da zarar kesme ölçümü",
+   "yapilan": "Uygulama 3.4: neon arayüz; Ana Panel (bakiye, K/Z, başarı oranı, bot anahtarı, performans grafiği), Bot, Cüzdanlar, İşlemler, Rapor, Yol Haritası, Ayarlar; otomatik APK derleme; arka plan bildirimleri (alım, kapanış, risk, bot); Rapor'da zarar kesme ölçümü; token özellikleri kartı",
    "eksik": "Risk ayarlarını uygulamadan değiştirme, kilit/biyometrik, HTTPS"
   },
   {
@@ -148,7 +148,7 @@
  "meta": [
   {
    "label": "Kaynak",
-   "value": "Claude'un proje değerlendirmesi, 16.11.2026 00:20. Yüzdeler tahmini; hiçbir aşama kabul kriterleri karşılanmadan tamamlandı sayılmaz."
+   "value": "Claude'un proje değerlendirmesi, 16.11.2026 00:35. Yüzdeler tahmini; hiçbir aşama kabul kriterleri karşılanmadan tamamlandı sayılmaz."
   }
  ]
 }
