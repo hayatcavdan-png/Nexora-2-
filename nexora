@@ -1,0 +1,113 @@
+#!/usr/bin/env bash
+# NEXORA başlatıcı: sunucu ve canlı takibi arka planda çalıştırır, çökerse yeniden başlatır.
+#   ./nexora kur       anahtarları bir kez gir (~/.nexora_env, yalnızca sizin okuyabileceğiniz dosya)
+#   ./nexora baslat    sunucu + takip arka planda başlar
+#   ./nexora durum     çalışıyor mu, son günlük satırları
+#   ./nexora durdur    ikisini de durdurur (yalnızca bu betiğin başlattıklarını)
+#   ./nexora log [sunucu|takip]   günlüğü canlı izle (çıkmak için CTRL+C)
+set -u
+KOK="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ARKA="$KOK/backend"
+CALISMA="$ARKA/.calisma"
+ENV_DOSYA="${NEXORA_ENV:-$HOME/.nexora_env}"
+PY="${PYTHON:-python}"
+mkdir -p "$CALISMA"
+
+yukle_env() {
+  if [ ! -f "$ENV_DOSYA" ]; then echo "Anahtarlar tanımlı değil. Önce: ./nexora kur"; exit 1; fi
+  set -a; . "$ENV_DOSYA"; set +a
+  [ -n "${HELIUS_API_KEY:-}" ] || { echo "HELIUS_API_KEY eksik: ./nexora kur"; exit 1; }
+  [ -n "${NEXORA_API_KEY:-}" ] || { echo "NEXORA_API_KEY eksik: ./nexora kur"; exit 1; }
+}
+
+calisiyor() {  # $1 = sunucu|takip ; gözetmen süreci canlı mı
+  local p="$CALISMA/$1.gozetmen"
+  [ -f "$p" ] && kill -0 "$(cat "$p")" 2>/dev/null
+}
+
+gozetmen() {  # $1 = ad, $2 = python betiği. Çökerse 5 sn sonra yeniden başlatır; 3 hızlı çökmede vazgeçer.
+  local ad="$1" betik="$2" log="$CALISMA/$1.log" hizli=0
+  rm -f "$CALISMA/$ad.dur"
+  while [ ! -f "$CALISMA/$ad.dur" ]; do
+    local bas=$(date +%s)
+    echo "[$(date '+%F %T')] $ad başlatılıyor" >>"$log"
+    (cd "$ARKA" && exec "$PY" -u "$betik") >>"$log" 2>&1 &
+    echo $! >"$CALISMA/$ad.pid"
+    wait $!; local kod=$?
+    [ -f "$CALISMA/$ad.dur" ] && break
+    if [ $(( $(date +%s) - bas )) -lt 15 ]; then hizli=$((hizli + 1)); else hizli=0; fi
+    if [ $hizli -ge 3 ]; then
+      echo "[$(date '+%F %T')] $ad 3 kez hemen kapandı (kod $kod); yeniden denenmeyecek. Günlüğe bakın: ./nexora log $ad" >>"$log"
+      break
+    fi
+    echo "[$(date '+%F %T')] $ad kapandı (kod $kod); 5 sn sonra yeniden başlatılıyor" >>"$log"
+    sleep 5
+  done
+  rm -f "$CALISMA/$ad.pid" "$CALISMA/$ad.gozetmen"
+}
+
+baslat_bir() {  # $1 = ad, $2 = betik
+  if calisiyor "$1"; then echo "  $1 zaten çalışıyor"; return; fi
+  nohup bash "$0" _gozet "$1" "$2" >/dev/null 2>&1 &
+  echo $! >"$CALISMA/$1.gozetmen"
+  echo "  $1 başlatıldı"
+}
+
+durdur_bir() {
+  local ad="$1"
+  touch "$CALISMA/$ad.dur"
+  for f in pid gozetmen; do
+    [ -f "$CALISMA/$ad.$f" ] && kill "$(cat "$CALISMA/$ad.$f")" 2>/dev/null
+  done
+  sleep 1
+  rm -f "$CALISMA/$ad.pid" "$CALISMA/$ad.gozetmen"
+  echo "  $ad durduruldu"
+}
+
+case "${1:-}" in
+  kur)
+    echo "Anahtarlar $ENV_DOSYA dosyasına kaydedilecek (yalnızca sizin hesabınız okuyabilir)."
+    echo "Yazdıklarınız ekranda görünmez. Değiştirmek istemediğinizi boş bırakıp Enter'a basın."
+    [ -f "$ENV_DOSYA" ] && { set -a; . "$ENV_DOSYA"; set +a; }
+    : "${HELIUS_API_KEY:=}" "${NEXORA_API_KEY:=}" "${JUPITER_API_KEY:=}"
+    for ad in HELIUS_API_KEY NEXORA_API_KEY JUPITER_API_KEY; do
+      read -r -s -p "$ad: " deger; echo
+      deger="$(printf '%s' "$deger" | tr -d '[:space:]')"
+      [ -n "$deger" ] && printf -v "$ad" '%s' "$deger"
+    done
+    umask 077
+    { echo "HELIUS_API_KEY='${HELIUS_API_KEY:-}'"; echo "NEXORA_API_KEY='${NEXORA_API_KEY:-}'"; echo "JUPITER_API_KEY='${JUPITER_API_KEY:-}'"; } >"$ENV_DOSYA"
+    chmod 600 "$ENV_DOSYA"
+    echo "Kaydedildi. Uzunluklar: Helius ${#HELIUS_API_KEY}, sunucu ${#NEXORA_API_KEY}, Jupiter ${#JUPITER_API_KEY} karakter."
+    echo "Uygulamadaki API anahtarı, sunucu anahtarıyla aynı olmalı."
+    ;;
+  baslat)
+    yukle_env
+    command -v termux-wake-lock >/dev/null && termux-wake-lock
+    if ! calisiyor sunucu && (exec 3<>/dev/tcp/127.0.0.1/8000) 2>/dev/null; then
+      echo "8000 portu başka bir sunucu tarafından kullanılıyor (elle başlatılmış olabilir)."
+      echo "O oturumda CTRL+C ile durdurup tekrar deneyin."; exit 1
+    fi
+    baslat_bir sunucu server.py
+    baslat_bir takip tracker.py
+    echo "Durumu görmek için: ./nexora durum"
+    ;;
+  durdur)
+    durdur_bir takip; durdur_bir sunucu
+    ;;
+  durum)
+    for ad in sunucu takip; do
+      if calisiyor "$ad"; then echo "● $ad: çalışıyor"; else echo "○ $ad: durmuş"; fi
+      [ -f "$CALISMA/$ad.log" ] && tail -n 3 "$CALISMA/$ad.log" | sed 's/^/    /'
+    done
+    ;;
+  log)
+    ad="${2:-takip}"; touch "$CALISMA/$ad.log"; tail -n 30 -f "$CALISMA/$ad.log"
+    ;;
+  _gozet)
+    yukle_env; echo $$ >"$CALISMA/$2.gozetmen"; gozetmen "$2" "$3"
+    ;;
+  *)
+    sed -n '2,7p' "$0" | sed 's/^# \{0,1\}//'
+    ;;
+esac

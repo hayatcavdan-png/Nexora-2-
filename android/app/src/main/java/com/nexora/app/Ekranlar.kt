@@ -392,7 +392,8 @@ fun AsamaKarti(a: Asama) {
 
 // ---------------------------------------------------------------- Ayarlar
 @Composable
-fun AyarlarEkrani(v: Veri, url: String, key: String, kaydet: (String, String) -> Unit) {
+fun AyarlarEkrani(v: Veri, url: String, key: String, bildirim: Boolean, bildirimDegis: (Boolean) -> Unit,
+                  kaydet: (String, String) -> Unit) {
     var u by remember(url) { mutableStateOf(url) }
     var k by remember(key) { mutableStateOf(key) }
     Kart(Modifier.fillMaxWidth()) {
@@ -411,12 +412,22 @@ fun AyarlarEkrani(v: Veri, url: String, key: String, kaydet: (String, String) ->
     }
     Kart(Modifier.fillMaxWidth()) {
         AyarSatiri(Icons.Filled.Warning, "Risk yönetimi", "Bot ekranında görüntülenir · değiştirme yakında")
-        AyarSatiri(Icons.Filled.Notifications, "Bildirimler", "Yakında")
+        Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Icon(Icons.Filled.Notifications, null, tint = Nx.Mor)
+            Column(Modifier.weight(1f)) {
+                Text("Bildirimler", color = Nx.Metin, fontSize = 15.sp)
+                Text("Kopyalanan alım, kapanan pozisyon, zarar sınırı, bot uyarısı · 30 sn'de bir kontrol",
+                     color = Nx.Soluk, fontSize = 12.sp)
+            }
+            Switch(checked = bildirim, onCheckedChange = bildirimDegis,
+                colors = SwitchDefaults.colors(checkedTrackColor = Nx.Yesil))
+        }
         AyarSatiri(Icons.Filled.Lock, "Güvenlik (kilit / biyometrik)", "Yakında")
         AyarSatiri(Icons.Filled.Person, "Solana cüzdan bağlantısı", "Gerçek işlem aşamasında (N12), açık onayınızla")
     }
     Kart(Modifier.fillMaxWidth()) {
-        AyarSatiri(Icons.Filled.Info, "Hakkında", "NEXORA 3.1 · yalnızca paper (sanal) işlem · gerçek işlem kapalı")
+        AyarSatiri(Icons.Filled.Info, "Hakkında", "NEXORA 3.2 · yalnızca paper (sanal) işlem · gerçek işlem kapalı")
     }
 }
 

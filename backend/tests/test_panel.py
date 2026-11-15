@@ -47,6 +47,21 @@ class PanelTests(unittest.TestCase):
         self.assertEqual((d["cuzdanlar"][1]["karar"], d["cuzdanlar"][2]["durum"]), ("analiz yok", "takip dışı"))
         o = d["ozet"]
         self.assertEqual((o["taranan"], o["analiz"], o["kopyalanabilir"], o["takipte"], o["kara_liste"]), (4, 3, 2, 2, 1))
+    def test_olaylar(self):
+        import time as _t
+        self.paper.db.execute("INSERT INTO trades(ts,event_id,wallet,token,side,qty,price,fee,pnl,decision,reason) VALUES(?,?,?,?,?,0,0,0,0,'REDDEDİLDİ','günlük zarar limiti')",
+                              (_t.time(), "z1", "W1", "T9", "buy"))
+        self.paper.db.execute("INSERT INTO trades(ts,event_id,wallet,token,side,qty,price,fee,pnl,decision,reason) VALUES(?,?,?,?,?,0,0,0,0,'REDDEDİLDİ','günlük zarar limiti')",
+                              (_t.time() + 1, "z2", "W1", "T8", "buy"))
+        self.paper.db.commit()
+        from nexora.live_tracker import LiveTracker
+        tr = LiveTracker(None, self.paper, self.tp, ["W9"], clock=lambda: 5e9)
+        tr.db.execute("UPDATE tracker_wallets SET quarantined=2, last_error='yüksek frekans', updated=?", (_t.time() + 2,)); tr.db.commit()
+        e = panel.olaylar(self.pp, self.tp)["olaylar"]
+        self.assertEqual([x["tur"] for x in e], ["alim", "kapanis", "alim", "risk", "bot"])    # zarar sınırı günde bir kez
+        self.assertIn("+1.99 USDC", e[1]["baslik"])
+        son = e[2]["ts"]
+        self.assertEqual([x["tur"] for x in panel.olaylar(self.pp, self.tp, son)["olaylar"]], ["risk", "bot"])
     def test_asamalar(self):
         self.assertEqual(panel.asamalar()["rows"][0]["kod"], "N0")
         os.remove("asamalar.json"); self.assertEqual(panel.asamalar()["rows"], [])
@@ -63,6 +78,8 @@ class PanelTests(unittest.TestCase):
             self.assertIn("noktalar", get("/gecmis"))
             self.assertEqual(get("/cuzdanlar")["ozet"]["takipte"], 2)
             self.assertEqual(get("/asamalar")["rows"][0]["kod"], "N0")
+            self.assertEqual(len(get("/olaylar?son=0")["olaylar"]), 3)
+            self.assertEqual(get("/olaylar?son=9e12")["olaylar"], [])
             with self.assertRaises(urllib.error.HTTPError): get("/gecmis", key="yanlis")
             srv.shutdown(); srv.server_close()
         finally:

@@ -109,3 +109,45 @@ def asamalar(path="asamalar.json"):
     d = json.load(open(path, encoding="utf-8"))
     meta = (d.get("meta") or [{}])[0].get("value")
     return dict(rows=d.get("rows", []), guncelleme=meta)
+
+
+def olaylar(paper_path, tracker_path, son=0.0, limit=20):
+    """Bildirim olayları (ts > son): kopyalanan alım, kapanan pozisyon, günlük zarar sınırı, bot işareti.
+    Uygulama son gördüğü ts'yi saklar ve yalnızca yenileri ister."""
+    out = []
+    c = _ro(paper_path)
+    if c is not None:
+        try:
+            gunler = set()
+            for t in _rows(c, "SELECT id, ts, side, token, wallet, pnl, decision, reason FROM trades WHERE ts > ? ORDER BY ts", (son,)):
+                tok = (t["token"] or "")[:4] + "…" + (t["token"] or "")[-4:]
+                cuz = (t["wallet"] or "")[:4] + "…" + (t["wallet"] or "")[-4:]
+                if t["decision"] == "KOPYALANDI" and t["side"] == "buy":
+                    out.append(dict(id=f"t{t['id']}", ts=t["ts"], tur="alim", baslik=f"Alım kopyalandı: {tok}",
+                                    metin=f"Kaynak {cuz} · {t['reason']}"))
+                elif t["decision"] == "KOPYALANDI" and t["side"] == "sell":
+                    kz = t["pnl"] or 0.0
+                    out.append(dict(id=f"t{t['id']}", ts=t["ts"], tur="kapanis",
+                                    baslik=f"Pozisyon kapandı: {tok} {'+' if kz >= 0 else ''}{kz:.2f} USDC",
+                                    metin=f"Kaynak {cuz} sattı"))
+                elif t["decision"] == "REDDEDİLDİ" and t["reason"] == "günlük zarar limiti":
+                    gun = time.strftime("%Y-%m-%d", time.localtime(t["ts"]))
+                    once = _rows(c, "SELECT 1 FROM trades WHERE reason='günlük zarar limiti' AND ts < ? AND ts >= ? LIMIT 1",
+                                 (t["ts"], time.mktime(time.strptime(gun, "%Y-%m-%d"))))
+                    if not once and gun not in gunler:
+                        gunler.add(gun)
+                        out.append(dict(id=f"z{gun}", ts=t["ts"], tur="risk", baslik="Günlük zarar sınırı devrede",
+                                        metin="Yeni alımlar gün sonuna kadar durduruldu."))
+        finally:
+            c.close()
+    tc = _ro(tracker_path)
+    if tc is not None:
+        try:
+            for r in _rows(tc, "SELECT wallet, updated, last_error FROM tracker_wallets WHERE quarantined=2 AND updated > ?", (son,)):
+                cuz = r["wallet"][:4] + "…" + r["wallet"][-4:]
+                out.append(dict(id=f"b{r['wallet']}", ts=r["updated"], tur="bot", baslik=f"Cüzdan durduruldu: {cuz}",
+                                metin=r["last_error"] or "yüksek frekans (bot olabilir)"))
+        finally:
+            tc.close()
+    out.sort(key=lambda e: e["ts"])
+    return dict(olaylar=out[:limit], simdi=time.time())

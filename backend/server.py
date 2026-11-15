@@ -1,6 +1,7 @@
 """Bağımlılıksız NEXORA sunucusu (yalnızca Python stdlib).
 Çalıştır: NEXORA_API_KEY=gizli123 python server.py"""
 import os, json, sqlite3
+from urllib.parse import urlsplit, parse_qs
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from nexora.core import Paper, CFG
 from nexora.live_tracker import latency_from_db
@@ -43,6 +44,12 @@ class H(BaseHTTPRequestHandler):
         return True
     def do_GET(self):
         if not self._ok(): return
+        parts = urlsplit(self.path)
+        if parts.path == "/olaylar":
+            try: son = float(parse_qs(parts.query).get("son", ["0"])[0])
+            except ValueError: son = 0.0
+            self._send(200, panel.olaylar(os.getenv("NEXORA_DB", "nexora_paper.db"), os.getenv("TRACKER_DB", "nexora_tracker.db"), son))
+            return
         if self.path == "/durum":
             self._send(200, dict(mod="PAPER", gercek_islem="KAPALI", acil_durdurma=paper.killed(), ayarlar=CFG))
         elif self.path == "/portfoy": self._send(200, paper.portfolio())

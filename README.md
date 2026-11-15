@@ -1,14 +1,30 @@
-# NEXORA 2.0 (iskelet — N1/N8/N9/N14'ün ilk sürümü)
-Mod: yalnızca PAPER. Gerçek işlem kodu yoktur.
+# NEXORA 2.0
 
-## Backend
-    cd backend && pip install -r requirements.txt
-    NEXORA_API_KEY=gizli-bir-anahtar uvicorn nexora.main:app --host 0.0.0.0 --port 8000
-    python -m unittest discover -s tests
+Solana akıllı cüzdan kopyalama araştırması. **Yalnızca paper (sanal) işlem; gerçek işlem kodu yok.**
 
-Test sinyali:
-    curl -X POST localhost:8000/sinyal -H "X-API-Key: gizli-bir-anahtar" -H "Content-Type: application/json" \
-     -d '{"event_id":"e1","wallet":"W","token":"BONK","side":"buy","price":1.0,"liquidity_usd":1000000}'
+## Telefonda (Termux) çalıştırma
 
-## APK
-GitHub'a yükle → Actions → "APK Derle" → Artifacts → nexora-apk.
+```
+cd ~/nexora_build/nexora_2
+./nexora kur       # bir kez: Helius, sunucu ve (isteğe bağlı) Jupiter anahtarları
+./nexora baslat    # sunucu + canlı takip arka planda; çökerse kendiliğinden yeniden başlar
+./nexora durum     # çalışıyor mu, son günlük satırları
+./nexora log takip # canlı günlük (çıkmak: CTRL+C); 'sunucu' da olur
+./nexora durdur
+```
+
+Anahtarlar `~/.nexora_env` dosyasında, yalnızca sizin okuyabileceğiniz izinle durur; depoya girmez.
+
+## Araçlar (backend klasöründe)
+
+| Komut | Ne yapar |
+|---|---|
+| `python cuzdan_tarama.py` | Cüzdanları etkinliğe göre ayırır (pasif, bot, aday) |
+| `python cuzdan_analiz.py` | Adayların gerçekleşmiş kârlılığı; `wallets_onerilen.txt` |
+| `python takip_kaybi.py` | Kopyaladığımız işlemlerde kaynağa göre giriş/çıkış kaybı |
+| `python gunluk_rapor.py` | Günlük paper raporu |
+| `python golge_rapor.py` | Reddedilen alımlara girseydik ne olurdu |
+
+## Uygulama
+
+GitHub Actions her gönderimde APK derler (Actions → en üstteki derleme → Artifacts → nexora-apk).

@@ -4,6 +4,8 @@ import android.content.Context
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -47,6 +49,17 @@ fun App() {
     var islemSekme by remember { mutableIntStateOf(0) }
     var durdurOnay by remember { mutableStateOf(false) }
     val v = remember { Veri() }
+    var bildirim by remember { mutableStateOf(sp.getBoolean("bildirim", false)) }
+    fun bildirimAyarla(acik: Boolean) {
+        bildirim = acik
+        sp.edit().putBoolean("bildirim", acik).apply()
+        if (acik) BildirimServisi.baslat(ctx) else BildirimServisi.durdur(ctx)
+    }
+    val izinIste = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { verildi ->
+        bildirimAyarla(verildi)
+        if (!verildi) v.hata = "Bildirim izni verilmedi: telefon ayarlarından NEXORA için bildirimlere izin verin."
+    }
+    LaunchedEffect(Unit) { if (bildirim) BildirimServisi.baslat(ctx) }
     val scope = rememberCoroutineScope()
 
     fun yenile() = scope.launch {
@@ -160,7 +173,13 @@ fun App() {
                 }
                 "ayarlar" -> item {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        AyarlarEkrani(v, url, key) { u, k ->
+                        AyarlarEkrani(v, url, key, bildirim, { acik ->
+                            if (acik && android.os.Build.VERSION.SDK_INT >= 33 &&
+                                androidx.core.content.ContextCompat.checkSelfPermission(ctx, android.Manifest.permission.POST_NOTIFICATIONS) !=
+                                android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                                izinIste.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                            } else bildirimAyarla(acik)
+                        }) { u, k ->
                             url = u; key = k
                             sp.edit().putString("url", u).putString("key", k).apply()
                             yenile()
