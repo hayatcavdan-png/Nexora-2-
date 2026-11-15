@@ -94,7 +94,10 @@ fun App() {
             withContext(Dispatchers.IO) { api(url, key, "/ayarlar", true, j.toString()) }
             yenile()
             android.widget.Toast.makeText(ctx, "Risk sınırları kaydedildi", android.widget.Toast.LENGTH_SHORT).show()
-        } catch (e: Exception) { v.hata = "Kaydedilemedi: ${e.message}" }
+        } catch (e: Exception) {
+            v.hata = "Kaydedilemedi: ${e.message}"
+            android.widget.Toast.makeText(ctx, "Kaydedilemedi: ${e.message}", android.widget.Toast.LENGTH_LONG).show()
+        }
     }
     fun yedekIndir() = scope.launch {
         try {
@@ -104,7 +107,11 @@ fun App() {
                 Yedek.kaydet(ctx, ad, veri).also { sp.edit().putString("yedek_son_ad", ad).apply() }
             }
             android.widget.Toast.makeText(ctx, "Yedek kaydedildi: $yer", android.widget.Toast.LENGTH_LONG).show()
-        } catch (e: Exception) { v.hata = "Yedek indirilemedi: ${e.message}" }
+        } catch (e: Exception) {
+            val neden = if (e.message?.contains("404") == true) "sunucu güncel değil (sudo bash /opt/nexora/deploy/guncelle.sh)" else e.message
+            v.hata = "Yedek indirilemedi: $neden"
+            android.widget.Toast.makeText(ctx, "Yedek indirilemedi: $neden", android.widget.Toast.LENGTH_LONG).show()
+        }
     }
     LaunchedEffect(Unit) { while (true) { yenile(); delay(10_000) } }
     BackHandler(enabled = ekran != "panel") { ekran = "panel" }
