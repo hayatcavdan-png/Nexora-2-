@@ -35,3 +35,6 @@ GitHub Actions her gönderimde APK derler (Actions → en üstteki derleme → A
 
 ## Sunucuya taşıma (N13)
 Telefon kapalıyken de çalışması için: [deploy/TASIMA.md](deploy/TASIMA.md)
+
+## Yapay zekâ seçim hattı (N16–N21)
+Ana yol haritasından bağımsız: [docs/YZ_yol_haritasi.md](docs/YZ_yol_haritasi.md)

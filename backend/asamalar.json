@@ -143,12 +143,66 @@
    "yuzde": 0,
    "yapilan": "Pilottan sonra",
    "eksik": "Kayıt, tenant izolasyonu, custody, hukuk"
+  },
+  {
+   "kod": "N16",
+   "ad": "Sinyal etiketleme motoru",
+   "grup": "Yapay zekâ",
+   "durum": "baslamadi",
+   "yuzde": 0,
+   "yapilan": "Planlandı (docs/YZ_yol_haritasi.md); dayandığı ölçümler hazır: token bilgisi, gölge işlemler, zarar kesme, yürütme gecikmesi",
+   "eksik": "Her kaynak alımı için alım anı özellikleri + 5 dk / 30 dk / kaynak satış etiketleri. Kabul: ≥500 etiketli sinyal, ≥%90 eksiksiz"
+  },
+  {
+   "kod": "N17",
+   "ad": "Özellik seti ve veri kalitesi",
+   "grup": "Yapay zekâ",
+   "durum": "baslamadi",
+   "yuzde": 0,
+   "yapilan": "Planlandı",
+   "eksik": "Sızıntı testleri; temel çizgiler (hepsini kopyala, N10 kuralları, rastgele); veri raporu"
+  },
+  {
+   "kod": "N18",
+   "ad": "Seçim modeli",
+   "grup": "Yapay zekâ",
+   "durum": "baslamadi",
+   "yuzde": 0,
+   "yapilan": "Planlandı",
+   "eksik": "Açıklanabilir model, zamana göre doğrulama. Kabul: maliyet sonrası 'hepsini kopyala'dan iyi, güven aralığı sıfırın üstünde; değilse 'avantaj yok' raporu"
+  },
+  {
+   "kod": "N19",
+   "ad": "Gölge karar",
+   "grup": "Yapay zekâ",
+   "durum": "baslamadi",
+   "yuzde": 0,
+   "yapilan": "Planlandı",
+   "eksik": "En az 2 hafta işlemlere dokunmadan paralel karar; sınama ile tutarlılık"
+  },
+  {
+   "kod": "N20",
+   "ad": "Kontrollü devreye alma (paper)",
+   "grup": "Yapay zekâ",
+   "durum": "baslamadi",
+   "yuzde": 0,
+   "yapilan": "Planlandı",
+   "eksik": "Paper kuralına model filtresi, geri alma anahtarı, kayma uyarısı; gerçek para yalnızca N12 onayıyla"
+  },
+  {
+   "kod": "N21",
+   "ad": "Dil modeli yardımcıları",
+   "grup": "Yapay zekâ",
+   "durum": "baslamadi",
+   "yuzde": 0,
+   "yapilan": "Planlandı (isteğe bağlı)",
+   "eksik": "Yalnızca engelleyen sosyal risk vetosu (gölge A/B ile ölçülür); Türkçe rapor yorumcusu. API anahtarı ve maliyet onayı gerekir"
   }
  ],
  "meta": [
   {
    "label": "Kaynak",
-   "value": "Claude'un proje değerlendirmesi, 16.11.2026 03:40. Yüzdeler tahmini; hiçbir aşama kabul kriterleri karşılanmadan tamamlandı sayılmaz."
+   "value": "Claude'un proje değerlendirmesi, 16.11.2026 03:55. Yüzdeler tahmini; hiçbir aşama kabul kriterleri karşılanmadan tamamlandı sayılmaz. N16–N21: yapay zekâ seçim hattı (ana yol haritasından bağımsız)."
   }
  ]
 }
