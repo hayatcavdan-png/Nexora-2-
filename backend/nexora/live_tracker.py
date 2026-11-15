@@ -49,6 +49,9 @@ class LiveTracker:
         cols = {r[1] for r in self.db.execute("PRAGMA table_info(tracker_signals)")}
         if "source" not in cols:                       # eski şemadan güvenli geçiş
             self.db.execute("ALTER TABLE tracker_signals ADD COLUMN source TEXT DEFAULT 'poll'")
+        if "kesinlik" not in cols:
+            self.db.execute("ALTER TABLE tracker_signals ADD COLUMN kesinlik TEXT")
+            self.db.execute("ALTER TABLE tracker_signals ADD COLUMN kesinlik_ts REAL")
         for w in wallets:
             self.db.execute("INSERT OR IGNORE INTO tracker_wallets(wallet) VALUES(?)", (w.strip(),))
         self.db.commit()
@@ -144,6 +147,43 @@ class LiveTracker:
         return dict(wallet=wallet, sig=sig, side=rec["event_type"], token=rec["token_mint"],
                     latency_s=age, decision=r["decision"], reason=r["reason"], source=source)
 
+    # --- N2: erken sinyal (confirmed) ile kesinleşmiş işlemi ayırma -----------------------------------
+    # Sinyaller hız için 'confirmed' seviyesinde işlenir. Burada her sinyalin işlemi sonradan zincirde
+    # yeniden sorulur: 'kesin' (finalized), 'hatali' (zincire girdi ama başarısız), 'dusuruldu' (DUSURME_SN
+    # sonra hâlâ bulunamadı: çatallanmada düşmüş say). Paper defterini değiştirmez; yalnızca ölçer ve uyarır.
+    KESINLIK_BEKLE_SN = 30
+    DUSURME_SN = 150
+
+    def verify_finality(self, now=None, limit=100):
+        now = now if now is not None else self.clock()
+        with self.lock:
+            rows = self.db.execute("""SELECT id, sig, ts, wallet, token, side, decision FROM tracker_signals
+                WHERE kesinlik IS NULL AND ts <= ? ORDER BY id LIMIT ?""", (now - self.KESINLIK_BEKLE_SN, limit)).fetchall()
+        if not rows: return dict(kesin=0, hatali=0, dusuruldu=0, bekliyor=0, uyarilar=[])
+        sigs = list(dict.fromkeys(r[1] for r in rows))
+        res = self.client.call("getSignatureStatuses", [sigs, {"searchTransactionHistory": True}])
+        vals = res.get("value") if isinstance(res, dict) else None
+        if not isinstance(vals, list) or len(vals) != len(sigs): raise ValueError("imza durumu yanıtı geçersiz")
+        durum = dict(zip(sigs, vals))
+        say = dict(kesin=0, hatali=0, dusuruldu=0, bekliyor=0); uyarilar = []
+        with self.lock:
+            for rid, sig, ts, wallet, token, side, decision in rows:
+                st = durum.get(sig)
+                if isinstance(st, dict) and st.get("err") is not None: k = "hatali"
+                elif isinstance(st, dict) and st.get("confirmationStatus") == "finalized": k = "kesin"
+                elif st is None and now - ts >= self.DUSURME_SN: k = "dusuruldu"
+                else: say["bekliyor"] += 1; continue
+                say[k] += 1
+                self.db.execute("UPDATE tracker_signals SET kesinlik=?, kesinlik_ts=? WHERE id=?", (k, now, rid))
+                if k != "kesin" and decision == "KOPYALANDI":
+                    uyarilar.append(dict(sig=sig, wallet=wallet, token=token, side=side, kesinlik=k))
+            self.db.commit()
+        say["uyarilar"] = uyarilar
+        return say
+
+    def kesinlik_ozeti(self):
+        return kesinlik_from_db(self.db)
+
     def _get_tx(self, sig):
         return self.client.call("getTransaction", [sig, {"encoding": "jsonParsed",
                     "commitment": "confirmed", "maxSupportedTransactionVersion": TX_VERSION}])
@@ -208,3 +248,16 @@ class LiveTracker:
     def failed_count(self):
         with self.lock:
             return self.db.execute("SELECT COUNT(*) FROM tracker_failed").fetchone()[0]
+
+
+def kesinlik_from_db(db):
+    """Sinyallerin zincir kesinliği dağılımı (eski veritabanında sütun yoksa boş)."""
+    try:
+        rows = db.execute("SELECT COALESCE(kesinlik,'bekliyor'), decision, COUNT(*) FROM tracker_signals GROUP BY 1, 2").fetchall()
+    except sqlite3.OperationalError:
+        return {}
+    out = dict(kesin=0, hatali=0, dusuruldu=0, bekliyor=0, kopyalanan_sorunlu=0)
+    for k, d, n in rows:
+        out[k] = out.get(k, 0) + n
+        if k in ("hatali", "dusuruldu") and d == "KOPYALANDI": out["kopyalanan_sorunlu"] += n
+    return out

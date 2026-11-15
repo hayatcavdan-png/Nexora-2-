@@ -98,6 +98,13 @@ def main():
                 if res == "hata": print(f"  {short(w)}: hata (karantinaya yaklaşıyor olabilir)", flush=True)
             for r in tr.last_poll_rows:                 # WebSocket'in kaçırıp yoklamanın bulduğu
                 show(r)
+            try:                                        # N2: erken sinyallerin zincirde kesinleşmesi
+                k = tr.verify_finality()
+                for u in k["uyarilar"]:
+                    print(f"  UYARI kesinlik: kopyalanan {u['side']} {short(u['token'])} ({short(u['wallet'])}) "
+                          f"zincirde {'başarısız' if u['kesinlik'] == 'hatali' else 'kesinleşmedi'}", flush=True)
+            except Exception as e:
+                print(f"  kesinlik kontrolü yapılamadı: {e}", flush=True)
             st = tr.latency_stats()
             ws_state = ("bağlı" if listener and listener.connected else "bağlı değil") if USE_WS else "kapalı"
             parts = [f"{k}: n={v['n']} P50={v['p50']:.0f}s P95={v['p95']:.0f}s" for k, v in st.items()]

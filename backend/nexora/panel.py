@@ -167,6 +167,13 @@ def olaylar(paper_path, tracker_path, son=0.0, limit=20, now=None):
     tc = _ro(tracker_path)
     if tc is not None:
         try:
+            for r in _rows(tc, """SELECT id, sig, wallet, token, side, kesinlik, kesinlik_ts FROM tracker_signals
+                    WHERE kesinlik IN ('hatali','dusuruldu') AND decision='KOPYALANDI' AND kesinlik_ts > ?""", (son,)):
+                tok = (r["token"] or "")[:4] + "…" + (r["token"] or "")[-4:]
+                out.append(dict(id=f"k{r['id']}", ts=r["kesinlik_ts"], tur="risk",
+                                baslik=f"Kopyalanan sinyal {'başarısız' if r['kesinlik'] == 'hatali' else 'kesinleşmedi'}: {tok}",
+                                metin="Kaynak işlem zincirde " + ("başarısız oldu" if r["kesinlik"] == "hatali" else
+                                      "kesinleşmedi (çatallanma)") + "; paper kayıt korunur, rapora işlendi."))
             for r in _rows(tc, "SELECT wallet, updated, last_error FROM tracker_wallets WHERE quarantined=2 AND updated > ?", (son,)):
                 cuz = r["wallet"][:4] + "…" + r["wallet"][-4:]
                 out.append(dict(id=f"b{r['wallet']}", ts=r["updated"], tur="bot", baslik=f"Cüzdan durduruldu: {cuz}",

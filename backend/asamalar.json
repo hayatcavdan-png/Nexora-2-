@@ -23,9 +23,9 @@
    "ad": "Canlı Solana veri bağlantısı",
    "grup": "Canlı veri",
    "durum": "ileri",
-   "yuzde": 70,
-   "yapilan": "WebSocket logsSubscribe, otomatik yeniden bağlanma (gerçek ağ kopmasında görüldü), yedek yoklama, transaction v1, gecikme ölçümü",
-   "eksik": "Reorg yönetimi; erken sinyal ile kesinleşmiş işlemi ayırma"
+   "yuzde": 85,
+   "yapilan": "WebSocket logsSubscribe, otomatik yeniden bağlanma (gerçek ağ kopmasında görüldü), yedek yoklama, transaction v1, gecikme ölçümü; erken (confirmed) sinyal ile kesinleşmiş işlem ayrımı: her sinyal 30 sn sonra zincirde yeniden sorulur (kesin / başarısız / düştü), kopyalananlar için uyarı",
+   "eksik": "Uzun süreli ölçüm sonucu (düşen sinyal oranı)"
   },
   {
    "kod": "N3",
@@ -132,7 +132,7 @@
    "grup": "Ürün",
    "durum": "devam",
    "yuzde": 85,
-   "yapilan": "Uygulama 3.7: neon arayüz; Ana Panel (bakiye, K/Z, başarı oranı, bot anahtarı, performans grafiği), Bot, Cüzdanlar, İşlemler, Rapor, Yol Haritası, Ayarlar; otomatik APK derleme; arka plan bildirimleri (alım, kapanış, risk, bot); Rapor'da zarar kesme ölçümü; token özellikleri kartı; risk sınırlarını değiştirme; PIN kilidi; bağlantı kopma uyarısı; yedeği telefona indirme",
+   "yapilan": "Uygulama 3.8: neon arayüz; Ana Panel (bakiye, K/Z, başarı oranı, bot anahtarı, performans grafiği), Bot, Cüzdanlar, İşlemler, Rapor, Yol Haritası, Ayarlar; otomatik APK derleme; arka plan bildirimleri (alım, kapanış, risk, bot); Rapor'da zarar kesme ölçümü; token özellikleri kartı; risk sınırlarını değiştirme; PIN kilidi; bağlantı kopma uyarısı; yedeği telefona indirme; zincir kesinliği kartı",
    "eksik": "HTTPS (sunucuda Tailscale ile şifreli); biyometrik giriş"
   },
   {
@@ -148,7 +148,7 @@
  "meta": [
   {
    "label": "Kaynak",
-   "value": "Claude'un proje değerlendirmesi, 16.11.2026 02:15. Yüzdeler tahmini; hiçbir aşama kabul kriterleri karşılanmadan tamamlandı sayılmaz."
+   "value": "Claude'un proje değerlendirmesi, 16.11.2026 02:30. Yüzdeler tahmini; hiçbir aşama kabul kriterleri karşılanmadan tamamlandı sayılmaz."
   }
  ]
 }

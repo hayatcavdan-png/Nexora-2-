@@ -22,6 +22,7 @@ class HeliusClient:
         "getTransactionsForAddress",
         "getTransaction",
         "getBlock",
+        "getSignatureStatuses",
     }
 
     def __init__(self, rpc_url=None, timeout=None, max_retries=None):

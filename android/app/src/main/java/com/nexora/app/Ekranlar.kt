@@ -381,6 +381,18 @@ fun RaporEkrani(v: Veri) {
         }
         Text("Sağdaki değer, gerçekleşene göre fark. 20 kapanan pozisyondan önce karar verilmez.", color = Nx.Soluk, fontSize = 11.sp)
     }
+    val ks = r.optJSONObject("kesinlik")
+    if (ks != null && ks.length() > 0) Kart(Modifier.fillMaxWidth()) {
+        Text("Zincir kesinliği", color = Nx.Metin, fontWeight = FontWeight.SemiBold)
+        Text("Sinyaller hız için 'onaylandı' seviyesinde işlenir; 30 sn sonra zincirde kesinleşip kesinleşmediği yeniden sorulur.",
+             color = Nx.Soluk, fontSize = 12.sp)
+        Satir("Kesinleşti", ks.optInt("kesin").toString(), Nx.Yesil)
+        Satir("Zincirde başarısız", ks.optInt("hatali").toString(), if (ks.optInt("hatali") > 0) Nx.Sari else Nx.Soluk)
+        Satir("Kesinleşmedi (düştü)", ks.optInt("dusuruldu").toString(), if (ks.optInt("dusuruldu") > 0) Nx.Kirmizi else Nx.Soluk)
+        Satir("Bekliyor", ks.optInt("bekliyor").toString())
+        if (ks.optInt("kopyalanan_sorunlu") > 0)
+            Text("Kopyalanan işlemlerden ${ks.optInt("kopyalanan_sorunlu")} tanesi sorunlu bir sinyale dayanıyor.", color = Nx.Kirmizi, fontSize = 12.sp)
+    }
     val tb = r.optJSONObject("token_bilgi")
     if (tb != null) Kart(Modifier.fillMaxWidth()) {
         Text("Token özelliklerine göre sonuç", color = Nx.Metin, fontWeight = FontWeight.SemiBold)

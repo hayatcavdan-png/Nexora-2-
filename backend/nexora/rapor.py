@@ -156,12 +156,13 @@ def build_report(paper_path, tracker_path=None, now=None):
     wallet_rows = sorted(({"wallet": k, **{a: (round(b, 2) if isinstance(b, float) else b) for a, b in v.items()}}
                           for k, v in wallets.items()), key=lambda r: (-r["kapanan"], -r["sinyal"]))
 
-    gecikme = {}
+    gecikme, kesinlik = {}, {}
     tc = _ro(tracker_path)
     if tc is not None:
         try:
-            from nexora.live_tracker import latency_from_db
+            from nexora.live_tracker import latency_from_db, kesinlik_from_db
             gecikme = latency_from_db(tc)
+            kesinlik = kesinlik_from_db(tc)
         except sqlite3.OperationalError:
             gecikme = {}
         finally:
@@ -181,6 +182,7 @@ def build_report(paper_path, tracker_path=None, now=None):
         zarar_kesme=stop_summary(iz, tetik),
         token_bilgi=bilgi_summary(iz, shadows, bilgi),
         gecikme=gecikme,
+        kesinlik=kesinlik,
     )
 
 def as_text(r):
@@ -217,6 +219,10 @@ def as_text(r):
             L.append(f"  {w['wallet'][:4]}…{w['wallet'][-4:]}  sinyal {w['sinyal']:>3}  kopyalanan {w['kopyalanan']:>2}  "
                      f"kapanan {w['kapanan']:>2} K/Z {w['gerceklesen_kz']:+.2f}  açık {w['acik']}  "
                      f"gölge {w['golge_kapanan']} ({w['golge_kz']:+.2f})")
+    k = r.get("kesinlik") or {}
+    if k:
+        L += ["", f"Zincir kesinliği: {k['kesin']} kesinleşti, {k['hatali']} başarısız, {k['dusuruldu']} düştü, "
+                  f"{k['bekliyor']} bekliyor" + (f" · kopyalananlardan sorunlu: {k['kopyalanan_sorunlu']}" if k["kopyalanan_sorunlu"] else "")]
     if r["gecikme"]:
         L += [""] + [f"Gecikme ({k}): {v['n']} sinyal, P50 {v['p50']:.0f} sn, P95 {v['p95']:.0f} sn" for k, v in r["gecikme"].items()]
     return "\n".join(L)
