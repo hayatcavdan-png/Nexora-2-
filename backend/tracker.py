@@ -22,6 +22,7 @@ def read_list(path):
     if not os.path.exists(path): return []
     return [l.strip() for l in open(path) if l.strip() and not l.lstrip().startswith("#")]
 INTERVAL = int(os.getenv("TRACK_INTERVAL", "60" if USE_WS else "20"))
+MARK_EVERY = int(os.getenv("MARK_INTERVAL", "300"))   # açık pozisyonları 5 dakikada bir gerçek teklifle değerle
 
 def short(a): return a[:4] + "…" + a[-4:]
 
@@ -81,9 +82,14 @@ def main():
            (", gerçek Jupiter teklifleriyle paper işlem" if PAPER_TRADE else ", paper işlem kapalı")
     print(f"Takip başladı: {len(wallets)} cüzdan, {mode}, yoklama {INTERVAL} sn "
           f"(PAPER, gerçek işlem KAPALI)", flush=True)
+    last_mark = time.time()
     try:
         while True:
             stop.wait(INTERVAL)
+            if decider and time.time() - last_mark >= MARK_EVERY:
+                last_mark = time.time()
+                ok, bad = decider.mark_to_market()
+                if bad: print(f"  değerleme: {ok} pozisyon güncellendi, {bad} için teklif alınamadı", flush=True)
             for w, res in tr.poll_all().items():
                 if res == "hata": print(f"  {short(w)}: hata (karantinaya yaklaşıyor olabilir)", flush=True)
             for r in tr.last_poll_rows:                 # WebSocket'in kaçırıp yoklamanın bulduğu

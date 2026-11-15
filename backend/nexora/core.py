@@ -168,6 +168,13 @@ class Paper:
             self.db.execute("DELETE FROM positions WHERE token=?", (token,))
             return self._log(event_id, wallet, token, "sell", pos["qty"], price, fee, pnl, "KOPYALANDI", note)
 
+    def mark_price(self, token, price):
+        """Açık pozisyonu güncel teklif fiyatıyla değerler (gerçekleşmemiş K/Z için)."""
+        with self.lock:
+            self.db.execute("UPDATE positions SET last_price=? WHERE token=?", (price, token))
+            self._set(f"mark_ts:{token}", time.time())
+            self.db.commit()
+
     def portfolio(self):
         rows = [dict(r) for r in self.db.execute("SELECT * FROM positions")]
         eq = self.equity()

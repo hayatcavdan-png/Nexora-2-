@@ -2,7 +2,15 @@ plugins { id("com.android.application"); id("org.jetbrains.kotlin.android") }
 android {
     namespace = "com.nexora.app"
     compileSdk = 34
-    defaultConfig { applicationId = "com.nexora.app"; minSdk = 26; targetSdk = 34; versionCode = 1; versionName = "2.0.0" }
+    defaultConfig { applicationId = "com.nexora.app"; minSdk = 26; targetSdk = 34; versionCode = 2; versionName = "2.1.0" }
+    signingConfigs {
+        // Sabit debug anahtarı: her GitHub derlemesi aynı imzayı kullanır, uygulama üzerine güncellenebilir.
+        // Yalnızca test (debug) içindir; Play Store / gerçek dağıtım anahtarı ayrı ve gizli tutulmalıdır.
+        getByName("debug") {
+            storeFile = rootProject.file("nexora-debug.keystore")
+            storePassword = "android"; keyAlias = "androiddebugkey"; keyPassword = "android"
+        }
+    }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
     kotlinOptions { jvmTarget = "17" }
     buildFeatures { compose = true }

@@ -1,11 +1,34 @@
 """Bağımlılıksız NEXORA sunucusu (yalnızca Python stdlib).
 Çalıştır: NEXORA_API_KEY=gizli123 python server.py"""
-import os, json
+import os, json, sqlite3
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from nexora.core import Paper, CFG
+from nexora.live_tracker import latency_from_db
 
 paper = Paper(os.getenv("NEXORA_DB", "nexora_paper.db"))
 KEY = os.getenv("NEXORA_API_KEY", "")
+
+def _read_list(path):
+    if not os.path.exists(path): return []
+    return [l.strip() for l in open(path) if l.strip() and not l.lstrip().startswith("#")]
+
+def takip_ozeti(limit=50):
+    """Takip veritabanını SALT OKUNUR açar: cüzdan durumu, son sinyaller, gecikme."""
+    path = os.getenv("TRACKER_DB", "nexora_tracker.db")
+    if not os.path.exists(path): return dict(cuzdanlar=[], sinyaller=[], gecikme={})
+    active = set(_read_list("wallets.txt")) - set(_read_list("kara_liste.txt"))
+    c = sqlite3.connect(f"file:{path}?mode=ro", uri=True, timeout=5)
+    c.row_factory = sqlite3.Row
+    try:
+        cuz = [dict(r) for r in c.execute("SELECT wallet, errors, quarantined, last_error FROM tracker_wallets")
+               if not active or r["wallet"] in active]
+        sig = [dict(r) for r in c.execute("SELECT * FROM tracker_signals ORDER BY id DESC LIMIT ?", (limit,))]
+        for r in sig:
+            r.pop("token_delta", None); r.pop("quote", None)
+            r.setdefault("source", "poll")
+        return dict(cuzdanlar=cuz, sinyaller=sig, gecikme=latency_from_db(c))
+    finally:
+        c.close()
 
 class H(BaseHTTPRequestHandler):
     def _send(self, code, obj):
@@ -22,6 +45,7 @@ class H(BaseHTTPRequestHandler):
             self._send(200, dict(mod="PAPER", gercek_islem="KAPALI", acil_durdurma=paper.killed(), ayarlar=CFG))
         elif self.path == "/portfoy": self._send(200, paper.portfolio())
         elif self.path == "/islemler": self._send(200, paper.trades())
+        elif self.path == "/takip": self._send(200, takip_ozeti())
         else: self._send(404, {"hata": "yok"})
     def do_POST(self):
         if not self._ok(): return
@@ -41,5 +65,9 @@ class H(BaseHTTPRequestHandler):
 
 if __name__ == "__main__":
     if not KEY: raise SystemExit("NEXORA_API_KEY ayarlanmadı")
+    try:
+        srv = ThreadingHTTPServer(("127.0.0.1", 8000), H)
+    except OSError:
+        raise SystemExit("8000 portu kullanımda: sunucu zaten başka bir oturumda çalışıyor olabilir.")
     print("NEXORA çalışıyor: http://127.0.0.1:8000  (PAPER modu)")
-    ThreadingHTTPServer(("127.0.0.1", 8000), H).serve_forever()
+    srv.serve_forever()

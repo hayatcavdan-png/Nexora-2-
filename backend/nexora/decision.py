@@ -49,3 +49,16 @@ class Decider:
             return p.reject(event_id, wallet, token, "sell", f"satış teklifi yok, pozisyon açık kaldı: {e}")
         proceeds = q["out_amount"] / 10 ** USDC_DECIMALS
         return p.record_sell(event_id, wallet, token, proceeds, note=f"etki %{q['price_impact_pct']:.2f}")
+
+    def mark_to_market(self):
+        """Açık pozisyonları gerçek satış teklifiyle değerler. Teklif alınamazsa eski fiyat kalır."""
+        done, failed = 0, 0
+        for pos in self.paper.portfolio()["positions"]:
+            if not pos.get("qty_raw") or not pos.get("qty"): continue
+            try:
+                q = self.quoter.quote(pos["token"], USDC_MINT, int(pos["qty_raw"]))
+            except QuoteError:
+                failed += 1; continue
+            self.paper.mark_price(pos["token"], q["out_amount"] / 10 ** USDC_DECIMALS / pos["qty"])
+            done += 1
+        return done, failed

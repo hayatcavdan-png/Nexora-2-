@@ -25,6 +25,17 @@ CREATE TABLE IF NOT EXISTS tracker_signals(id INTEGER PRIMARY KEY AUTOINCREMENT,
   block_time INTEGER, latency_s REAL, decision TEXT, reason TEXT);
 """
 
+def latency_from_db(db):
+    """Kaynak (ws/poll) başına P50/P95/P99 algılama gecikmesi."""
+    out = {}
+    for src in ("ws", "poll"):
+        lat = sorted(r[0] for r in db.execute(
+            "SELECT latency_s FROM tracker_signals WHERE source=? AND latency_s < 1e8", (src,)))
+        if lat:
+            q = lambda p: lat[min(len(lat) - 1, int(p * len(lat)))]
+            out[src] = dict(n=len(lat), p50=q(.5), p95=q(.95), p99=q(.99))
+    return out
+
 class LiveTracker:
     def __init__(self, client, paper, db_path, wallets, clock=time.time, sleep=time.sleep, decider=None):
         self.client, self.paper, self.clock, self.sleep = client, paper, clock, sleep
@@ -184,14 +195,7 @@ class LiveTracker:
 
     def latency_stats(self):
         with self.lock:
-            out = {}
-            for src in ("ws", "poll"):
-                lat = sorted(r[0] for r in self.db.execute(
-                    "SELECT latency_s FROM tracker_signals WHERE source=? AND latency_s < 1e8", (src,)))
-                if lat:
-                    q = lambda p: lat[min(len(lat) - 1, int(p * len(lat)))]
-                    out[src] = dict(n=len(lat), p50=q(.5), p95=q(.95), p99=q(.99))
-            return out
+            return latency_from_db(self.db)
 
     def reset_quarantine(self):
         """Yeniden başlatmada karantinadaki cüzdanlara yeni şans verir; sayısını döndürür."""
