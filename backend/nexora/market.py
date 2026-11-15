@@ -26,6 +26,10 @@ class JupiterQuoter:
                 if wait > 0: self.sleep(wait); now = self.clock()
             self._last = now
 
+    def bos(self, pay=1.0):
+        """Teklif hattı boş mu (son istekten bu yana min_interval*(1+pay) geçti mi)? Ölçüm işleri canlı kararlara yol verir."""
+        return self._last is None or self.clock() - self._last >= self.min_interval * (1 + pay)
+
     def quote(self, input_mint, output_mint, amount_raw):
         if isinstance(amount_raw, bool) or not isinstance(amount_raw, int) or amount_raw <= 0:
             raise QuoteError("miktar geçersiz")

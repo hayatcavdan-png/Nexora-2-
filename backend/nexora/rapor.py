@@ -136,6 +136,13 @@ def yurutme_summary(rows):
                          en_kotu=round(v[-1], 3) if v else None)
     return out
 
+def _etiket_ozet():
+    try:
+        from nexora.etiket import ozet
+        return ozet(os.getenv("ETIKET_DB", "nexora_etiket.db"))
+    except Exception:
+        return None
+
 def build_report(paper_path, tracker_path=None, now=None):
     now = now if now is not None else time.time()
     since = start_of_local_day(now)
@@ -216,6 +223,7 @@ def build_report(paper_path, tracker_path=None, now=None):
         boyut=boyut_summary(iz, boyut),
         gecikme=gecikme,
         kesinlik=kesinlik,
+        etiket=_etiket_ozet(),
     )
 
 def as_text(r):
@@ -252,6 +260,14 @@ def as_text(r):
             L.append(f"  {w['wallet'][:4]}…{w['wallet'][-4:]}  sinyal {w['sinyal']:>3}  kopyalanan {w['kopyalanan']:>2}  "
                      f"kapanan {w['kapanan']:>2} K/Z {w['gerceklesen_kz']:+.2f}  açık {w['acik']}  "
                      f"gölge {w['golge_kapanan']} ({w['golge_kz']:+.2f})")
+    e = r.get("etiket")
+    if e:
+        L += ["", f"Yapay zekâ verisi (N16): {e['etiketli']}/{e['hedef']} etiketli sinyal (%{e['ilerleme_pct']}), "
+                  f"{e['izleniyor']} izleniyor, {e['giris_yok']} girişi olmayan"]
+        for u in ("5dk", "30dk", "kaynak"):
+            x = e["ufuklar"].get(u)
+            if x and x["etiketli"]:
+                L.append(f"  {u:<7} {x['etiketli']} etiket, ort. getiri %{x['ort_getiri']:+.1f}, kazanan {x['kazanan']}")
     y = r.get("yurutme") or {}
     if y.get("olculen"):
         parca = []

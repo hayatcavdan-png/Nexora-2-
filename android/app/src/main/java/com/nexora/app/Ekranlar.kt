@@ -390,6 +390,29 @@ fun RaporEkrani(v: Veri) {
         }
         Text("Sağdaki değer, gerçekleşene göre fark. 20 kapanan pozisyondan önce karar verilmez.", color = Nx.Soluk, fontSize = 11.sp)
     }
+    val et = r.optJSONObject("etiket")
+    if (et != null) NeonKart(Modifier.fillMaxWidth(), dolgu = Nx.DolguMor) {
+        Text("Yapay zekâ verisi (N16)", color = Nx.Metin, fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
+        Text("Takip edilen cüzdanların her alımı işlem yapılmadan etiketleniyor: alım anındaki özellikler ve 5 dk / 30 dk / " +
+             "kaynak satınca '5 USDC girseydik' sonucu.", color = Nx.Soluk, fontSize = 12.sp)
+        val n = et.optInt("etiketli"); val h = et.optInt("hedef", 500)
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            LinearProgressIndicator(progress = { (n.toFloat() / h).coerceIn(0f, 1f) }, modifier = Modifier.weight(1f).height(8.dp),
+                color = Nx.Camgobegi, trackColor = Nx.Cizgi)
+            Text("$n / $h", color = Nx.Metin, fontSize = 13.sp)
+        }
+        Satir("İzleniyor / tamamlandı", "${et.optInt("izleniyor")} / ${et.optInt("tamam")}")
+        Satir("Girilemeyen (rota yok)", et.optInt("giris_yok").toString())
+        val uf = et.optJSONObject("ufuklar")
+        if (uf != null) for ((k, ad) in listOf("5dk" to "5 dakika sonra", "30dk" to "30 dakika sonra", "kaynak" to "Kaynak satınca")) {
+            val x = uf.optJSONObject(k) ?: continue
+            if (x.optInt("etiketli") == 0) continue
+            val o = x.optDouble("ort_getiri", 0.0)
+            Satir("$ad · ${x.optInt("etiketli")} etiket, ${x.optInt("kazanan")} kazanan", (if (o >= 0) "+" else "") + yuzde(o), kzRenk(o))
+        }
+        Text("'Kaynak satınca' ortalaması, 'hepsini kopyala' stratejisinin temel çizgisidir; model bunu geçmek zorunda.",
+             color = Nx.Soluk, fontSize = 11.sp)
+    }
     val yu = r.optJSONObject("yurutme")
     if (yu != null && yu.optInt("olculen") > 0) Kart(Modifier.fillMaxWidth()) {
         Text("Yürütme gecikmesi", color = Nx.Metin, fontWeight = FontWeight.SemiBold)

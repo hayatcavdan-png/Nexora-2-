@@ -38,9 +38,10 @@ def latency_from_db(db):
     return out
 
 class LiveTracker:
-    def __init__(self, client, paper, db_path, wallets, clock=time.time, sleep=time.sleep, decider=None):
+    def __init__(self, client, paper, db_path, wallets, clock=time.time, sleep=time.sleep, decider=None, etiketci=None):
         self.client, self.paper, self.clock, self.sleep = client, paper, clock, sleep
         self.decider = decider
+        self.etiketci = etiketci          # N16: her sinyal için ölçüm (isteğe bağlı, işlem yapmaz)
         self.lock = threading.RLock()
         self.wallets = {w.strip() for w in wallets}
         self.recent = defaultdict(deque)
@@ -139,6 +140,11 @@ class LiveTracker:
             r = self.decider.decide(event_id, wallet, rec["token_mint"], side, age)
         else:                                                  # fiyat/likidite bilinmiyor -> engellenir
             r = self.paper.handle_signal(event_id, wallet, rec["token_mint"], side, 1.0, 0.0, age)
+        if self.etiketci is not None:
+            try:
+                self.etiketci.sinyal(event_id, wallet, rec["token_mint"], side, sig, bt, age, r["decision"], r["reason"])
+            except Exception:
+                pass
         with self.lock:
             self.db.execute("""INSERT INTO tracker_signals(ts,wallet,sig,side,token,token_delta,quote,
                 block_time,latency_s,decision,reason,source) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)""",

@@ -59,3 +59,16 @@ class T(unittest.TestCase):
         tr2 = LiveTracker(self.c, self.p, db, ["A"], clock=lambda: 1005)    # yeniden başlatma
         self.assertEqual(tr2.poll_all()["A"], 1)
 if __name__ == "__main__": unittest.main()
+
+
+class EtiketKancaTests(unittest.TestCase):
+    def test_every_signal_forwarded_and_errors_ignored(self):
+        from unittest.mock import Mock
+        c, p, et = FakeClient(), Paper(), Mock()
+        tr = LiveTracker(c, p, ":memory:", ["A"], clock=lambda: 1005, etiketci=et)
+        c.sigs["A"] = ["o"]; tr.poll_all()
+        c.sigs["A"] = ["n", "o"]; c.txs["n"] = swap_tx("n", "A"); tr.poll_all()
+        args = et.sinyal.call_args.args
+        self.assertEqual(args[:5], ("A:n", "A", "TOK", "buy", "n")); self.assertEqual(args[7], "REDDEDİLDİ")
+        et.sinyal.side_effect = RuntimeError("bozuk")                    # ölçüm hatası takibi durdurmaz
+        c.sigs["A"] = ["m", "n", "o"]; c.txs["m"] = swap_tx("m", "A"); self.assertEqual(tr.poll_all()["A"], 1)

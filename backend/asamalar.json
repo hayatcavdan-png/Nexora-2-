@@ -132,7 +132,7 @@
    "grup": "Ürün",
    "durum": "devam",
    "yuzde": 85,
-   "yapilan": "Uygulama 3.12: neon arayüz; Ana Panel (bakiye, K/Z, başarı oranı, bot anahtarı, performans grafiği), Bot, Cüzdanlar, İşlemler, Rapor, Yol Haritası, Ayarlar; otomatik APK derleme; arka plan bildirimleri (alım, kapanış, risk, bot); Rapor'da zarar kesme ölçümü; token özellikleri kartı; risk sınırlarını değiştirme; PIN kilidi; bağlantı kopma uyarısı; yedeği telefona indirme; zincir kesinliği kartı; sakin tema; sistem sağlığı ve yürütme gecikmesi kartları; pozisyon durumu etiketi; cüzdan düşüşü ve büyüklük yöntemleri kartları",
+   "yapilan": "Uygulama 3.13: neon arayüz; Ana Panel (bakiye, K/Z, başarı oranı, bot anahtarı, performans grafiği), Bot, Cüzdanlar, İşlemler, Rapor, Yol Haritası, Ayarlar; otomatik APK derleme; arka plan bildirimleri (alım, kapanış, risk, bot); Rapor'da zarar kesme ölçümü; token özellikleri kartı; risk sınırlarını değiştirme; PIN kilidi; bağlantı kopma uyarısı; yedeği telefona indirme; zincir kesinliği kartı; sakin tema; sistem sağlığı ve yürütme gecikmesi kartları; pozisyon durumu etiketi; cüzdan düşüşü ve büyüklük yöntemleri kartları; yapay zekâ verisi kartı",
    "eksik": "HTTPS (sunucuda Tailscale ile şifreli); biyometrik giriş"
   },
   {
@@ -148,10 +148,10 @@
    "kod": "N16",
    "ad": "Sinyal etiketleme motoru",
    "grup": "Yapay zekâ",
-   "durum": "baslamadi",
-   "yuzde": 0,
-   "yapilan": "Planlandı (docs/YZ_yol_haritasi.md); dayandığı ölçümler hazır: token bilgisi, gölge işlemler, zarar kesme, yürütme gecikmesi",
-   "eksik": "Her kaynak alımı için alım anı özellikleri + 5 dk / 30 dk / kaynak satış etiketleri. Kabul: ≥500 etiketli sinyal, ≥%90 eksiksiz"
+   "durum": "devam",
+   "yuzde": 30,
+   "yapilan": "Etiketleme motoru kuruldu: her kaynak alımında 5 USDC'lik gerçek alış ve geri satış teklifi, token bilgisi, cüzdan istatistikleri; 5 dk / 30 dk / kaynak satış (en geç 24 sa) etiketleri; ayrı veritabanı, yeniden başlatmaya dayanıklı, canlı kopyalamaya öncelik, günlük üst sınır; uygulamada ilerleme kartı",
+   "eksik": "Veri birikmesi: ≥500 etiketli sinyal, ≥%90 eksiksiz"
   },
   {
    "kod": "N17",
@@ -202,7 +202,7 @@
  "meta": [
   {
    "label": "Kaynak",
-   "value": "Claude'un proje değerlendirmesi, 16.11.2026 03:55. Yüzdeler tahmini; hiçbir aşama kabul kriterleri karşılanmadan tamamlandı sayılmaz. N16–N21: yapay zekâ seçim hattı (ana yol haritasından bağımsız)."
+   "value": "Claude'un proje değerlendirmesi, 16.11.2026 04:15. Yüzdeler tahmini; hiçbir aşama kabul kriterleri karşılanmadan tamamlandı sayılmaz. N16–N21: yapay zekâ seçim hattı (ana yol haritasından bağımsız)."
   }
  ]
 }
