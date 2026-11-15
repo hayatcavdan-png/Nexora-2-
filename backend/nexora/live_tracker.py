@@ -10,10 +10,12 @@ import sqlite3, threading, time
 from nexora.swap_decoder import decode_swap
 
 QUARANTINE_AFTER = 5
+TX_VERSION = 1      # Solana transaction v1 (Eylül 2026). 0 verilirse v1 işlemlerde RPC -32015 döner.
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS tracker_wallets(wallet TEXT PRIMARY KEY, last_sig TEXT,
   errors INTEGER DEFAULT 0, quarantined INTEGER DEFAULT 0, last_error TEXT, updated REAL);
 CREATE TABLE IF NOT EXISTS tracker_seen(sig TEXT, wallet TEXT, PRIMARY KEY(sig, wallet));
+CREATE TABLE IF NOT EXISTS tracker_failed(sig TEXT, wallet TEXT, error TEXT, ts REAL, PRIMARY KEY(sig, wallet));
 CREATE TABLE IF NOT EXISTS tracker_signals(id INTEGER PRIMARY KEY AUTOINCREMENT, ts REAL,
   wallet TEXT, sig TEXT, side TEXT, token TEXT, token_delta TEXT, quote TEXT,
   block_time INTEGER, latency_s REAL, decision TEXT, reason TEXT);
@@ -69,8 +71,17 @@ class LiveTracker:
             if self._seen(wallet, sig): return None
         tx = None
         for i in range(retries):
-            tx = self.client.call("getTransaction", [sig, {"encoding": "jsonParsed",
-                    "commitment": "confirmed", "maxSupportedTransactionVersion": 0}])
+            try:
+                tx = self._get_tx(sig)
+            except Exception as e:
+                if getattr(e, "rpc_code", None) is None:
+                    raise                               # bağlantı/HTTP: geçici, cüzdan düzeyinde sayılır
+                with self.lock:                         # sunucu bu işlemi reddetti: kaydet, cüzdanı durdurma
+                    self.db.execute("INSERT OR IGNORE INTO tracker_seen VALUES(?,?)", (sig, wallet))
+                    self.db.execute("INSERT OR REPLACE INTO tracker_failed VALUES(?,?,?,?)",
+                                    (sig, wallet, f"RPC {e.rpc_code}", self.clock()))
+                    self.db.commit()
+                return None
             if isinstance(tx, dict): break
             if i + 1 < retries: self.sleep(delay)
         if not isinstance(tx, dict): return None
@@ -91,6 +102,10 @@ class LiveTracker:
             self.db.commit()
             return dict(wallet=wallet, sig=sig, side=rec["event_type"], token=rec["token_mint"],
                         latency_s=age, decision=r["decision"], reason=r["reason"], source=source)
+
+    def _get_tx(self, sig):
+        return self.client.call("getTransaction", [sig, {"encoding": "jsonParsed",
+                    "commitment": "confirmed", "maxSupportedTransactionVersion": TX_VERSION}])
 
     def poll_all(self):
         report = {}
@@ -135,3 +150,14 @@ class LiveTracker:
                     q = lambda p: lat[min(len(lat) - 1, int(p * len(lat)))]
                     out[src] = dict(n=len(lat), p50=q(.5), p95=q(.95), p99=q(.99))
             return out
+
+    def reset_quarantine(self):
+        """Yeniden başlatmada karantinadaki cüzdanlara yeni şans verir; sayısını döndürür."""
+        with self.lock:
+            n = self.db.execute("UPDATE tracker_wallets SET quarantined=0, errors=0 WHERE quarantined=1").rowcount
+            self.db.commit()
+            return n
+
+    def failed_count(self):
+        with self.lock:
+            return self.db.execute("SELECT COUNT(*) FROM tracker_failed").fetchone()[0]

@@ -36,6 +36,8 @@ def main():
         sys.exit(f"Helius bağlantısı başarısız: {e}")
     paper = Paper(os.getenv("NEXORA_DB", "nexora_paper.db"))
     tr = LiveTracker(client, paper, os.getenv("TRACKER_DB", "nexora_tracker.db"), wallets)
+    n = tr.reset_quarantine()
+    if n: print(f"{n} cüzdan karantinadan çıkarıldı (yeniden deneniyor)", flush=True)
     tr.poll_all()                                     # başlangıç noktası / kaçanları tamamla
 
     stop = threading.Event()
@@ -62,7 +64,9 @@ def main():
             st = tr.latency_stats()
             ws_state = ("bağlı" if listener and listener.connected else "bağlı değil") if USE_WS else "kapalı"
             parts = [f"{k}: n={v['n']} P50={v['p50']:.0f}s P95={v['p95']:.0f}s" for k, v in st.items()]
-            print(time.strftime("%H:%M:%S"), f"ws {ws_state} |", " | ".join(parts) or "henüz sinyal yok", flush=True)
+            nf = tr.failed_count()
+            extra = f" | okunamayan işlem: {nf}" if nf else ""
+            print(time.strftime("%H:%M:%S"), f"ws {ws_state} |", (" | ".join(parts) or "henüz sinyal yok") + extra, flush=True)
     finally:
         stop.set()
 

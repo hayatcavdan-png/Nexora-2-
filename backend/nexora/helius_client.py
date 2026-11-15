@@ -6,7 +6,8 @@ from nexora.runtime_guard import require_safe_runtime
 
 
 class HeliusRPCError(RuntimeError):
-    pass
+    """rpc_code: sunucunun döndürdüğü JSON-RPC hata kodu (bağlantı/HTTP hatalarında None)."""
+    rpc_code = None
 
 
 class HeliusClient:
@@ -127,7 +128,9 @@ class HeliusClient:
                         raise HeliusRPCError("RPC hata formatı geçersiz")
 
                     code = error.get("code", "bilinmiyor")
-                    raise HeliusRPCError(f"RPC hatası: {code}")
+                    rpc_error = HeliusRPCError(f"RPC hatası: {code}")
+                    rpc_error.rpc_code = code
+                    raise rpc_error
 
                 if "result" not in data:
                     raise HeliusRPCError("RPC yanıtında result alanı yok")

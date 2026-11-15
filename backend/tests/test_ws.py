@@ -155,3 +155,54 @@ class TrackerWsTests(unittest.TestCase):
         tr = self.tracker(FlakyClient(None), db)
         self.assertEqual(tr.latency_stats()["poll"]["n"], 1)            # eski kayıtlar 'poll' sayıldı
 if __name__ == "__main__": unittest.main()
+
+class RpcErr(Exception):
+    def __init__(self, code): super().__init__(f"RPC hatası: {code}"); self.rpc_code = code
+
+class V1Client:
+    """-32015 gibi işleme özgü RPC hatası ya da bağlantı hatası üretir; istenen sürümü kaydeder."""
+    def __init__(self, mode): self.mode, self.versions = mode, []
+    def call(self, method, params):
+        if method == "getSignaturesForAddress":
+            return [{"signature": "bad", "err": None}, {"signature": "good", "err": None}]
+        self.versions.append(params[1]["maxSupportedTransactionVersion"])
+        if params[0] == "bad":
+            if self.mode == "rpc": raise RpcErr(-32015)
+            raise ConnectionError("ağ yok")
+        return swap_tx("good", "A")
+
+class TxVersionTests(unittest.TestCase):
+    def make(self, mode):
+        c = V1Client(mode)
+        tr = LiveTracker(c, Paper(), ":memory:", ["A"], clock=lambda: 1003, sleep=lambda s: None)
+        tr.db.execute("UPDATE tracker_wallets SET last_sig='old'"); tr.db.commit()
+        return c, tr
+    def test_requests_transaction_v1(self):
+        c, tr = self.make("rpc"); tr.poll_all()
+        self.assertTrue(c.versions and all(v == 1 for v in c.versions))
+    def test_rpc_error_on_one_tx_does_not_fail_wallet(self):
+        c, tr = self.make("rpc")
+        rep = tr.poll_all()
+        self.assertEqual(rep["A"], 1)                                   # 'good' yine işlendi
+        self.assertEqual(tr.failed_count(), 1)
+        st = tr.status()[0]; self.assertEqual((st["errors"], st["quarantined"]), (0, 0))
+    def test_connection_error_counts_against_wallet(self):
+        c, tr = self.make("net")
+        self.assertEqual(tr.poll_all()["A"], "hata"); self.assertEqual(tr.failed_count(), 0)
+        self.assertEqual(tr.status()[0]["errors"], 1)
+    def test_reset_quarantine(self):
+        c, tr = self.make("net")
+        for _ in range(5): tr.poll_all()
+        self.assertEqual(tr.status()[0]["quarantined"], 1)
+        self.assertEqual(tr.reset_quarantine(), 1); self.assertEqual(tr.active_wallets(), ["A"])
+
+class HeliusRpcCodeTests(unittest.TestCase):
+    def test_client_exposes_rpc_code(self):
+        from unittest.mock import Mock, patch
+        from nexora.helius_client import HeliusClient, HeliusRPCError
+        c = HeliusClient(rpc_url="https://mainnet.helius-rpc.com/?api-key=test", max_retries=0)
+        resp = Mock(status_code=200, headers={}); resp.raise_for_status = Mock()
+        resp.json = Mock(return_value={"jsonrpc": "2.0", "id": 1, "error": {"code": -32015, "message": "x"}})
+        with patch("nexora.helius_client.requests.Session.post", return_value=resp):
+            with self.assertRaises(HeliusRPCError) as ctx: c.call("getTransaction", ["s", {}])
+        self.assertEqual(ctx.exception.rpc_code, -32015); c.close()
