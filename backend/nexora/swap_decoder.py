@@ -132,6 +132,103 @@ def _token_balances(transaction, wallet):
     return totals
 
 
+def _all_account_keys(transaction):
+    """Statik anahtarlar + adres tablosundan yüklenenler (bakiye dizileriyle aynı sıra)."""
+    keys = _account_keys(transaction)
+    meta = transaction.get("meta") or {}
+    n = len(meta.get("preBalances") or [])
+    loaded = meta.get("loadedAddresses") or {}
+    if len(keys) < n and isinstance(loaded, dict):
+        for field in ("writable", "readonly"):
+            items = loaded.get(field) or []
+            if isinstance(items, list):
+                keys = keys + [a if isinstance(a, str) else None for a in items]
+    return keys
+
+
+def _parsed_instructions(transaction):
+    message = (transaction.get("transaction") or {}).get("message") or {}
+    meta = transaction.get("meta") or {}
+    groups = [message.get("instructions") or []]
+    for group in meta.get("innerInstructions") or []:
+        if isinstance(group, dict):
+            groups.append(group.get("instructions") or [])
+    for group in groups:
+        if not isinstance(group, list):
+            continue
+        for ins in group:
+            if isinstance(ins, dict) and isinstance(ins.get("parsed"), dict):
+                yield ins["parsed"]
+
+
+def _verified_lifecycle(transaction, wallet):
+    """Cüzdana ait token hesabı açıldı/kapandıysa bunu talimatlardan doğrular.
+
+    Döner: None -> açma/kapama var ama doğrulanamadı (güvenli taraf: swap sayılmaz).
+           dict(accounts, rent_adjust) -> doğrulandı; rent_adjust, SOL farkına eklenince
+           kira ödemesi/iadesi çıkarılmış olur (hesap lamport değişimi = kira).
+    Kural: açılışta kirayı cüzdan ödemiş olmalı (create/createIdempotent/createAccount
+    source=cüzdan); kapanışta iade cüzdana gitmeli (closeAccount destination=cüzdan).
+    WSOL hesabı açma/kapama doğrulanmaz (içindeki SOL kira ile karışır)."""
+    meta = transaction.get("meta") or {}
+
+    def owned(field):
+        records = meta.get(field) or []
+        if not isinstance(records, list):
+            return None
+        out = {}
+        for item in records:
+            if not isinstance(item, dict):
+                return None
+            if item.get("owner") != wallet:
+                continue
+            index = item.get("accountIndex")
+            if isinstance(index, bool) or not isinstance(index, int) or index < 0:
+                return None
+            out[index] = item.get("mint")
+        return out
+
+    pre, post = owned("preTokenBalances"), owned("postTokenBalances")
+    if pre is None or post is None:
+        return None
+    created, closed = set(post) - set(pre), set(pre) - set(post)
+    if not created and not closed:
+        return {"accounts": 0, "rent_adjust": 0}
+
+    created_ok, closed_ok = set(), set()
+    for parsed in _parsed_instructions(transaction):
+        kind, info = parsed.get("type"), parsed.get("info")
+        if not isinstance(info, dict):
+            continue
+        if kind in ("create", "createIdempotent") and info.get("source") == wallet:
+            created_ok.add(info.get("account"))
+        elif kind == "createAccount" and info.get("source") == wallet:
+            created_ok.add(info.get("newAccount"))
+        elif kind == "closeAccount" and info.get("destination") == wallet:
+            closed_ok.add(info.get("account"))
+
+    keys = _all_account_keys(transaction)
+    pre_bal, post_bal = meta.get("preBalances") or [], meta.get("postBalances") or []
+    adjust = 0
+    for index in created | closed:
+        mint = post.get(index) if index in created else pre.get(index)
+        if mint == WSOL_MINT:
+            return None
+        if index >= len(keys) or index >= len(pre_bal) or index >= len(post_bal):
+            return None
+        before, after = pre_bal[index], post_bal[index]
+        if (isinstance(before, bool) or not isinstance(before, int)
+                or isinstance(after, bool) or not isinstance(after, int)):
+            return None
+        address = keys[index]
+        if index in created and address not in created_ok:
+            return None
+        if index in closed and address not in closed_ok:
+            return None
+        adjust += after - before
+    return {"accounts": len(created | closed), "rent_adjust": adjust}
+
+
 def _has_token_account_lifecycle(transaction, wallet):
     """Fail closed when wallet token-account lifecycle is uncertain."""
     meta = transaction.get("meta") or {}
@@ -353,12 +450,15 @@ def decode_swap(transaction, wallet):
     quote_delta_raw = None
 
     if len(wsol_changes) == 1 and len(token_changes) == 1:
-        if _has_token_account_lifecycle(transaction, wallet):
+        lifecycle = _verified_lifecycle(transaction, wallet)
+        if lifecycle is None:
             return {
                 "event_type": "UNKNOWN",
                 "confidence": "none",
                 "evidence": ["token_account_created_or_closed"],
             }
+        if lifecycle["accounts"]:
+            evidence.append("token_account_lifecycle_verified")
 
         change = token_changes[0]
         if change["mint"] in NON_COPYABLE_MINTS:
@@ -389,12 +489,15 @@ def decode_swap(transaction, wallet):
         and sum(item["mint"] == USDC_MINT for item in token_changes) == 1
         and all(item["mint"] != USDT_MINT for item in token_changes)
     ):
-        if _has_token_account_lifecycle(transaction, wallet):
+        lifecycle = _verified_lifecycle(transaction, wallet)
+        if lifecycle is None:
             return {
                 "event_type": "UNKNOWN",
                 "confidence": "none",
                 "evidence": ["token_account_created_or_closed"],
             }
+        if lifecycle["accounts"]:
+            evidence.append("token_account_lifecycle_verified")
 
         quote = next(
             item for item in token_changes
@@ -422,12 +525,15 @@ def decode_swap(transaction, wallet):
         evidence.append("wallet_usdc_balance_changed")
 
     elif not wsol_changes and len(token_changes) == 1:
-        if _has_token_account_lifecycle(transaction, wallet):
+        lifecycle = _verified_lifecycle(transaction, wallet)
+        if lifecycle is None:
             return {
                 "event_type": "UNKNOWN",
                 "confidence": "none",
                 "evidence": ["token_account_created_or_closed"],
             }
+        if lifecycle["accounts"]:
+            evidence.append("token_account_lifecycle_verified")
 
         change = token_changes[0]
         if change["mint"] in NON_COPYABLE_MINTS:
@@ -444,6 +550,7 @@ def decode_swap(transaction, wallet):
                 "confidence": "none",
                 "evidence": ["wallet_sol_balance_unavailable"],
             }
+        sol_delta += lifecycle["rent_adjust"]       # hesap kirası ödemesi/iadesi swap tutarından çıkarılır
 
         if change["token_delta_raw"] > 0 and sol_delta < 0:
             event_type = "BUY"
