@@ -1,4 +1,4 @@
-import sys, unittest; sys.path.insert(0, "backend")
+import sys, unittest; import os; sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 from nexora.core import Paper
 
 class T(unittest.TestCase):
