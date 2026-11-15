@@ -131,9 +131,9 @@
    "ad": "Android uygulaması",
    "grup": "Ürün",
    "durum": "devam",
-   "yuzde": 50,
-   "yapilan": "Uygulama 2.2: Durum, Portföy, Rapor, Sinyaller, İşlemler, acil durdurma; otomatik APK derleme",
-   "eksik": "Bildirimler, cüzdan yönetimi, risk ayarları, HTTPS"
+   "yuzde": 65,
+   "yapilan": "Uygulama 3.0: neon arayüz; Ana Panel (bakiye, K/Z, başarı oranı, bot anahtarı, performans grafiği), Bot, Cüzdanlar, İşlemler, Rapor, Yol Haritası, Ayarlar; otomatik APK derleme",
+   "eksik": "Bildirimler, risk ayarlarını uygulamadan değiştirme, kilit/biyometrik, HTTPS"
   },
   {
    "kod": "N15",
@@ -148,7 +148,7 @@
  "meta": [
   {
    "label": "Kaynak",
-   "value": "Claude'un proje değerlendirmesi, 15.11.2026 22:06. Yüzdeler tahmini; hiçbir aşama kabul kriterleri karşılanmadan tamamlandı sayılmaz."
+   "value": "Claude'un proje değerlendirmesi, 15.11.2026 22:58. Yüzdeler tahmini; hiçbir aşama kabul kriterleri karşılanmadan tamamlandı sayılmaz."
   }
  ]
 }
