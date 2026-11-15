@@ -122,9 +122,9 @@
    "ad": "Kesintisiz sunucu",
    "grup": "Ürün",
    "durum": "devam",
-   "yuzde": 45,
-   "yapilan": "Telefonda başlatıcı (./nexora, otomatik yeniden başlatma); sunucu kurulum paketi (systemd, Tailscale özel ağ, rastgele anahtar, gece yedeği 14 gün); yedek/geri yükleme aracı; 'takip durdu' ve 'sunucuya ulaşılamıyor' uyarıları",
-   "eksik": "Sunucu kiralama ve taşıma (ücretli, sizin onayınızla); uzun süreli çalışma kanıtı"
+   "yuzde": 75,
+   "yapilan": "Oracle Always Free sunucuda (Ubuntu 24.04) çalışıyor: systemd ile otomatik başlatma ve yeniden başlatma, Tailscale özel ağ (internete port açık değil), rastgele sunucu anahtarı, gece yedeği (14 gün), telefondaki veri taşındı (16.11.2026); 'takip durdu' ve 'sunucuya ulaşılamıyor' uyarıları",
+   "eksik": "Uzun süreli kesintisiz çalışma kanıtı; yedeğin sunucu dışına kopyası"
   },
   {
    "kod": "N14",
@@ -148,7 +148,7 @@
  "meta": [
   {
    "label": "Kaynak",
-   "value": "Claude'un proje değerlendirmesi, 16.11.2026 01:10. Yüzdeler tahmini; hiçbir aşama kabul kriterleri karşılanmadan tamamlandı sayılmaz."
+   "value": "Claude'un proje değerlendirmesi, 16.11.2026 01:50. Yüzdeler tahmini; hiçbir aşama kabul kriterleri karşılanmadan tamamlandı sayılmaz."
   }
  ]
 }
