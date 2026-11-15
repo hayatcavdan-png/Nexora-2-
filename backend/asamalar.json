@@ -1,0 +1,154 @@
+{
+ "rows": [
+  {
+   "kod": "N0",
+   "ad": "Mevcut sistem denetimi",
+   "grup": "Temel",
+   "durum": "devam",
+   "yuzde": 25,
+   "yapilan": "413 cüzdan salt okunur aktarıldı; ~15 eski modül incelendi ve yeniden kullanıldı",
+   "eksik": "375 dosyanın çoğu incelenmedi; 413/414 farkı; üretim izolasyonu kanıtı"
+  },
+  {
+   "kod": "N1",
+   "ad": "Mimari ve veri sözleşmeleri",
+   "grup": "Temel",
+   "durum": "devam",
+   "yuzde": 25,
+   "yapilan": "Olay kimliği, tekrar işlem engeli, checkpoint, şema geçişleri",
+   "eksik": "Sürümlü veri modelleri, durum makineleri, kuyruklar, denetim izi"
+  },
+  {
+   "kod": "N2",
+   "ad": "Canlı Solana veri bağlantısı",
+   "grup": "Canlı veri",
+   "durum": "ileri",
+   "yuzde": 70,
+   "yapilan": "WebSocket logsSubscribe, otomatik yeniden bağlanma (gerçek ağ kopmasında görüldü), yedek yoklama, transaction v1, gecikme ölçümü",
+   "eksik": "Reorg yönetimi; erken sinyal ile kesinleşmiş işlemi ayırma"
+  },
+  {
+   "kod": "N3",
+   "ad": "Cüzdan keşfi",
+   "grup": "Seçim",
+   "durum": "devam",
+   "yuzde": 50,
+   "yapilan": "413 cüzdan tarandı; 190 aday kârlılık analizinden geçti; bot, pasif, şüpheli ayrımı; hacim botu kalıbı otomatik tespit ediliyor; 3 cüzdan kara listede",
+   "eksik": "Zincirden yeni cüzdan bulma; borsa, LP ve protokol hesaplarını ayırma"
+  },
+  {
+   "kod": "N4",
+   "ad": "Cüzdan kârlılığı",
+   "grup": "Seçim",
+   "durum": "devam",
+   "yuzde": 55,
+   "yapilan": "FIFO gerçekleşen K/Z, kazanma oranı, kâr faktörü, elde tutma; hesap açma/kapama düzeltmesi; 190 cüzdanda 7 kopyalanabilir",
+   "eksik": "Drawdown, gerçekleşmemiş K/Z, takipçinin uygulanabilir getirisi"
+  },
+  {
+   "kod": "N5",
+   "ad": "Cüzdan ve token güvenliği",
+   "grup": "Seçim",
+   "durum": "devam",
+   "yuzde": 45,
+   "yapilan": "Basım/dondurma yetkisi, Token-2022, satılabilirlik teklifi; hacim botu (wash trading) kalıbı tespiti",
+   "eksik": "Wash trading, sahip yoğunlaşması, likidite derinliği"
+  },
+  {
+   "kod": "N6",
+   "ad": "Canlı takip motoru",
+   "grup": "Canlı veri",
+   "durum": "ileri",
+   "yuzde": 70,
+   "yapilan": "Cüzdan başına hata izolasyonu, karantina, bot hız sınırı, tazelik kontrolü, stablecoin filtresi",
+   "eksik": "Uzun süreli kararlılık kanıtı"
+  },
+  {
+   "kod": "N7",
+   "ad": "Kopyalama karar motoru",
+   "grup": "İşlem",
+   "durum": "devam",
+   "yuzde": 65,
+   "yapilan": "Ağsız kurallar, fiyat etkisi, al-sat kaybı, yalnız sahip olunanı satma, cüzdan başına sınır; ilk KOPYALANDI işlemi canlıda gerçekleşti (15.11 22:03, 4Fys…pump, etki %1.09, al-sat kaybı %3.0)",
+   "eksik": "Sabit/oransal/risk ağırlıklı yöntem karşılaştırması"
+  },
+  {
+   "kod": "N8",
+   "ad": "Sermaye ve risk yönetimi",
+   "grup": "İşlem",
+   "durum": "devam",
+   "yuzde": 75,
+   "yapilan": "100 USDC, %5 pozisyon, %3 günlük zarar, 5 pozisyon, cüzdan başına 2 pozisyon, 1 USDC ücret rezervi, acil durdurma",
+   "eksik": "Token yoğunlaşma limiti; limitlerin uygulamadan ayarlanması"
+  },
+  {
+   "kod": "N9",
+   "ad": "Gerçekçi paper trading",
+   "grup": "İşlem",
+   "durum": "devam",
+   "yuzde": 60,
+   "yapilan": "Gerçek Jupiter teklifiyle doldurma, 5 dakikada bir değerleme, gölge işlemler, günlük rapor (komut satırı ve uygulama)",
+   "eksik": "İlk kapanan işlem ve gerçekleşen K/Z; başarısız işlem olasılığı modeli"
+  },
+  {
+   "kod": "N10",
+   "ad": "Strateji optimizasyonu ve ileri test",
+   "grup": "İşlem",
+   "durum": "baslamadi",
+   "yuzde": 10,
+   "yapilan": "Gölge işlem kaydı: reddedilen alımların 'girseydik ne olurdu' sonucu ölçülüyor",
+   "eksik": "En az 30 günlük ileri paper testi; eşik kararı için en az 20 kapanmış gölge işlem"
+  },
+  {
+   "kod": "N11",
+   "ad": "Gerçek emir altyapısı",
+   "grup": "Gerçek işlem",
+   "durum": "baslamadi",
+   "yuzde": 0,
+   "yapilan": "Bilinçli olarak kapalı",
+   "eksik": "Quote, simülasyon, imza, gönderim, uzlaştırma"
+  },
+  {
+   "kod": "N12",
+   "ad": "Kontrollü gerçek pilot",
+   "grup": "Gerçek işlem",
+   "durum": "baslamadi",
+   "yuzde": 0,
+   "yapilan": "Ayrıca açık onay gerektirir",
+   "eksik": "Pilot cüzdan, kayıp bütçesi, ilk gerçek emir"
+  },
+  {
+   "kod": "N13",
+   "ad": "Kesintisiz sunucu",
+   "grup": "Ürün",
+   "durum": "baslamadi",
+   "yuzde": 0,
+   "yapilan": "Şu an telefonda çalışıyor",
+   "eksik": "Sunucu, otomatik yeniden başlatma, alarm, yedekleme"
+  },
+  {
+   "kod": "N14",
+   "ad": "Android uygulaması",
+   "grup": "Ürün",
+   "durum": "devam",
+   "yuzde": 50,
+   "yapilan": "Uygulama 2.2: Durum, Portföy, Rapor, Sinyaller, İşlemler, acil durdurma; otomatik APK derleme",
+   "eksik": "Bildirimler, cüzdan yönetimi, risk ayarları, HTTPS"
+  },
+  {
+   "kod": "N15",
+   "ad": "Çok kullanıcılı ürün",
+   "grup": "Ürün",
+   "durum": "baslamadi",
+   "yuzde": 0,
+   "yapilan": "Pilottan sonra",
+   "eksik": "Kayıt, tenant izolasyonu, custody, hukuk"
+  }
+ ],
+ "meta": [
+  {
+   "label": "Kaynak",
+   "value": "Claude'un proje değerlendirmesi, 15.11.2026 22:06. Yüzdeler tahmini; hiçbir aşama kabul kriterleri karşılanmadan tamamlandı sayılmaz."
+  }
+ ]
+}

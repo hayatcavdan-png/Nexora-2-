@@ -3,278 +3,172 @@ package com.nexora.app
 import android.content.Context
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.*
-import org.json.JSONArray
-import org.json.JSONObject
-import java.net.HttpURLConnection
-import java.net.URL
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
-
-fun api(base: String, key: String, path: String, post: Boolean = false): String {
-    val c = URL(base.trimEnd('/') + path).openConnection() as HttpURLConnection
-    c.connectTimeout = 8000; c.readTimeout = 8000
-    c.setRequestProperty("X-API-Key", key)
-    if (post) { c.requestMethod = "POST"; c.doOutput = true; c.outputStream.write("{}".toByteArray()) }
-    if (c.responseCode != 200) error("HTTP ${c.responseCode}")
-    return c.inputStream.bufferedReader().readText()
-}
-
-fun kisa(a: String): String = if (a.length > 10) a.take(4) + "…" + a.takeLast(4) else a
-fun saat(ts: Double): String = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date((ts * 1000).toLong()))
-fun JSONObject.str(k: String): String = if (isNull(k)) "" else optString(k, "")
-fun usd(x: Double): String = String.format(Locale.US, "%.2f", x)
-fun isaretli(x: Double): String = (if (x >= 0) "+" else "") + usd(x)
-
-data class Pozisyon(val token: String, val maliyet: Double, val deger: Double)
-data class Sinyal(val ts: Double, val yon: String, val token: String, val cuzdan: String,
-                  val gecikme: Double, val kaynak: String, val karar: String, val neden: String)
-data class Cuzdan(val adres: String, val durum: String, val hata: String)
-data class CuzdanPerf(val adres: String, val ozet: String, val kz: Double, val golge: String)
-
-val YESIL = Color(0xFF4CAF50)
-val KIRMIZI = Color(0xFFE57373)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(b: Bundle?) {
         super.onCreate(b)
-        setContent { MaterialTheme(colorScheme = darkColorScheme()) { Surface { App() } } }
+        setContent { MaterialTheme(colorScheme = NxRenkler) { Surface(color = Nx.Zemin) { App() } } }
     }
 }
+
+private val SEKMELER = listOf(
+    Triple("panel", "Ana Panel", Icons.Filled.Home),
+    Triple("bot", "Bot", Icons.Filled.Face),
+    Triple("cuzdanlar", "Cüzdanlar", Icons.Filled.Person),
+    Triple("islemler", "İşlemler", Icons.Filled.List),
+    Triple("ayarlar", "Ayarlar", Icons.Filled.Settings),
+)
+private val ALT_EKRAN = mapOf("rapor" to "Günlük Rapor", "yol" to "Yol Haritası")
 
 @Composable
 fun App() {
     val ctx = androidx.compose.ui.platform.LocalContext.current
     val sp = remember { ctx.getSharedPreferences("nx", Context.MODE_PRIVATE) }
     var url by remember { mutableStateOf(sp.getString("url", "http://127.0.0.1:8000")!!) }
-    var key by remember { mutableStateOf(sp.getString("key", "")!!) }
-    var tab by remember { mutableIntStateOf(0) }
-    var durum by remember { mutableStateOf("—") }
-    var ozet by remember { mutableStateOf("—") }
-    var toplamKz by remember { mutableDoubleStateOf(0.0) }
-    var pozisyonlar by remember { mutableStateOf(listOf<Pozisyon>()) }
-    var sinyaller by remember { mutableStateOf(listOf<Sinyal>()) }
-    var cuzdanlar by remember { mutableStateOf(listOf<Cuzdan>()) }
-    var gecikme by remember { mutableStateOf("") }
-    var islemler by remember { mutableStateOf(listOf<String>()) }
-    var hata by remember { mutableStateOf("") }
-    var guncelleme by remember { mutableStateOf("") }
-    var rBugun by remember { mutableStateOf("") }
-    var rKz by remember { mutableDoubleStateOf(0.0) }
-    var rGerekce by remember { mutableStateOf(listOf<String>()) }
-    var rGolge by remember { mutableStateOf(listOf<String>()) }
-    var rGolgeOzet by remember { mutableStateOf("") }
-    var rCuzdan by remember { mutableStateOf(listOf<CuzdanPerf>()) }
-    var rHata by remember { mutableStateOf("") }
+    var key by remember { mutableStateOf(sp.getString("key", "")!!.trim()) }
+    var ekran by remember { mutableStateOf("panel") }
+    var islemSekme by remember { mutableIntStateOf(0) }
+    var durdurOnay by remember { mutableStateOf(false) }
+    val v = remember { Veri() }
     val scope = rememberCoroutineScope()
 
     fun yenile() = scope.launch {
-        sp.edit().putString("url", url).putString("key", key).apply()
+        if (key.isEmpty()) return@launch
         try {
-            withContext(Dispatchers.IO) {
-                val d = JSONObject(api(url, key, "/durum"))
-                val p = JSONObject(api(url, key, "/portfoy"))
-                val t = JSONArray(api(url, key, "/islemler"))
-                val tk = JSONObject(api(url, key, "/takip"))
-                durum = "Mod: ${d.getString("mod")} | Gerçek işlem: ${d.getString("gercek_islem")}\n" +
-                        "Acil durdurma: ${if (d.getBoolean("acil_durdurma")) "AKTİF" else "kapalı"}"
-                val pos = p.getJSONArray("positions")
-                pozisyonlar = (0 until pos.length()).map {
-                    val x = pos.getJSONObject(it)
-                    Pozisyon(x.str("token"), x.optDouble("cost", 0.0), x.optDouble("qty", 0.0) * x.optDouble("last_price", 0.0))
-                }
-                toplamKz = p.getDouble("pnl")
-                ozet = "Nakit: ${usd(p.getDouble("cash"))} USDC\nToplam değer: ${usd(p.getDouble("equity"))} USDC\n" +
-                       "Açık pozisyon: ${pos.length()}"
-                islemler = (0 until t.length()).map {
-                    val x = t.getJSONObject(it)
-                    val kz = if (x.optDouble("pnl", 0.0) != 0.0) "  K/Z ${isaretli(x.optDouble("pnl", 0.0))}" else ""
-                    "${saat(x.optDouble("ts", 0.0))}  ${x.str("side").uppercase()} ${kisa(x.str("token"))} → ${x.str("decision")}$kz\n${x.str("reason")}"
-                }
-                val ss = tk.getJSONArray("sinyaller")
-                sinyaller = (0 until ss.length()).map {
-                    val x = ss.getJSONObject(it)
-                    Sinyal(x.optDouble("ts", 0.0), x.str("side"), x.str("token"), x.str("wallet"),
-                           x.optDouble("latency_s", 0.0), x.str("source"), x.str("decision"), x.str("reason"))
-                }
-                val cz = tk.getJSONArray("cuzdanlar")
-                cuzdanlar = (0 until cz.length()).map {
-                    val x = cz.getJSONObject(it)
-                    val q = x.optInt("quarantined", 0)
-                    Cuzdan(x.str("wallet"), when (q) { 0 -> "aktif"; 2 -> "bot (durduruldu)"; else -> "karantina" }, x.str("last_error"))
-                }
-                try {
-                    val r = JSONObject(api(url, key, "/rapor"))
-                    if (!r.optBoolean("hazir", false)) {
-                        rHata = r.str("mesaj")
-                    } else {
-                        val b = r.getJSONObject("bugun")
-                        rKz = b.optDouble("gerceklesen_kz", 0.0)
-                        rBugun = "${b.optInt("karar")} karar · ${b.optInt("kopyalanan_alim")} alım kopyalandı · " +
-                                 "${b.optInt("kapanan")} işlem kapandı · ${b.optInt("reddedilen")} red"
-                        val gr = b.getJSONArray("red_gerekceleri")
-                        rGerekce = (0 until gr.length()).map { val x = gr.getJSONObject(it); "${x.optInt("adet")} × ${x.str("gerekce")}" }
-                        val go = r.getJSONObject("golge")
-                        rGolgeOzet = "${go.optInt("toplam")} gölge işlem, ${go.optInt("acik")} açık"
-                        val gg = go.getJSONArray("gruplar")
-                        rGolge = (0 until gg.length()).map {
-                            val x = gg.getJSONObject(it)
-                            "${x.str("grup")}: ${x.optInt("kapanan")} kapanan, ${x.optInt("kazanan")} kazanan, " +
-                            "K/Z ${isaretli(x.optDouble("toplam_kz", 0.0))} $, ort. ${String.format(Locale.US, "%+.1f", x.optDouble("ort_getiri", 0.0))}%" +
-                            (if (x.optInt("satilamadi") > 0) ", satılamadı ${x.optInt("satilamadi")}" else "")
-                        }
-                        val cw = r.getJSONArray("cuzdanlar")
-                        rCuzdan = (0 until cw.length()).map {
-                            val x = cw.getJSONObject(it)
-                            CuzdanPerf(x.str("wallet"),
-                                "${x.optInt("sinyal")} sinyal · ${x.optInt("kopyalanan")} kopyalandı · ${x.optInt("kapanan")} kapandı · ${x.optInt("acik")} açık",
-                                x.optDouble("gerceklesen_kz", 0.0),
-                                "Gölge: ${x.optInt("golge_kapanan")} kapanan, K/Z ${isaretli(x.optDouble("golge_kz", 0.0))} $")
-                        }
-                        rHata = ""
-                    }
-                } catch (e: Exception) { rHata = "Rapor alınamadı (sunucu güncel olmayabilir): ${e.message}" }
-                val g = tk.getJSONObject("gecikme")
-                gecikme = listOf("ws" to "Anlık", "poll" to "Yoklama").filter { g.has(it.first) }.joinToString("\n") {
-                    val o = g.getJSONObject(it.first)
-                    "${it.second}: ${o.getInt("n")} sinyal, P50 ${o.getDouble("p50").toInt()} sn, P95 ${o.getDouble("p95").toInt()} sn"
-                }
-            }
-            hata = ""; guncelleme = "Son güncelleme: " + saat(System.currentTimeMillis() / 1000.0)
-        } catch (e: Exception) { hata = "Bağlantı hatası: ${e.message}" }
+            withContext(Dispatchers.IO) { v.yukle(url, key) }
+            v.bagli = true; v.hata = ""; v.guncelleme = System.currentTimeMillis() / 1000.0
+        } catch (e: Exception) {
+            v.bagli = false
+            v.hata = if (e.message?.contains("401") == true) "API anahtarı sunucudakiyle aynı değil (HTTP 401)"
+                     else "Bağlantı hatası: ${e.message}"
+        }
     }
     fun komut(path: String) = scope.launch {
         try { withContext(Dispatchers.IO) { api(url, key, path, true) }; yenile() }
-        catch (e: Exception) { hata = "Hata: ${e.message}" }
+        catch (e: Exception) { v.hata = "Komut gönderilemedi: ${e.message}" }
+    }
+    LaunchedEffect(Unit) { while (true) { yenile(); delay(10_000) } }
+    BackHandler(enabled = ekran != "panel") { ekran = "panel" }
+
+    if (durdurOnay) {
+        AlertDialog(
+            onDismissRequest = { durdurOnay = false },
+            title = { Text("Acil durdurma") },
+            text = { Text("Bot yeni alım yapmayı durduracak. Açık pozisyonlar yerinde kalır. Emin misiniz?") },
+            confirmButton = { TextButton({ durdurOnay = false; komut("/acil-durdur") }) { Text("Durdur", color = Nx.Kirmizi) } },
+            dismissButton = { TextButton({ durdurOnay = false }) { Text("Vazgeç") } },
+            containerColor = Nx.Yuzey2,
+        )
     }
 
-    LaunchedEffect(Unit) { while (true) { if (key.isNotEmpty()) yenile(); delay(10_000) } }
-
-    Scaffold(bottomBar = {
-        NavigationBar {
-            listOf("Durum", "Portföy", "Rapor", "Sinyaller", "İşlemler").forEachIndexed { i, s ->
-                NavigationBarItem(selected = tab == i, onClick = { tab = i }, label = { Text(s) }, icon = {})
+    Scaffold(
+        containerColor = Nx.Zemin,
+        bottomBar = {
+            NavigationBar(containerColor = Nx.Yuzey) {
+                SEKMELER.forEach { (id, ad, ikon) ->
+                    val secili = ekran == id || (id == "panel" && ekran in ALT_EKRAN)
+                    NavigationBarItem(
+                        selected = secili, onClick = { ekran = id },
+                        icon = { Icon(ikon, ad) }, label = { Text(ad, fontSize = 11.sp, maxLines = 1) },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = Nx.Camgobegi, selectedTextColor = Nx.Camgobegi,
+                            unselectedIconColor = Nx.Soluk, unselectedTextColor = Nx.Soluk,
+                            indicatorColor = Nx.Mor.copy(alpha = 0.25f)),
+                    )
+                }
             }
-        }
-    }) { pad ->
-        LazyColumn(Modifier.padding(pad).padding(horizontal = 16.dp).fillMaxSize(),
-                   verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        },
+    ) { pad ->
+        LazyColumn(
+            Modifier.padding(pad).fillMaxSize().background(Nx.Zemin).padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
             item {
-                Column {
-                    Spacer(Modifier.height(12.dp))
-                    Text("NEXORA 2.0", style = MaterialTheme.typography.headlineMedium)
-                    if (hata.isNotEmpty()) Text(hata, color = MaterialTheme.colorScheme.error)
-                    else if (guncelleme.isNotEmpty()) Text(guncelleme, style = MaterialTheme.typography.bodySmall)
+                Column(Modifier.padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    if (ekran == "panel") Logo()
+                    else Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        if (ekran in ALT_EKRAN) IconButton({ ekran = "panel" }) { Icon(Icons.Filled.ArrowBack, "Geri", tint = Nx.Metin) }
+                        Text(ALT_EKRAN[ekran] ?: SEKMELER.first { it.first == ekran }.second,
+                             color = Nx.Metin, fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
+                    }
+                    if (v.hata.isNotEmpty()) Text(v.hata, color = Nx.Kirmizi, fontSize = 13.sp)
+                    else if (v.guncelleme > 0) Text("Son güncelleme ${saat(v.guncelleme)} · PAPER modu · gerçek işlem kapalı",
+                                                    color = Nx.Soluk, fontSize = 12.sp)
                 }
             }
-            when (tab) {
-                0 -> item {
-                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Text(durum)
-                        OutlinedTextField(url, { url = it }, label = { Text("Sunucu adresi") }, modifier = Modifier.fillMaxWidth())
-                        OutlinedTextField(key, { key = it }, label = { Text("API anahtarı") }, modifier = Modifier.fillMaxWidth())
-                        Button({ yenile() }) { Text("Yenile / Bağlan") }
-                        Button({ komut("/acil-durdur") }, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
-                            modifier = Modifier.fillMaxWidth()) { Text("ACİL DURDUR") }
-                        OutlinedButton({ komut("/devam") }, modifier = Modifier.fillMaxWidth()) { Text("Devam ettir") }
+            when (ekran) {
+                "panel" -> item {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        AnaPanel(v, key.isNotEmpty(), { ekran = it }, { durdurOnay = true }, { komut("/devam") })
                     }
                 }
-                1 -> {
+                "bot" -> {
+                    item { Column(verticalArrangement = Arrangement.spacedBy(12.dp)) { BotEkrani(v, { durdurOnay = true }, { komut("/devam") }) } }
+                    items(v.sinyaller) { SinyalKarti(it) }
+                }
+                "cuzdanlar" -> {
+                    item { CuzdanOzeti(v) }
+                    if (v.cuzdanlar.isEmpty()) item {
+                        Text("Cüzdan analizi bulunamadı: backend klasöründe cuzdan_analiz.py çalıştırın.", color = Nx.Soluk)
+                    }
+                    itemsIndexed(v.cuzdanlar) { i, c -> CuzdanKarti(i + 1, c) }
+                }
+                "islemler" -> {
                     item {
-                        Column {
-                            Text(ozet)
-                            Text("K/Z: ${isaretli(toplamKz)} USDC", fontWeight = FontWeight.Bold,
-                                 color = if (toplamKz >= 0) YESIL else KIRMIZI)
-                            Text("Açık pozisyonlar 5 dakikada bir gerçek satış teklifiyle değerlenir.",
-                                 style = MaterialTheme.typography.bodySmall)
+                        TabRow(selectedTabIndex = islemSekme, containerColor = Nx.Yuzey, contentColor = Nx.Camgobegi) {
+                            Tab(selected = islemSekme == 0, onClick = { islemSekme = 0 }, text = { Text("Açık pozisyonlar (${v.pozisyonlar.size})") })
+                            Tab(selected = islemSekme == 1, onClick = { islemSekme = 1 }, text = { Text("İşlem geçmişi") })
                         }
                     }
-                    items(pozisyonlar) { p ->
-                        val kz = p.deger - p.maliyet
-                        Card(Modifier.fillMaxWidth()) {
-                            Column(Modifier.padding(12.dp)) {
-                                Text(kisa(p.token), fontWeight = FontWeight.Bold)
-                                Text("Maliyet ${usd(p.maliyet)} → Değer ${usd(p.deger)} USDC")
-                                Text("K/Z ${isaretli(kz)} USDC", color = if (kz >= 0) YESIL else KIRMIZI)
-                            }
-                        }
+                    if (islemSekme == 0) {
+                        if (v.pozisyonlar.isEmpty()) item { Text("Açık pozisyon yok.", color = Nx.Soluk) }
+                        items(v.pozisyonlar) { PozisyonKarti(it) }
+                        item { PerformansOzeti(v) }
+                    } else {
+                        items(v.islemler) { IslemSatiri(it) }
                     }
                 }
-                2 -> {
+                "rapor" -> item { Column(verticalArrangement = Arrangement.spacedBy(12.dp)) { RaporEkrani(v) } }
+                "yol" -> {
                     item {
-                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Text("Bugün", fontWeight = FontWeight.Bold)
-                            if (rHata.isNotEmpty()) Text(rHata, color = KIRMIZI)
-                            else {
-                                Text(rBugun)
-                                Text("Kapanan işlemlerin K/Z: ${isaretli(rKz)} USDC", fontWeight = FontWeight.Bold,
-                                     color = if (rKz >= 0) YESIL else KIRMIZI)
-                                if (rGerekce.isNotEmpty()) {
-                                    Text("En sık red gerekçeleri", style = MaterialTheme.typography.bodySmall)
-                                    rGerekce.forEach { Text(it) }
-                                }
-                                Spacer(Modifier.height(6.dp))
-                                Text("Gölge işlemler", fontWeight = FontWeight.Bold)
-                                Text("Reddedilen alımlara girseydik ne olurdu: kaynak cüzdan sattığında gerçek teklifle hesaplanır.",
-                                     style = MaterialTheme.typography.bodySmall)
-                                Text(rGolgeOzet)
-                                rGolge.forEach { Text(it) }
-                                Spacer(Modifier.height(6.dp))
-                                Text("Cüzdan bazında (tüm zamanlar)", fontWeight = FontWeight.Bold)
-                            }
+                        val ort = if (v.asamalar.isEmpty()) 0 else v.asamalar.sumOf { it.yuzde } / v.asamalar.size
+                        NeonKart(Modifier.fillMaxWidth(), dolgu = Nx.DolguMor) {
+                            Text("Genel ilerleme %$ort", color = Nx.Metin, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                            Text("${v.asamalar.count { it.durum == "ileri" }} ileri · ${v.asamalar.count { it.durum == "devam" }} devam ediyor · " +
+                                 "${v.asamalar.count { it.durum == "baslamadi" }} başlamadı", color = Nx.Soluk, fontSize = 13.sp)
+                            if (v.asamaGuncelleme.isNotEmpty()) Text(v.asamaGuncelleme, color = Nx.Soluk, fontSize = 11.sp)
                         }
                     }
-                    items(rCuzdan) { c ->
-                        Card(Modifier.fillMaxWidth()) {
-                            Column(Modifier.padding(12.dp)) {
-                                Text(kisa(c.adres), fontWeight = FontWeight.Bold)
-                                Text(c.ozet, style = MaterialTheme.typography.bodySmall)
-                                Text("Gerçekleşen K/Z ${isaretli(c.kz)} USDC", color = if (c.kz >= 0) YESIL else KIRMIZI)
-                                Text(c.golge, style = MaterialTheme.typography.bodySmall)
-                            }
+                    items(v.asamalar) { AsamaKarti(it) }
+                }
+                "ayarlar" -> item {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        AyarlarEkrani(v, url, key) { u, k ->
+                            url = u; key = k
+                            sp.edit().putString("url", u).putString("key", k).apply()
+                            yenile()
                         }
                     }
                 }
-                3 -> {
-                    item {
-                        Column {
-                            Text("Gecikme", fontWeight = FontWeight.Bold)
-                            Text(if (gecikme.isEmpty()) "henüz sinyal yok" else gecikme)
-                            Spacer(Modifier.height(6.dp))
-                            Text("Cüzdanlar (${cuzdanlar.count { it.durum == "aktif" }}/${cuzdanlar.size} aktif)", fontWeight = FontWeight.Bold)
-                            cuzdanlar.forEach { c ->
-                                Text("${kisa(c.adres)}  ${c.durum}" + if (c.durum != "aktif" && c.hata.isNotEmpty()) "  (${c.hata})" else "",
-                                     color = if (c.durum == "aktif") Color.Unspecified else KIRMIZI)
-                            }
-                            Spacer(Modifier.height(6.dp))
-                            Text("Son sinyaller", fontWeight = FontWeight.Bold)
-                        }
-                    }
-                    items(sinyaller) { s ->
-                        Card(Modifier.fillMaxWidth()) {
-                            Column(Modifier.padding(12.dp)) {
-                                Text("${saat(s.ts)}  ${s.yon} ${kisa(s.token)}", fontWeight = FontWeight.Bold)
-                                Text("Cüzdan ${kisa(s.cuzdan)} · ${s.gecikme.toInt()} sn · ${if (s.kaynak == "ws") "anlık" else "yoklama"}",
-                                     style = MaterialTheme.typography.bodySmall)
-                                Text("${s.karar}: ${s.neden}", color = if (s.karar == "KOPYALANDI") YESIL else Color.Unspecified)
-                            }
-                        }
-                    }
-                }
-                else -> items(islemler) { Text(it) }
             }
-            item { Spacer(Modifier.height(12.dp)) }
+            item { Spacer(Modifier.height(16.dp)) }
         }
     }
 }

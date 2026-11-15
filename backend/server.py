@@ -5,9 +5,10 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from nexora.core import Paper, CFG
 from nexora.live_tracker import latency_from_db
 from nexora.rapor import build_report
+from nexora import panel
 
 paper = Paper(os.getenv("NEXORA_DB", "nexora_paper.db"))
-KEY = os.getenv("NEXORA_API_KEY", "")
+KEY = os.getenv("NEXORA_API_KEY", "").strip()   # baştaki/sondaki boşluk anahtarı bozmasın
 
 def _read_list(path):
     if not os.path.exists(path): return []
@@ -37,7 +38,7 @@ class H(BaseHTTPRequestHandler):
         self.send_response(code); self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(b))); self.end_headers(); self.wfile.write(b)
     def _ok(self):
-        if not KEY or self.headers.get("X-API-Key", "") != KEY:
+        if not KEY or (self.headers.get("X-API-Key") or "").strip() != KEY:
             self._send(401, {"hata": "yetkisiz"}); return False
         return True
     def do_GET(self):
@@ -47,6 +48,10 @@ class H(BaseHTTPRequestHandler):
         elif self.path == "/portfoy": self._send(200, paper.portfolio())
         elif self.path == "/islemler": self._send(200, paper.trades())
         elif self.path == "/takip": self._send(200, takip_ozeti())
+        elif self.path == "/gecmis": self._send(200, panel.gecmis(os.getenv("NEXORA_DB", "nexora_paper.db")))
+        elif self.path == "/cuzdanlar":
+            self._send(200, panel.cuzdanlar(os.getenv("NEXORA_DB", "nexora_paper.db"), os.getenv("TRACKER_DB", "nexora_tracker.db")))
+        elif self.path == "/asamalar": self._send(200, panel.asamalar())
         elif self.path == "/rapor":
             self._send(200, build_report(os.getenv("NEXORA_DB", "nexora_paper.db"), os.getenv("TRACKER_DB", "nexora_tracker.db")))
         else: self._send(404, {"hata": "yok"})
