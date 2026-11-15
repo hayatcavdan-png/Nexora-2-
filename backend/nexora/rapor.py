@@ -107,6 +107,18 @@ def bilgi_summary(iz_rows, shadows, bilgi_rows):
     return dict(olculen=len(bilgi_rows), hatali=sum(1 for b in bilgi_rows if b.get("hata")),
                 sus=sum(1 for b in bilgi.values() if b.get("sus")), kapanan_ornek=len(ornek), boyutlar=boyutlar)
 
+def yurutme_summary(rows):
+    """Yürütme gecikmesi kaybı: karardan ~3 sn sonraki teklifin ilk teklife göre farkı (pozitif = kayıp)."""
+    ok = [r for r in rows if r.get("kayip_pct") is not None]
+    out = dict(olculen=len(rows), hatali=len(rows) - len(ok))
+    for side in ("buy", "sell"):
+        v = sorted(r["kayip_pct"] for r in ok if r["side"] == side)
+        out[side] = dict(n=len(v), ort=round(sum(v) / len(v), 3) if v else None,
+                         medyan=round(v[len(v) // 2], 3) if v else None,
+                         p90=round(v[min(len(v) - 1, int(len(v) * 0.9))], 3) if v else None,
+                         en_kotu=round(v[-1], 3) if v else None)
+    return out
+
 def build_report(paper_path, tracker_path=None, now=None):
     now = now if now is not None else time.time()
     since = start_of_local_day(now)
@@ -121,6 +133,7 @@ def build_report(paper_path, tracker_path=None, now=None):
         iz = _rows(p, "SELECT * FROM pos_iz ORDER BY id")
         tetik = _rows(p, "SELECT * FROM stop_tetik")
         bilgi = _rows(p, "SELECT * FROM token_bilgi")
+        yurutme = _rows(p, "SELECT * FROM yurutme_olcum")
         state = {r["k"]: r["v"] for r in _rows(p, "SELECT k, v FROM state")}
     finally:
         p.close()
@@ -181,6 +194,7 @@ def build_report(paper_path, tracker_path=None, now=None):
         cuzdanlar=wallet_rows,
         zarar_kesme=stop_summary(iz, tetik),
         token_bilgi=bilgi_summary(iz, shadows, bilgi),
+        yurutme=yurutme_summary(yurutme),
         gecikme=gecikme,
         kesinlik=kesinlik,
     )
@@ -219,6 +233,13 @@ def as_text(r):
             L.append(f"  {w['wallet'][:4]}…{w['wallet'][-4:]}  sinyal {w['sinyal']:>3}  kopyalanan {w['kopyalanan']:>2}  "
                      f"kapanan {w['kapanan']:>2} K/Z {w['gerceklesen_kz']:+.2f}  açık {w['acik']}  "
                      f"gölge {w['golge_kapanan']} ({w['golge_kz']:+.2f})")
+    y = r.get("yurutme") or {}
+    if y.get("olculen"):
+        parca = []
+        for side, ad in (("buy", "alım"), ("sell", "satım")):
+            x = y[side]
+            if x["n"]: parca.append(f"{ad} {x['n']} ölçüm, ort. %{x['ort']:+.2f}, en kötü %{x['en_kotu']:+.2f}")
+        L += ["", "Yürütme gecikmesi (3 sn geç kalsaydık): " + ("; ".join(parca) or "henüz sonuç yok")]
     k = r.get("kesinlik") or {}
     if k:
         L += ["", f"Zincir kesinliği: {k['kesin']} kesinleşti, {k['hatali']} başarısız, {k['dusuruldu']} düştü, "

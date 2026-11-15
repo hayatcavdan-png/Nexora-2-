@@ -14,9 +14,9 @@
    "ad": "Mimari ve veri sözleşmeleri",
    "grup": "Temel",
    "durum": "devam",
-   "yuzde": 30,
-   "yapilan": "Olay kimliği, tekrar işlem engeli, checkpoint, şema geçişleri; risk ayarı değişiklik kaydı (denetim izi)",
-   "eksik": "Sürümlü veri modelleri, durum makineleri, kuyruklar, denetim izi"
+   "yuzde": 50,
+   "yapilan": "Olay kimliği, tekrar işlem engeli, checkpoint, şema geçişleri; risk ayarı değişiklik kaydı (denetim izi); değiştirilemez karar denetim izi: her kararın adımları, teklifleri ve geçerli limitleri (veritabanı tetikleyicisiyle güncelleme/silme engelli)",
+   "eksik": "Sürümlü veri modelleri, pozisyon durum makinesi, kuyruklar"
   },
   {
    "kod": "N2",
@@ -59,9 +59,9 @@
    "ad": "Canlı takip motoru",
    "grup": "Canlı veri",
    "durum": "ileri",
-   "yuzde": 70,
-   "yapilan": "Cüzdan başına hata izolasyonu, karantina, bot hız sınırı, tazelik kontrolü, stablecoin filtresi",
-   "eksik": "Uzun süreli kararlılık kanıtı"
+   "yuzde": 80,
+   "yapilan": "Cüzdan başına hata izolasyonu, karantina, bot hız sınırı, tazelik kontrolü, stablecoin filtresi; sistem sağlığı ölçümü (takip çalışma süresi, WebSocket kopma sayısı, son bildirim/sinyal, disk, yedek) ve uygulamada sağlık kartı",
+   "eksik": "Uzun süreli kararlılık kanıtı (günler)"
   },
   {
    "kod": "N7",
@@ -86,8 +86,8 @@
    "ad": "Gerçekçi paper trading",
    "grup": "İşlem",
    "durum": "devam",
-   "yuzde": 70,
-   "yapilan": "Gerçek Jupiter teklifiyle doldurma, 2 dakikada bir değerleme, gölge işlemler, günlük rapor (komut satırı ve uygulama); ilk kapanan işlemler ve gerçekleşen K/Z kaydedildi",
+   "yuzde": 78,
+   "yapilan": "Gerçek Jupiter teklifiyle doldurma, 2 dakikada bir değerleme, gölge işlemler, günlük rapor (komut satırı ve uygulama); ilk kapanan işlemler ve gerçekleşen K/Z kaydedildi; yürütme gecikmesi ölçümü: kopyalanan her işlemde teklif 3 sn sonra yeniden alınıyor",
    "eksik": "Başarısız işlem olasılığı modeli; uzun süreli sonuç"
   },
   {
@@ -132,7 +132,7 @@
    "grup": "Ürün",
    "durum": "devam",
    "yuzde": 85,
-   "yapilan": "Uygulama 3.8: neon arayüz; Ana Panel (bakiye, K/Z, başarı oranı, bot anahtarı, performans grafiği), Bot, Cüzdanlar, İşlemler, Rapor, Yol Haritası, Ayarlar; otomatik APK derleme; arka plan bildirimleri (alım, kapanış, risk, bot); Rapor'da zarar kesme ölçümü; token özellikleri kartı; risk sınırlarını değiştirme; PIN kilidi; bağlantı kopma uyarısı; yedeği telefona indirme; zincir kesinliği kartı",
+   "yapilan": "Uygulama 3.10: neon arayüz; Ana Panel (bakiye, K/Z, başarı oranı, bot anahtarı, performans grafiği), Bot, Cüzdanlar, İşlemler, Rapor, Yol Haritası, Ayarlar; otomatik APK derleme; arka plan bildirimleri (alım, kapanış, risk, bot); Rapor'da zarar kesme ölçümü; token özellikleri kartı; risk sınırlarını değiştirme; PIN kilidi; bağlantı kopma uyarısı; yedeği telefona indirme; zincir kesinliği kartı; sakin tema; sistem sağlığı ve yürütme gecikmesi kartları",
    "eksik": "HTTPS (sunucuda Tailscale ile şifreli); biyometrik giriş"
   },
   {
@@ -148,7 +148,7 @@
  "meta": [
   {
    "label": "Kaynak",
-   "value": "Claude'un proje değerlendirmesi, 16.11.2026 02:30. Yüzdeler tahmini; hiçbir aşama kabul kriterleri karşılanmadan tamamlandı sayılmaz."
+   "value": "Claude'un proje değerlendirmesi, 16.11.2026 02:45. Yüzdeler tahmini; hiçbir aşama kabul kriterleri karşılanmadan tamamlandı sayılmaz."
   }
  ]
 }

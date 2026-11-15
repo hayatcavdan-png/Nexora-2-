@@ -10,6 +10,8 @@ class WSListener:
         self.url, self.wallets, self.on_signature = url, list(wallets), on_signature
         self.connect, self.log, self.ping_every, self.commitment = connect, log, ping_every, commitment
         self.connected = False
+        self.kopma = 0                 # yeniden bağlanma sayısı (sağlık ölçümü)
+        self.son_mesaj = None          # son bildirim zamanı
 
     def run_once(self, stop=None):
         ws = self.connect(self.url, timeout=self.ping_every)
@@ -38,6 +40,7 @@ class WSListener:
                         self.log(f"Abonelik reddedildi: {w[:4]}…{w[-4:]}")
                     continue
                 if msg.get("method") != "logsNotification": continue
+                self.son_mesaj = time.time()
                 p = msg.get("params") or {}
                 w = subs.get(p.get("subscription"))
                 v = ((p.get("result") or {}).get("value")) or {}
@@ -59,6 +62,7 @@ class WSListener:
             try:
                 self.run_once(stop)
             except (WSClosed, OSError, ValueError) as e:
+                self.kopma += 1
                 self.log(f"WebSocket koptu ({type(e).__name__}: {str(e)[:80]}), {delay} sn sonra yeniden bağlanılacak")
             if time.time() - start > 60: delay = 1
             stop.wait(delay)

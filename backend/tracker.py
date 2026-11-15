@@ -15,6 +15,7 @@ from nexora.market import JupiterQuoter
 from nexora.token_safety import TokenSafety
 from nexora.decision import Decider
 from nexora.token_bilgi import TokenBilgi, Toplayici
+from nexora.yurutme import YurutmeOlcer
 
 USE_WS = os.getenv("TRACK_WS", "1") != "0"
 PAPER_TRADE = os.getenv("PAPER_TRADE", "1") != "0"    # 0: eski davranış (fiyat bilinmiyor -> hepsi engellenir)
@@ -30,6 +31,8 @@ def short(a): return a[:4] + "…" + a[-4:]
 def show(r):
     print(f"  SİNYAL [{r['source']}] {r['side']} {short(r['token'])} cüzdan {short(r['wallet'])} "
           f"gecikme {r['latency_s']:.0f} sn -> {r['decision']} ({r['reason']})", flush=True)
+
+BASLANGIC = time.time()
 
 def main():
     if not os.getenv("HELIUS_API_KEY") and not os.getenv("SOLANA_RPC_URL"):
@@ -53,7 +56,7 @@ def main():
     if PAPER_TRADE:
         quoter = JupiterQuoter()
         bilgi = Toplayici(TokenBilgi(api_key=quoter.api_key, throttle=quoter._throttle), paper).baslat()
-        decider = Decider(paper, quoter, TokenSafety(client), bilgi=bilgi)
+        decider = Decider(paper, quoter, TokenSafety(client), bilgi=bilgi, yurutme=YurutmeOlcer(quoter, paper).baslat())
         if not quoter.api_key:
             print("  Not: JUPITER_API_KEY yok, teklifler anahtarsız (0.5 istek/sn). Ücretsiz anahtar hızlandırır.", flush=True)
     tr = LiveTracker(client, paper, os.getenv("TRACKER_DB", "nexora_tracker.db"), wallets, decider=decider)
@@ -89,7 +92,12 @@ def main():
     try:
         while True:
             stop.wait(INTERVAL)
-            paper.nabiz()
+            st0 = tr.latency_stats()
+            paper.nabiz(saglik=dict(
+                baslangic=BASLANGIC, ws=("kapalı" if not USE_WS else "bağlı" if listener and listener.connected else "bağlı değil"),
+                ws_kopma=listener.kopma if listener else 0, ws_son_mesaj=listener.son_mesaj if listener else None,
+                okunamayan=tr.failed_count(), cuzdan=len(tr.active_wallets()), bot=len(tr.bot_wallets()),
+                gecikme={k: dict(n=v["n"], p50=v["p50"], p95=v["p95"]) for k, v in st0.items()}))
             if decider and time.time() - last_mark >= MARK_EVERY:
                 last_mark = time.time()
                 ok, bad = decider.mark_to_market()

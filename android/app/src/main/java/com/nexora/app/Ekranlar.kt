@@ -128,6 +128,7 @@ fun Kisayol(metin: String, ikon: ImageVector, modifier: Modifier, tikla: () -> U
 // ---------------------------------------------------------------- Bot / Sinyaller
 @Composable
 fun BotEkrani(v: Veri, durdurIste: () -> Unit, devam: () -> Unit) {
+    v.saglik?.let { SaglikKarti(it) }
     NeonKart(Modifier.fillMaxWidth()) {
         Text("Bot çalışma zinciri", color = Nx.Metin, fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
         listOf("Canlı cüzdan takibi (anlık)", "Swap çözme ve stablecoin filtresi", "Token güvenliği (basım/dondurma yetkisi)",
@@ -381,6 +382,19 @@ fun RaporEkrani(v: Veri) {
         }
         Text("Sağdaki değer, gerçekleşene göre fark. 20 kapanan pozisyondan önce karar verilmez.", color = Nx.Soluk, fontSize = 11.sp)
     }
+    val yu = r.optJSONObject("yurutme")
+    if (yu != null && yu.optInt("olculen") > 0) Kart(Modifier.fillMaxWidth()) {
+        Text("Yürütme gecikmesi", color = Nx.Metin, fontWeight = FontWeight.SemiBold)
+        Text("Gerçek işlemde emir birkaç saniye geç ulaşır. Kopyalanan her işlemde aynı teklif 3 sn sonra yeniden alındı; " +
+             "pozitif değer, geç kalınca kaybedilecek yüzdeyi gösterir.", color = Nx.Soluk, fontSize = 12.sp)
+        for ((anahtar, ad) in listOf("buy" to "Alım", "sell" to "Satım")) {
+            val x = yu.optJSONObject(anahtar) ?: continue
+            if (x.optInt("n") == 0) continue
+            val ort = x.optDouble("ort", 0.0)
+            Satir("$ad · ${x.optInt("n")} ölçüm (en kötü %${x.optDouble("en_kotu")})", (if (ort >= 0) "%+" else "%") +
+                  String.format(java.util.Locale.US, "%.2f", ort).removePrefix("+"), if (ort > 0.5) Nx.Kirmizi else if (ort > 0) Nx.Sari else Nx.Yesil)
+        }
+    }
     val ks = r.optJSONObject("kesinlik")
     if (ks != null && ks.length() > 0) Kart(Modifier.fillMaxWidth()) {
         Text("Zincir kesinliği", color = Nx.Metin, fontWeight = FontWeight.SemiBold)
@@ -550,5 +564,38 @@ fun AyarSatiri(ikon: ImageVector, baslik: String, alt: String) {
             Text(baslik, color = Nx.Metin, fontSize = 15.sp)
             Text(alt, color = Nx.Soluk, fontSize = 12.sp)
         }
+    }
+}
+
+
+fun sure(sn: Long?): String = when {
+    sn == null -> "—"
+    sn < 90 -> "$sn sn"
+    sn < 5400 -> "${sn / 60} dk"
+    sn < 172800 -> "${sn / 3600} sa ${(sn % 3600) / 60} dk"
+    else -> "${sn / 86400} gün ${(sn % 86400) / 3600} sa"
+}
+
+private fun org.json.JSONObject.uzun(k: String): Long? = if (!has(k) || isNull(k)) null else optLong(k)
+
+@Composable
+fun SaglikKarti(h: org.json.JSONObject) {
+    val takip = h.str("takip")
+    val ws = h.str("ws")
+    Kart(Modifier.fillMaxWidth()) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text("Sistem sağlığı", color = Nx.Metin, fontWeight = FontWeight.SemiBold, fontSize = 17.sp, modifier = Modifier.weight(1f))
+            Etiket(if (takip == "çalışıyor") "sağlıklı" else "sorun var", if (takip == "çalışıyor" && ws != "bağlı değil") Nx.Yesil else Nx.Kirmizi)
+        }
+        Satir("Canlı takip", "$takip · ${sure(h.uzun("takip_calisma_sn"))}", if (takip == "çalışıyor") Nx.Yesil else Nx.Kirmizi)
+        Satir("Anlık bağlantı (WebSocket)", ws.ifEmpty { "—" } + (h.uzun("ws_kopma")?.let { " · $it kopma" } ?: ""),
+              if (ws == "bağlı") Nx.Yesil else Nx.Sari)
+        Satir("Son zincir bildirimi", sure(h.uzun("ws_son_mesaj_once_sn")) + " önce")
+        Satir("Son sinyal", sure(h.uzun("son_sinyal_once_sn")) + " önce")
+        Satir("Okunamayan işlem", h.optInt("okunamayan").toString())
+        Satir("Karar izi kaydı", h.optInt("karar_izi").toString())
+        h.optJSONObject("disk")?.let { Satir("Disk", "${it.optDouble("bos_gb")} GB boş (%${it.optDouble("dolu_pct")} dolu)") }
+        Satir("Son yedek", sure(h.uzun("son_yedek_once_sn")) + " önce")
+        Satir("Sunucu açık", sure(h.uzun("sunucu_calisma_sn")))
     }
 }

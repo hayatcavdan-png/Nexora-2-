@@ -59,6 +59,10 @@ class H(BaseHTTPRequestHandler):
         if not self._ok(): return
         parts = urlsplit(self.path)
         if parts.path == "/yedek/son": self._yedek_gonder(); return
+        if parts.path == "/karar-izi":
+            ev = (parse_qs(parts.query).get("olay") or [""])[0]
+            d = paper.karar_izi(ev) if ev else None
+            self._send(200 if d else 404, d or {"hata": "kayıt yok"}); return
         if parts.path == "/olaylar":
             try: son = float(parse_qs(parts.query).get("son", ["0"])[0])
             except ValueError: son = 0.0
@@ -74,6 +78,8 @@ class H(BaseHTTPRequestHandler):
         elif self.path == "/cuzdanlar":
             self._send(200, panel.cuzdanlar(os.getenv("NEXORA_DB", "nexora_paper.db"), os.getenv("TRACKER_DB", "nexora_tracker.db")))
         elif self.path == "/asamalar": self._send(200, panel.asamalar())
+        elif self.path == "/saglik":
+            self._send(200, panel.saglik(os.getenv("NEXORA_DB", "nexora_paper.db"), os.getenv("TRACKER_DB", "nexora_tracker.db")))
         elif self.path == "/ayarlar": self._send(200, paper.ayarlar())
         elif self.path == "/rapor":
             self._send(200, build_report(os.getenv("NEXORA_DB", "nexora_paper.db"), os.getenv("TRACKER_DB", "nexora_tracker.db")))

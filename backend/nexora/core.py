@@ -1,6 +1,6 @@
 """NEXORA 2.0 çekirdek: paper trading + risk motoru (yalnızca stdlib).
 GERÇEK İŞLEM YOK. Execution bilinçli olarak kapalıdır (N11/N12 sonrası)."""
-import sqlite3, time, threading
+import json, sqlite3, time, threading
 
 CFG = dict(
     start_cash=100.0,        # USDC (sanal)
@@ -42,6 +42,14 @@ CREATE TABLE IF NOT EXISTS pos_iz(id INTEGER PRIMARY KEY AUTOINCREMENT, token TE
 CREATE TABLE IF NOT EXISTS token_bilgi(event_id TEXT PRIMARY KEY, token TEXT, ts REAL, yas_sn REAL, likidite REAL,
   mcap REAL, sahip REAL, organik REAL, organik_etiket TEXT, top_pct REAL, dev_pct REAL, sus INTEGER, launchpad TEXT, hata TEXT);
 CREATE TABLE IF NOT EXISTS ayar_gecmis(id INTEGER PRIMARY KEY AUTOINCREMENT, ts REAL, ayar TEXT, eski TEXT, yeni TEXT, kaynak TEXT);
+CREATE TABLE IF NOT EXISTS karar_izi(event_id TEXT PRIMARY KEY, ts REAL, wallet TEXT, token TEXT, side TEXT,
+  yas_sn REAL, karar TEXT, gerekce TEXT, adimlar TEXT);
+CREATE TABLE IF NOT EXISTS yurutme_olcum(event_id TEXT PRIMARY KEY, ts REAL, side TEXT, token TEXT, gecikme_sn REAL,
+  ilk_cikti TEXT, sonra_cikti TEXT, kayip_pct REAL, hata TEXT);
+CREATE TRIGGER IF NOT EXISTS karar_izi_degismez BEFORE UPDATE ON karar_izi
+  BEGIN SELECT RAISE(ABORT, 'karar izi değiştirilemez'); END;
+CREATE TRIGGER IF NOT EXISTS karar_izi_silinmez BEFORE DELETE ON karar_izi
+  BEGIN SELECT RAISE(ABORT, 'karar izi silinemez'); END;
 CREATE TABLE IF NOT EXISTS stop_tetik(iz_id INTEGER, esik REAL, ts REAL, pnl REAL, PRIMARY KEY(iz_id, esik));
 """
 
@@ -113,10 +121,39 @@ class Paper:
             self.db.commit()
         return self.ayarlar()
 
-    def nabiz(self, ts=None):
-        """Takip süreci her turda yazar; sunucu ve uygulama 'takip durdu' uyarısını buradan üretir."""
+    def nabiz(self, ts=None, saglik=None):
+        """Takip süreci her turda yazar; sunucu ve uygulama 'takip durdu' uyarısını ve sağlık kartını buradan üretir."""
         with self.lock:
-            self._set("takip_nabiz", ts if ts is not None else time.time()); self.db.commit()
+            self._set("takip_nabiz", ts if ts is not None else time.time())
+            if saglik is not None: self._set("takip_saglik", json.dumps(saglik))
+            self.db.commit()
+
+    def takip_saglik(self):
+        v = self._get("takip_saglik")
+        try: return json.loads(v) if v else None
+        except ValueError: return None
+
+    def karar_izi_yaz(self, event_id, wallet, token, side, yas_sn, karar, gerekce, adimlar):
+        """Değiştirilemez karar kaydı (N1 denetim izi): her adımın girdisi ve sonucu."""
+        with self.lock:
+            self.db.execute("INSERT OR IGNORE INTO karar_izi VALUES(?,?,?,?,?,?,?,?,?)",
+                            (event_id, time.time(), wallet, token, side, yas_sn, karar, gerekce, json.dumps(adimlar, ensure_ascii=False)))
+            self.db.commit()
+
+    def karar_izi(self, event_id):
+        with self.lock:
+            r = self.db.execute("SELECT * FROM karar_izi WHERE event_id=?", (event_id,)).fetchone()
+        if not r: return None
+        d = dict(r); d["adimlar"] = json.loads(d["adimlar"] or "[]"); return d
+
+    def yurutme_kaydet(self, event_id, side, token, gecikme_sn, ilk, sonra, hata=None):
+        kayip = None if (hata or not ilk or sonra is None) else round((1 - sonra / ilk) * 100, 4)
+        with self.lock:
+            self.db.execute("INSERT OR REPLACE INTO yurutme_olcum VALUES(?,?,?,?,?,?,?,?,?)",
+                            (event_id, time.time(), side, token, gecikme_sn, str(ilk) if ilk else None,
+                             None if sonra is None else str(sonra), kayip, hata))
+            self.db.commit()
+        return kayip
 
     def son_nabiz(self):
         v = self._get("takip_nabiz")

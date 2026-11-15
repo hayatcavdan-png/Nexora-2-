@@ -182,3 +182,54 @@ def olaylar(paper_path, tracker_path, son=0.0, limit=20, now=None):
             tc.close()
     out.sort(key=lambda e: e["ts"])
     return dict(olaylar=out[:limit], simdi=now)
+
+
+SUNUCU_BASLANGIC = time.time()
+
+
+def saglik(paper_path, tracker_path, yedek_dizin="yedekler", now=None):
+    """Sistem sağlığı (N6): takip süreci, WebSocket, son sinyal, disk, veritabanı boyutu ve son yedek."""
+    import glob, shutil
+    now = now if now is not None else time.time()
+    st, takip = {}, None
+    c = _ro(paper_path)
+    if c is not None:
+        try:
+            st = {r["k"]: r["v"] for r in _rows(c, "SELECT k, v FROM state WHERE k IN ('takip_nabiz','takip_saglik')")}
+            izn = _rows(c, "SELECT COUNT(*) n FROM karar_izi")
+        finally:
+            c.close()
+    else:
+        izn = []
+    try: takip = json.loads(st["takip_saglik"]) if st.get("takip_saglik") else None
+    except ValueError: takip = None
+    nabiz = float(st["takip_nabiz"]) if st.get("takip_nabiz") else None
+    son_sinyal = None
+    tc = _ro(tracker_path)
+    if tc is not None:
+        try:
+            r = _rows(tc, "SELECT MAX(ts) t FROM tracker_signals")
+            son_sinyal = r[0]["t"] if r else None
+        finally:
+            tc.close()
+    yed = sorted(glob.glob(os.path.join(yedek_dizin, "nexora_*.tar.gz")))
+    try:
+        du = shutil.disk_usage(os.path.dirname(os.path.abspath(paper_path)) or ".")
+        disk = dict(bos_gb=round(du.free / 1e9, 1), dolu_pct=round(du.used / du.total * 100, 1))
+    except OSError:
+        disk = None
+    boyut = lambda f: round(os.path.getsize(f) / 1e6, 2) if f and os.path.exists(f) else None
+    takip_durum = "yok" if nabiz is None else ("çalışıyor" if now - nabiz < NABIZ_SURE else "durdu")
+    return dict(
+        sunucu_calisma_sn=round(now - SUNUCU_BASLANGIC),
+        takip=takip_durum, takip_nabiz_once_sn=None if nabiz is None else round(now - nabiz),
+        takip_calisma_sn=round(now - takip["baslangic"]) if takip and takip.get("baslangic") else None,
+        ws=(takip or {}).get("ws"), ws_kopma=(takip or {}).get("ws_kopma"),
+        ws_son_mesaj_once_sn=round(now - takip["ws_son_mesaj"]) if takip and takip.get("ws_son_mesaj") else None,
+        okunamayan=(takip or {}).get("okunamayan"), cuzdan=(takip or {}).get("cuzdan"), bot=(takip or {}).get("bot"),
+        son_sinyal_once_sn=round(now - son_sinyal) if son_sinyal else None,
+        karar_izi=izn[0]["n"] if izn else 0,
+        disk=disk, paper_db_mb=boyut(paper_path), takip_db_mb=boyut(tracker_path),
+        son_yedek=os.path.basename(yed[-1]) if yed else None,
+        son_yedek_once_sn=round(now - os.path.getmtime(yed[-1])) if yed else None,
+    )

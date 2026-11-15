@@ -71,6 +71,7 @@ class Veri {
     var asamalar by mutableStateOf(listOf<Asama>())
     var asamaGuncelleme by mutableStateOf("")
     var rapor by mutableStateOf<JSONObject?>(null)
+    var saglik by mutableStateOf<JSONObject?>(null)
     var eksikUclar by mutableStateOf(listOf<String>())
 
     /** Kapanan paper işlemlerin özeti. */
@@ -146,6 +147,7 @@ class Veri {
         } catch (e: Exception) { eksik += "yol haritası" }
 
         try { rapor = JSONObject(api(url, key, "/rapor")) } catch (e: Exception) { eksik += "rapor" }
+        try { saglik = JSONObject(api(url, key, "/saglik")) } catch (e: Exception) { eksik += "saglik" }
         eksikUclar = eksik
     }
 }
