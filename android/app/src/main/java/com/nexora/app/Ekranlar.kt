@@ -291,6 +291,11 @@ fun PozisyonKarti(p: Pozisyon) {
             Column(Modifier.weight(1f)) {
                 Text("${kisa(p.token)} / USDC", color = Nx.Metin, fontWeight = FontWeight.SemiBold)
                 Text("Uzun (paper) · ${kisa(p.cuzdan)}", color = Nx.Soluk, fontSize = 12.sp)
+                when (p.durum) {
+                    "TAKILDI" -> Etiket("satılamıyor", Nx.Kirmizi)
+                    "KAPANIYOR" -> Etiket("kapanıyor", Nx.Sari)
+                    else -> {}
+                }
             }
             Column(horizontalAlignment = Alignment.End) {
                 Text("${isaretli(kz)} USDC", color = kzRenk(kz), fontWeight = FontWeight.SemiBold)

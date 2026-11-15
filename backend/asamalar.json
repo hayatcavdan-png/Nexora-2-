@@ -14,9 +14,9 @@
    "ad": "Mimari ve veri sözleşmeleri",
    "grup": "Temel",
    "durum": "devam",
-   "yuzde": 50,
-   "yapilan": "Olay kimliği, tekrar işlem engeli, checkpoint, şema geçişleri; risk ayarı değişiklik kaydı (denetim izi); değiştirilemez karar denetim izi: her kararın adımları, teklifleri ve geçerli limitleri (veritabanı tetikleyicisiyle güncelleme/silme engelli)",
-   "eksik": "Sürümlü veri modelleri, pozisyon durum makinesi, kuyruklar"
+   "yuzde": 70,
+   "yapilan": "Olay kimliği, tekrar işlem engeli, checkpoint, şema geçişleri; risk ayarı değişiklik kaydı (denetim izi); değiştirilemez karar denetim izi: her kararın adımları, teklifleri ve geçerli limitleri (veritabanı tetikleyicisiyle güncelleme/silme engelli); pozisyon durum makinesi (AÇIK/KAPANIYOR/KAPANDI/TAKILDI, geçersiz geçiş engelli, değiştirilemez geçmiş, 'satılamıyor' uyarısı); veritabanı şema sürümü (eski kodun yeni veriyi açması engelli)",
+   "eksik": "Gerçek işlem ara durumları (gönderildi/onaylandı) N11 ile; iş kuyrukları"
   },
   {
    "kod": "N2",
@@ -132,7 +132,7 @@
    "grup": "Ürün",
    "durum": "devam",
    "yuzde": 85,
-   "yapilan": "Uygulama 3.10: neon arayüz; Ana Panel (bakiye, K/Z, başarı oranı, bot anahtarı, performans grafiği), Bot, Cüzdanlar, İşlemler, Rapor, Yol Haritası, Ayarlar; otomatik APK derleme; arka plan bildirimleri (alım, kapanış, risk, bot); Rapor'da zarar kesme ölçümü; token özellikleri kartı; risk sınırlarını değiştirme; PIN kilidi; bağlantı kopma uyarısı; yedeği telefona indirme; zincir kesinliği kartı; sakin tema; sistem sağlığı ve yürütme gecikmesi kartları",
+   "yapilan": "Uygulama 3.11: neon arayüz; Ana Panel (bakiye, K/Z, başarı oranı, bot anahtarı, performans grafiği), Bot, Cüzdanlar, İşlemler, Rapor, Yol Haritası, Ayarlar; otomatik APK derleme; arka plan bildirimleri (alım, kapanış, risk, bot); Rapor'da zarar kesme ölçümü; token özellikleri kartı; risk sınırlarını değiştirme; PIN kilidi; bağlantı kopma uyarısı; yedeği telefona indirme; zincir kesinliği kartı; sakin tema; sistem sağlığı ve yürütme gecikmesi kartları; pozisyon durumu etiketi",
    "eksik": "HTTPS (sunucuda Tailscale ile şifreli); biyometrik giriş"
   },
   {
@@ -148,7 +148,7 @@
  "meta": [
   {
    "label": "Kaynak",
-   "value": "Claude'un proje değerlendirmesi, 16.11.2026 02:45. Yüzdeler tahmini; hiçbir aşama kabul kriterleri karşılanmadan tamamlandı sayılmaz."
+   "value": "Claude'un proje değerlendirmesi, 16.11.2026 03:00. Yüzdeler tahmini; hiçbir aşama kabul kriterleri karşılanmadan tamamlandı sayılmaz."
   }
  ]
 }

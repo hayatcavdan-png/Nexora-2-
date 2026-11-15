@@ -142,6 +142,10 @@ def olaylar(paper_path, tracker_path, son=0.0, limit=20, now=None):
                 if t <= now and t > son:
                     out.append(dict(id=f"n{int(float(nb))}", ts=t, tur="risk", baslik="Takip durdu",
                                     metin="Canlı takip 5 dakikadır çalışmıyor. Termux'ta: ./nexora durum"))
+            for g in _rows(c, "SELECT id, token, ts, neden FROM durum_gecis WHERE yeni='TAKILDI' AND ts > ?", (son,)):
+                tok = (g["token"] or "")[:4] + "…" + (g["token"] or "")[-4:]
+                out.append(dict(id=f"d{g['id']}", ts=g["ts"], tur="risk", baslik=f"Pozisyon satılamıyor: {tok}",
+                                metin=f"{g['neden']}. Teklif yeniden alınınca pozisyon otomatik olarak açık duruma döner."))
             gunler = set()
             for t in _rows(c, "SELECT id, ts, side, token, wallet, pnl, decision, reason FROM trades WHERE ts > ? ORDER BY ts", (son,)):
                 tok = (t["token"] or "")[:4] + "…" + (t["token"] or "")[-4:]

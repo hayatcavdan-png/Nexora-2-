@@ -4,6 +4,7 @@ Geçmiş/ideal fiyat kullanılmaz; doldurma, sinyal anındaki gerçek teklife g�
 from nexora.constants import USDC_MINT
 from nexora.core import CFG
 from nexora.market import QuoteError
+from nexora import durum as D
 
 USDC_DECIMALS = 6
 
@@ -102,10 +103,14 @@ class Decider:
         iz = iz if iz is not None else []
         p = self.paper
         pos = p.position(token)
+        p.durum_degistir(token, D.KAPANIYOR, "kaynak sattı")
+        iz.append(dict(adim="durum", sonuc=D.KAPANIYOR))
         try:
             q = self.quoter.quote(token, USDC_MINT, int(pos["qty_raw"]))
         except QuoteError as e:
             iz.append(dict(adim="satis_teklifi", sonuc=f"yok: {e}"))
+            p.durum_degistir(token, D.TAKILDI, f"satış teklifi yok: {str(e)[:60]}")
+            iz.append(dict(adim="durum", sonuc=D.TAKILDI))
             return p.reject(event_id, wallet, token, "sell", f"satış teklifi yok, pozisyon açık kaldı: {e}")
         iz.append(dict(adim="satis_teklifi", sonuc="alındı", maliyet_usd=pos["cost"], **_q(q)))
         proceeds = q["out_amount"] / 10 ** USDC_DECIMALS
@@ -123,7 +128,8 @@ class Decider:
             try:
                 q = self.quoter.quote(pos["token"], USDC_MINT, int(pos["qty_raw"]))
             except QuoteError:
-                failed += 1; continue
+                failed += 1; self.paper.teklif_sonucu(pos["token"], False); continue
+            self.paper.teklif_sonucu(pos["token"], True)
             self.paper.mark_price(pos["token"], q["out_amount"] / 10 ** USDC_DECIMALS / pos["qty"])
             done += 1
         return done, failed

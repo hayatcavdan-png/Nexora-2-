@@ -2,6 +2,8 @@
 GERÇEK İŞLEM YOK. Execution bilinçli olarak kapalıdır (N11/N12 sonrası)."""
 import json, sqlite3, time, threading
 
+from nexora import durum as D
+
 CFG = dict(
     start_cash=100.0,        # USDC (sanal)
     max_pos_pct=0.05,        # pozisyon başına %5
@@ -50,6 +52,12 @@ CREATE TRIGGER IF NOT EXISTS karar_izi_degismez BEFORE UPDATE ON karar_izi
   BEGIN SELECT RAISE(ABORT, 'karar izi değiştirilemez'); END;
 CREATE TRIGGER IF NOT EXISTS karar_izi_silinmez BEFORE DELETE ON karar_izi
   BEGIN SELECT RAISE(ABORT, 'karar izi silinemez'); END;
+CREATE TABLE IF NOT EXISTS durum_gecis(id INTEGER PRIMARY KEY AUTOINCREMENT, iz_id INTEGER, token TEXT, ts REAL,
+  eski TEXT, yeni TEXT, neden TEXT);
+CREATE TRIGGER IF NOT EXISTS durum_gecis_degismez BEFORE UPDATE ON durum_gecis
+  BEGIN SELECT RAISE(ABORT, 'durum geçmişi değiştirilemez'); END;
+CREATE TRIGGER IF NOT EXISTS durum_gecis_silinmez BEFORE DELETE ON durum_gecis
+  BEGIN SELECT RAISE(ABORT, 'durum geçmişi silinemez'); END;
 CREATE TABLE IF NOT EXISTS stop_tetik(iz_id INTEGER, esik REAL, ts REAL, pnl REAL, PRIMARY KEY(iz_id, esik));
 """
 
@@ -57,18 +65,36 @@ CREATE TABLE IF NOT EXISTS stop_tetik(iz_id INTEGER, esik REAL, ts REAL, pnl REA
 # maliyetin bu yüzdeleri kadar altına ilk düştüğünde, o anki gerçek satış teklifiyle "burada satsaydık" K/Z'si kaydedilir.
 STOP_ESIKLERI = (10, 20, 30, 50)
 
+# Veritabanı şema sürümü. Bu koddan DAHA YENİ bir sürümle oluşturulmuş veritabanı açılmaz (eski kod veriyi bozmasın).
+SEMA_SURUMU = 6
+
+
+class SemaHatasi(RuntimeError):
+    pass
+
 class Paper:
     def __init__(self, path=":memory:"):
         self.db = sqlite3.connect(path, check_same_thread=False)
         self.db.row_factory = sqlite3.Row
         self.lock = threading.Lock()
+        try:
+            r = self.db.execute("SELECT v FROM state WHERE k='sema_surumu'").fetchone()
+        except sqlite3.OperationalError:
+            r = None
+        if r and int(r[0]) > SEMA_SURUMU:
+            self.db.close()
+            raise SemaHatasi(f"veritabanı şema sürümü {r[0]}, bu kod {SEMA_SURUMU}: önce kodu güncelleyin (veri korunuyor)")
         self.db.executescript(SCHEMA)
         cols = {r[1] for r in self.db.execute("PRAGMA table_info(positions)")}
         if "qty_raw" not in cols:            # eski şemadan güvenli geçiş
             self.db.execute("ALTER TABLE positions ADD COLUMN qty_raw TEXT")
             self.db.execute("ALTER TABLE positions ADD COLUMN decimals INTEGER")
-        if "event_id" not in {r[1] for r in self.db.execute("PRAGMA table_info(pos_iz)")}:
+        izc = {r[1] for r in self.db.execute("PRAGMA table_info(pos_iz)")}
+        if "event_id" not in izc:
             self.db.execute("ALTER TABLE pos_iz ADD COLUMN event_id TEXT")
+        if "durum" not in izc:
+            self.db.execute("ALTER TABLE pos_iz ADD COLUMN durum TEXT")
+        self._set("sema_surumu", SEMA_SURUMU)
         if self._get("cash") is None:
             self._set("cash", CFG["start_cash"]); self._set("kill", "0")
             self._set("day", time.strftime("%Y-%m-%d")); self._set("day_start", CFG["start_cash"])
@@ -271,8 +297,9 @@ class Paper:
             self._set("cash", self.cash() - size_usd - fee)
             self.db.execute("INSERT INTO positions(token,qty,cost,last_price,wallet,qty_raw,decimals) VALUES(?,?,?,?,?,?,?)",
                             (token, qty, size_usd, price, wallet, str(int(qty_raw)), decimals))
-            self.db.execute("INSERT INTO pos_iz(token,wallet,opened_ts,cost,tam,status,event_id) VALUES(?,?,?,?,1,'open',?)",
-                            (token, wallet, time.time(), size_usd, event_id))
+            cur = self.db.execute("INSERT INTO pos_iz(token,wallet,opened_ts,cost,tam,status,event_id) VALUES(?,?,?,?,1,'open',?)",
+                                  (token, wallet, time.time(), size_usd, event_id))
+            self._gecis(cur.lastrowid, token, D.ACIK, "alım")
             return self._log(event_id, wallet, token, "buy", qty, price, fee, 0, "KOPYALANDI", note)
 
     def record_sell(self, event_id, wallet, token, proceeds_usd, note="ok"):
@@ -287,8 +314,11 @@ class Paper:
             pnl = net - pos["cost"]
             price = proceeds_usd / pos["qty"] if pos["qty"] else 0
             self._set("cash", self.cash() + net)
-            self.db.execute("DELETE FROM positions WHERE token=?", (token,))
             iz = self._iz(token, pos)
+            if self._durum(iz) in (D.ACIK, D.TAKILDI): self._gecis(iz, token, D.KAPANIYOR, "satış")
+            self._gecis(iz, token, D.KAPANDI, "satış kaydedildi")
+            self.db.execute("DELETE FROM positions WHERE token=?", (token,))
+            self._set(f"teklif_hata:{token}", 0)
             pct = pnl / pos["cost"] * 100 if pos["cost"] else 0.0
             self.db.execute("""UPDATE pos_iz SET status='closed', closed_ts=?, pnl=?, min_pct=MIN(COALESCE(min_pct, ?), ?),
                 max_pct=MAX(COALESCE(max_pct, ?), ?) WHERE id=?""", (time.time(), pnl, pct, pct, pct, pct, iz))
@@ -321,6 +351,56 @@ class Paper:
                  d.get("organik_etiket"), d.get("top_pct"), d.get("dev_pct"), d.get("sus"), d.get("launchpad"), hata))
             self.db.commit()
 
+    # --- Durum makinesi -----------------------------------------------------------------------------
+    def _durum(self, iz_id):
+        r = self.db.execute("SELECT durum, status FROM pos_iz WHERE id=?", (iz_id,)).fetchone()
+        if not r: return None
+        return r["durum"] or (D.KAPANDI if r["status"] == "closed" else D.ACIK)    # eski kayıtlar
+
+    def _gecis(self, iz_id, token, yeni, neden):
+        """Çağıran kilidi tutar. Geçersiz geçiş GecersizGecis fırlatır ve hiçbir şey yazılmaz."""
+        r = self.db.execute("SELECT durum, status FROM pos_iz WHERE id=?", (iz_id,)).fetchone()
+        eski = None if (r is None or (r["durum"] is None and yeni == D.ACIK and r["status"] == "open")) else self._durum(iz_id)
+        D.dogrula(eski, yeni)
+        self.db.execute("UPDATE pos_iz SET durum=? WHERE id=?", (yeni, iz_id))
+        self.db.execute("INSERT INTO durum_gecis(iz_id,token,ts,eski,yeni,neden) VALUES(?,?,?,?,?,?)",
+                        (iz_id, token, time.time(), eski, yeni, neden))
+
+    def durum(self, token):
+        with self.lock:
+            pos = self.db.execute("SELECT * FROM positions WHERE token=?", (token,)).fetchone()
+            return self._durum(self._iz(token, pos)) if pos else None
+
+    def durum_degistir(self, token, yeni, neden):
+        with self.lock:
+            pos = self.db.execute("SELECT * FROM positions WHERE token=?", (token,)).fetchone()
+            if not pos: raise D.GecersizGecis("açık pozisyon yok")
+            iz = self._iz(token, pos)
+            if self._durum(iz) == yeni: return
+            self._gecis(iz, token, yeni, neden)
+            self.db.commit()
+
+    def teklif_sonucu(self, token, basarili):
+        """Değerleme teklifinin sonucu: art arda TAKILMA_ESIGI hata -> TAKILDI; başarı -> TAKILDI ise ACIK."""
+        with self.lock:
+            pos = self.db.execute("SELECT * FROM positions WHERE token=?", (token,)).fetchone()
+            if not pos: return None
+            iz = self._iz(token, pos); d = self._durum(iz)
+            if basarili:
+                self._set(f"teklif_hata:{token}", 0)
+                if d == D.TAKILDI: self._gecis(iz, token, D.ACIK, "teklif yeniden alındı")
+            else:
+                n = int(self._get(f"teklif_hata:{token}") or 0) + 1
+                self._set(f"teklif_hata:{token}", n)
+                if n >= D.TAKILMA_ESIGI and d == D.ACIK:
+                    self._gecis(iz, token, D.TAKILDI, f"art arda {n} değerlemede teklif alınamadı")
+            self.db.commit()
+            return self._durum(iz)
+
+    def durum_gecmisi(self, limit=100):
+        with self.lock:
+            return [dict(r) for r in self.db.execute("SELECT * FROM durum_gecis ORDER BY id DESC LIMIT ?", (limit,))]
+
     def _iz(self, token, pos):
         """Açık pozisyonun ölçüm kaydı; bu sürümden önce açılmış pozisyon için eksik (tam=0) kayıt oluşturur."""
         r = self.db.execute("SELECT id FROM pos_iz WHERE token=? AND status='open' ORDER BY id DESC LIMIT 1", (token,)).fetchone()
@@ -329,6 +409,7 @@ class Paper:
                             (token,)).fetchone()
         cur = self.db.execute("INSERT INTO pos_iz(token,wallet,opened_ts,cost,tam,status) VALUES(?,?,?,?,0,'open')",
                               (token, pos["wallet"], b["ts"] if b else time.time(), pos["cost"]))
+        self._gecis(cur.lastrowid, token, D.ACIK, "eski pozisyon (bu sürümden önce açıldı)")
         return cur.lastrowid
 
     # --- Gölge işlemler: reddedilen alımlar için "girseydik ne olurdu" ölçümü -------------------
@@ -366,6 +447,10 @@ class Paper:
 
     def portfolio(self):
         rows = [dict(r) for r in self.db.execute("SELECT * FROM positions")]
+        for r in rows:
+            d = self.db.execute("SELECT durum FROM pos_iz WHERE token=? AND status='open' ORDER BY id DESC LIMIT 1",
+                                (r["token"],)).fetchone()
+            r["durum"] = (d["durum"] if d else None) or D.ACIK
         eq = self.equity()
         return dict(cash=self.cash(), equity=eq, pnl=eq - CFG["start_cash"], positions=rows, killed=self.killed())
 

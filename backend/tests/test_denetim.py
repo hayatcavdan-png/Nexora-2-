@@ -33,7 +33,7 @@ class DenetimIziTests(unittest.TestCase):
         self.assertEqual([a["adim"] for a in self.p.karar_izi("r1")["adimlar"]], ["kurallar", "token_guvenligi"])
         self.d.decide("e1", "W", TOK, "buy", 1); self.d.decide("s1", "W", TOK, "sell", 1)
         s = self.p.karar_izi("s1")
-        self.assertEqual((s["karar"], [a["adim"] for a in s["adimlar"]]), ("KOPYALANDI", ["kurallar", "satis_teklifi"]))
+        self.assertEqual((s["karar"], [a["adim"] for a in s["adimlar"]]), ("KOPYALANDI", ["kurallar", "durum", "satis_teklifi"]))
         self.d.decide("x1", "W", "BASKA", "sell", 1)                       # sahip olunmayan -> kurallarda reddedilir
         self.assertEqual(self.p.karar_izi("x1")["adimlar"][0]["sonuc"], "sahip olunmayan pozisyon satılamaz")
         self.assertEqual(self.d.decide("e1", "W", TOK, "buy", 1)["decision"], "ATLANDI")   # tekrar: iz yazılmaz
