@@ -46,7 +46,22 @@ def gecmis(paper_path, now=None):
         pts.append(dict(ts=t["ts"], deger=round(value, 4)))
     guncel = float(state.get("cash", start) or start) + pos_value
     pts.append(dict(ts=now, deger=round(guncel, 4)))
-    return dict(baslangic=start, noktalar=pts, guncel=round(guncel, 4))
+    return dict(baslangic=start, noktalar=pts, guncel=round(guncel, 4), **dusus(pts, start))
+
+
+def dusus(pts, start):
+    """En büyük düşüş: değer eğrisinde bir zirveden sonraki en derin dip (% ve USDC). Eğri yalnızca işlem anlarında
+    ve şu anda örneklendiği için gün içi açık pozisyon dalgalanmasını tam göstermez (alt sınır gibi okunmalı)."""
+    zirve, en_kotu, en_kotu_usd = start, 0.0, 0.0
+    for p in pts:
+        zirve = max(zirve, p["deger"])
+        if zirve > 0:
+            d = (zirve - p["deger"]) / zirve * 100
+            if d > en_kotu: en_kotu, en_kotu_usd = d, zirve - p["deger"]
+    son = pts[-1]["deger"] if pts else start
+    zirve_son = max([start] + [p["deger"] for p in pts])
+    return dict(max_dusus_pct=round(en_kotu, 2), max_dusus_usd=round(en_kotu_usd, 4),
+                zirveden_uzaklik_pct=round((zirve_son - son) / zirve_son * 100, 2) if zirve_son > 0 else 0.0)
 
 
 def cuzdanlar(paper_path, tracker_path, analiz_csv="cuzdan_analiz.csv", tarama_csv="cuzdan_tarama.csv",

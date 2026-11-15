@@ -64,6 +64,8 @@ class Veri {
     var gecikmeN by mutableStateOf(0)
 
     var gecmis by mutableStateOf(listOf<Nokta2>())
+    var maxDusus by mutableStateOf<Double?>(null)
+    var zirvedenUzaklik by mutableStateOf<Double?>(null)
     var cuzdanlar by mutableStateOf(listOf<CuzdanSatiri>())
     var cuzdanOzet by mutableStateOf(JSONObject())
     var asamalar by mutableStateOf(listOf<Asama>())
@@ -113,7 +115,9 @@ class Veri {
         } catch (e: Exception) { eksik += "takip" }
 
         try {
-            val g = JSONObject(api(url, key, "/gecmis")).getJSONArray("noktalar")
+            val gj = JSONObject(api(url, key, "/gecmis"))
+            maxDusus = gj.dbl("max_dusus_pct"); zirvedenUzaklik = gj.dbl("zirveden_uzaklik_pct")
+            val g = gj.getJSONArray("noktalar")
             gecmis = (0 until g.length()).map { val x = g.getJSONObject(it); Nokta2(x.optDouble("ts"), x.optDouble("deger")) }
         } catch (e: Exception) { eksik += "geçmiş" }
 

@@ -41,9 +41,9 @@
    "ad": "Cüzdan kârlılığı",
    "grup": "Seçim",
    "durum": "devam",
-   "yuzde": 55,
-   "yapilan": "FIFO gerçekleşen K/Z, kazanma oranı, kâr faktörü, elde tutma; hesap açma/kapama düzeltmesi; 190 cüzdanda 7 kopyalanabilir",
-   "eksik": "Drawdown, gerçekleşmemiş K/Z, takipçinin uygulanabilir getirisi"
+   "yuzde": 62,
+   "yapilan": "FIFO gerçekleşen K/Z, kazanma oranı, kâr faktörü, elde tutma; hesap açma/kapama düzeltmesi; 190 cüzdanda 7 kopyalanabilir; paper portföyde en büyük düşüş (drawdown) ölçümü",
+   "eksik": "Kaynak cüzdanlarda drawdown ve gerçekleşmemiş K/Z; takipçinin uygulanabilir getirisi"
   },
   {
    "kod": "N5",
@@ -122,9 +122,9 @@
    "ad": "Kesintisiz sunucu",
    "grup": "Ürün",
    "durum": "devam",
-   "yuzde": 75,
-   "yapilan": "Oracle Always Free sunucuda (Ubuntu 24.04) çalışıyor: systemd ile otomatik başlatma ve yeniden başlatma, Tailscale özel ağ (internete port açık değil), rastgele sunucu anahtarı, gece yedeği (14 gün), telefondaki veri taşındı (16.11.2026); 'takip durdu' ve 'sunucuya ulaşılamıyor' uyarıları",
-   "eksik": "Uzun süreli kesintisiz çalışma kanıtı; yedeğin sunucu dışına kopyası"
+   "yuzde": 82,
+   "yapilan": "Oracle Always Free sunucuda (Ubuntu 24.04) çalışıyor: systemd ile otomatik başlatma ve yeniden başlatma, Tailscale özel ağ (internete port açık değil), rastgele sunucu anahtarı, gece yedeği (14 gün), telefondaki veri taşındı (16.11.2026); 'takip durdu' ve 'sunucuya ulaşılamıyor' uyarıları; yedek her gün telefona da kopyalanıyor (İndirilenler/NEXORA); testli tek komut güncelleme",
+   "eksik": "Uzun süreli kesintisiz çalışma kanıtı"
   },
   {
    "kod": "N14",
@@ -132,7 +132,7 @@
    "grup": "Ürün",
    "durum": "devam",
    "yuzde": 85,
-   "yapilan": "Uygulama 3.6: neon arayüz; Ana Panel (bakiye, K/Z, başarı oranı, bot anahtarı, performans grafiği), Bot, Cüzdanlar, İşlemler, Rapor, Yol Haritası, Ayarlar; otomatik APK derleme; arka plan bildirimleri (alım, kapanış, risk, bot); Rapor'da zarar kesme ölçümü; token özellikleri kartı; risk sınırlarını değiştirme; PIN kilidi; bağlantı kopma uyarısı",
+   "yapilan": "Uygulama 3.7: neon arayüz; Ana Panel (bakiye, K/Z, başarı oranı, bot anahtarı, performans grafiği), Bot, Cüzdanlar, İşlemler, Rapor, Yol Haritası, Ayarlar; otomatik APK derleme; arka plan bildirimleri (alım, kapanış, risk, bot); Rapor'da zarar kesme ölçümü; token özellikleri kartı; risk sınırlarını değiştirme; PIN kilidi; bağlantı kopma uyarısı; yedeği telefona indirme",
    "eksik": "HTTPS (sunucuda Tailscale ile şifreli); biyometrik giriş"
   },
   {
@@ -148,7 +148,7 @@
  "meta": [
   {
    "label": "Kaynak",
-   "value": "Claude'un proje değerlendirmesi, 16.11.2026 01:50. Yüzdeler tahmini; hiçbir aşama kabul kriterleri karşılanmadan tamamlandı sayılmaz."
+   "value": "Claude'un proje değerlendirmesi, 16.11.2026 02:15. Yüzdeler tahmini; hiçbir aşama kabul kriterleri karşılanmadan tamamlandı sayılmaz."
   }
  ]
 }

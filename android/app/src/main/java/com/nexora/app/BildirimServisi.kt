@@ -65,6 +65,7 @@ class BildirimServisi : Service() {
                         enSon = maxOf(enSon, e.optDouble("ts", enSon))
                     }
                     sp.edit().putString("bildirim_son", enSon.toString()).apply()
+                    try { Yedek.otomatik(this, url, key) } catch (e: Exception) { /* yedek bir sonraki denemede */ }
                     if (uyarildi) goster("baglanti_geri", "Sunucuya yeniden bağlanıldı", "NEXORA tekrar izleniyor.", "bilgi")
                     hataBas = 0L; uyarildi = false
                 }

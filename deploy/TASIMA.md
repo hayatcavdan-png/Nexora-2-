@@ -40,5 +40,5 @@ Gerçek işlem yine KAPALIDIR; taşıma yalnızca paper sistemini taşır.
 - Durum: `systemctl status nexora-takip nexora-sunucu`
 - Günlük: `journalctl -u nexora-takip -f`
 - Yedek: her gece 04:10 otomatik, son 14 tanesi saklanır (`/opt/nexora/backend/yedekler`)
-- Güncelleme: `cd /opt/nexora && sudo -u nexora git pull && sudo systemctl restart nexora-sunucu nexora-takip`
+- Güncelleme (testler geçmezse eski sürümde kalır): `sudo bash /opt/nexora/deploy/guncelle.sh`
 - Çökme: systemd 5 sn sonra yeniden başlatır. Takip 5 dakika çalışmazsa uygulama "Takip durdu" bildirimi gösterir.

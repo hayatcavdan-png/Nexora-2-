@@ -79,3 +79,33 @@ class ServerAyarTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ServerYedekTests(unittest.TestCase):
+    def test_backup_endpoints(self):
+        import shutil
+        kok = tempfile.mkdtemp(); eski = os.getcwd(); os.chdir(kok)
+        try:
+            os.environ["NEXORA_API_KEY"] = "k"; os.environ["NEXORA_DB"] = os.path.join(kok, "nexora_paper.db")
+            sys.modules.pop("server", None)
+            import server
+            from http.server import ThreadingHTTPServer
+            srv = ThreadingHTTPServer(("127.0.0.1", 0), server.H)
+            threading.Thread(target=srv.serve_forever, daemon=True).start()
+            base = f"http://127.0.0.1:{srv.server_address[1]}"
+            def req(path, post=False):
+                r = urllib.request.Request(base + path, data=b"{}" if post else None, headers={"X-API-Key": "k"},
+                                           method="POST" if post else "GET")
+                try:
+                    with urllib.request.urlopen(r) as x: return x.status, x.headers, x.read()
+                except urllib.error.HTTPError as e: return e.code, e.headers, e.read()
+            self.assertEqual(req("/yedek/son")[0], 404)
+            c, _, b = req("/yedek", post=True); self.assertEqual(c, 200)
+            ad = json.loads(b)["ad"]
+            c, h, b = req("/yedek/son")
+            self.assertEqual((c, h["X-Yedek-Ad"]), (200, ad)); self.assertEqual(b[:2], b"\x1f\x8b")   # gzip
+            r = urllib.request.Request(base + "/yedek/son")                                           # anahtarsız
+            with self.assertRaises(urllib.error.HTTPError): urllib.request.urlopen(r)
+            srv.shutdown(); srv.server_close()
+        finally:
+            os.chdir(eski)

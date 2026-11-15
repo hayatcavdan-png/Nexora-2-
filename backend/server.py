@@ -7,6 +7,7 @@ from nexora.core import Paper, CFG
 from nexora.live_tracker import latency_from_db
 from nexora.rapor import build_report
 from nexora import panel
+import glob, yedek
 
 paper = Paper(os.getenv("NEXORA_DB", "nexora_paper.db"))
 KEY = os.getenv("NEXORA_API_KEY", "").strip()
@@ -45,9 +46,19 @@ class H(BaseHTTPRequestHandler):
         if not KEY or (self.headers.get("X-API-Key") or "").strip() != KEY:
             self._send(401, {"hata": "yetkisiz"}); return False
         return True
+    def _yedek_gonder(self):
+        dosyalar = sorted(glob.glob(os.path.join("yedekler", "nexora_*.tar.gz")))
+        if not dosyalar: self._send(404, {"hata": "yedek yok"}); return
+        yol = dosyalar[-1]
+        b = open(yol, "rb").read()
+        self.send_response(200); self.send_header("Content-Type", "application/gzip")
+        self.send_header("X-Yedek-Ad", os.path.basename(yol)); self.send_header("Content-Length", str(len(b)))
+        self.end_headers(); self.wfile.write(b)
+
     def do_GET(self):
         if not self._ok(): return
         parts = urlsplit(self.path)
+        if parts.path == "/yedek/son": self._yedek_gonder(); return
         if parts.path == "/olaylar":
             try: son = float(parse_qs(parts.query).get("son", ["0"])[0])
             except ValueError: son = 0.0
@@ -73,6 +84,12 @@ class H(BaseHTTPRequestHandler):
         raw = self.rfile.read(n) if n else b"{}"
         if self.path == "/acil-durdur": paper.set_kill(True); self._send(200, {"acil_durdurma": True})
         elif self.path == "/devam": paper.set_kill(False); self._send(200, {"acil_durdurma": False})
+        elif self.path == "/yedek":
+            try:
+                y = yedek.yedekle()
+                self._send(200, {"ad": os.path.basename(y), "boyut": os.path.getsize(y)})
+            except OSError as e:
+                self._send(500, {"hata": f"yedek alınamadı: {e}"})
         elif self.path == "/ayarlar":
             try:
                 self._send(200, paper.ayar_degistir(json.loads(raw or b"{}")))

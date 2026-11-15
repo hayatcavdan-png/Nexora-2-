@@ -273,6 +273,8 @@ fun PerformansOzeti(v: Veri) {
         Satir("Başarı oranı", v.basariOrani?.let { yuzde(it) } ?: "—")
         Satir("Gerçekleşen K/Z", "${isaretli(k.sumOf { it.kz })} USDC", kzRenk(k.sumOf { it.kz }))
         Satir("Toplam K/Z (açıklar dahil)", "${isaretli(v.kz)} USDC", kzRenk(v.kz))
+        v.maxDusus?.let { Satir("En büyük düşüş (zirveden)", "-" + yuzde(it, 2), if (it > 0.004) Nx.Kirmizi else Nx.Soluk) }
+        v.zirvedenUzaklik?.let { Satir("Şu an zirveden uzaklık", "-" + yuzde(it, 2), if (it > 0.004) Nx.Sari else Nx.Soluk) }
     }
 }
 
@@ -428,7 +430,7 @@ fun AsamaKarti(a: Asama) {
 // ---------------------------------------------------------------- Ayarlar
 @Composable
 fun AyarlarEkrani(v: Veri, url: String, key: String, bildirim: Boolean, bildirimDegis: (Boolean) -> Unit,
-                  riskKaydet: (org.json.JSONObject) -> Unit, kaydet: (String, String) -> Unit) {
+                  riskKaydet: (org.json.JSONObject) -> Unit, yedekIndir: () -> Unit, kaydet: (String, String) -> Unit) {
     var u by remember(url) { mutableStateOf(url) }
     var k by remember(key) { mutableStateOf(key) }
     Kart(Modifier.fillMaxWidth()) {
@@ -460,6 +462,13 @@ fun AyarlarEkrani(v: Veri, url: String, key: String, bildirim: Boolean, bildirim
         AyarSatiri(Icons.Filled.Person, "Solana cüzdan bağlantısı", "Gerçek işlem aşamasında (N12), açık onayınızla")
     }
     if (v.bagli) RiskAyarlari(v.ayarlar, riskKaydet)
+    if (v.bagli) Kart(Modifier.fillMaxWidth()) {
+        AyarSatiri(Icons.Filled.Done, "Yedek", "Sunucu her gece yedek alır. Bildirimler açıkken uygulama yeni yedeği günde bir " +
+            "kez İndirilenler/NEXORA klasörüne kopyalar (son 7 tanesi saklanır). Anahtarlar yedekte yoktur.")
+        Button(yedekIndir, colors = ButtonDefaults.buttonColors(containerColor = Nx.Mor), modifier = Modifier.fillMaxWidth()) {
+            Text("Şimdi yedek al ve telefona indir")
+        }
+    }
     Kart(Modifier.fillMaxWidth()) {
         AyarSatiri(Icons.Filled.Info, "Hakkında", "NEXORA ${BuildConfig.VERSION_NAME} · yalnızca paper (sanal) işlem · gerçek işlem kapalı")
     }

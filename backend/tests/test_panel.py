@@ -101,3 +101,12 @@ class NabizTests(unittest.TestCase):
         p.nabiz(1450.0)
         self.assertEqual(panel.olaylar(path, None, son=1300.0, now=1500)["olaylar"], [])     # yeniden çalışıyor
         self.assertEqual(p.son_nabiz(), 1450.0)
+
+
+class DususTests(unittest.TestCase):
+    def test_drawdown(self):
+        pts = [dict(ts=1, deger=100), dict(ts=2, deger=104), dict(ts=3, deger=98.8), dict(ts=4, deger=101), dict(ts=5, deger=99)]
+        d = panel.dusus(pts, 100)
+        self.assertAlmostEqual(d["max_dusus_pct"], 5.0); self.assertAlmostEqual(d["max_dusus_usd"], 5.2)
+        self.assertAlmostEqual(d["zirveden_uzaklik_pct"], round(5 / 104 * 100, 2))
+        self.assertEqual(panel.dusus([dict(ts=1, deger=100)], 100)["max_dusus_pct"], 0.0)

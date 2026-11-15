@@ -96,6 +96,16 @@ fun App() {
             android.widget.Toast.makeText(ctx, "Risk sınırları kaydedildi", android.widget.Toast.LENGTH_SHORT).show()
         } catch (e: Exception) { v.hata = "Kaydedilemedi: ${e.message}" }
     }
+    fun yedekIndir() = scope.launch {
+        try {
+            val yer = withContext(Dispatchers.IO) {
+                api(url, key, "/yedek", true)
+                val (ad, veri) = Yedek.indir(url, key)
+                Yedek.kaydet(ctx, ad, veri).also { sp.edit().putString("yedek_son_ad", ad).apply() }
+            }
+            android.widget.Toast.makeText(ctx, "Yedek kaydedildi: $yer", android.widget.Toast.LENGTH_LONG).show()
+        } catch (e: Exception) { v.hata = "Yedek indirilemedi: ${e.message}" }
+    }
     LaunchedEffect(Unit) { while (true) { yenile(); delay(10_000) } }
     BackHandler(enabled = ekran != "panel") { ekran = "panel" }
 
@@ -200,7 +210,7 @@ fun App() {
                                 android.content.pm.PackageManager.PERMISSION_GRANTED) {
                                 izinIste.launch(android.Manifest.permission.POST_NOTIFICATIONS)
                             } else bildirimAyarla(acik)
-                        }, { riskKaydet(it) }) { u, k ->
+                        }, { riskKaydet(it) }, { yedekIndir() }) { u, k ->
                             url = u; key = k
                             sp.edit().putString("url", u).putString("key", k).apply()
                             yenile()
