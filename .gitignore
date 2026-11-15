@@ -2,3 +2,5 @@ __pycache__/
 *.pyc
 *.db
 backend/wallets.txt
+backend/cuzdan_tarama.csv
+backend/wallets_aday.txt
