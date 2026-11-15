@@ -53,7 +53,7 @@ class ShadowTests(unittest.TestCase):
         d.decide("b1", "W", TOK, "buy", 1); self.q.sell_price = 1.5; d.decide("s1", "W", TOK, "sell", 1)
         self.q.back_ratio, self.q.sell_price = 0.80, None; d.decide("b2", "W", "T2", "buy", 1)
         out = golge_rapor.report(path)
-        self.assertIn("Gölge işlem: 2 (açık 1, kapanmış 1)", out)
+        self.assertIn("Gölge işlem: 2 (açık 1, kapanmış 1)", out); self.assertNotIn("\\n", out)
         self.assertIn("al-sat %8-10", out); self.assertIn("+2.48$", out); self.assertIn("al-sat %15+", out)
         self.assertIn("Paper veritabanı yok", golge_rapor.report("/yok/boyle.db"))
 if __name__ == "__main__": unittest.main()

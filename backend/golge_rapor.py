@@ -25,11 +25,11 @@ def report(path):
         wins = sum(1 for r in closed if r["pnl_usd"] > 0)
         lines.append(f"{name:<20}{len(closed):>8}{wins:>9}{tot:>+11.2f}${avg:>+11.1f}%{len(rs) - len(closed):>6}")
     stuck = [r for r in rows if r["status"] == "satilamadi"]
-    if stuck: lines.append(f"\\nUyarı: {len(stuck)} gölge pozisyon satış anında satılamadı (bunlara girseydik takılıp kalırdık).")
+    if stuck: lines.append(f"\nUyarı: {len(stuck)} gölge pozisyon satış anında satılamadı (bunlara girseydik takılıp kalırdık).")
     if real:
-        lines.append(f"\\nKarşılaştırma, gerçek paper işlemler: {len(real)} kapanmış, toplam K/Z {sum(r['pnl'] for r in real):+.2f}$")
-    lines.append("\\nNot: Kapanan örnek sayısı 20'nin altındaysa sonuç güvenilir değildir; eşik kararı için bekleyin.")
-    return "\\n".join(lines)
+        lines.append(f"\nKarşılaştırma, gerçek paper işlemler: {len(real)} kapanmış, toplam K/Z {sum(r['pnl'] for r in real):+.2f}$")
+    lines.append("\nNot: Kapanan örnek sayısı 20'nin altındaysa sonuç güvenilir değildir; eşik kararı için bekleyin.")
+    return "\n".join(lines)
 
 if __name__ == "__main__":
     print(report(sys.argv[1] if len(sys.argv) > 1 else os.getenv("NEXORA_DB", "nexora_paper.db")))
