@@ -11,8 +11,16 @@ from nexora.helius_client import HeliusClient, HeliusRPCError
 from nexora.core import Paper
 from nexora.live_tracker import LiveTracker
 from nexora.ws_listener import WSListener
+from nexora.market import JupiterQuoter
+from nexora.token_safety import TokenSafety
+from nexora.decision import Decider
 
 USE_WS = os.getenv("TRACK_WS", "1") != "0"
+PAPER_TRADE = os.getenv("PAPER_TRADE", "1") != "0"    # 0: eski davranış (fiyat bilinmiyor -> hepsi engellenir)
+
+def read_list(path):
+    if not os.path.exists(path): return []
+    return [l.strip() for l in open(path) if l.strip() and not l.lstrip().startswith("#")]
 INTERVAL = int(os.getenv("TRACK_INTERVAL", "60" if USE_WS else "20"))
 
 def short(a): return a[:4] + "…" + a[-4:]
@@ -26,8 +34,12 @@ def main():
         sys.exit("HELIUS_API_KEY tanımlı değil: read -s HELIUS_API_KEY && export HELIUS_API_KEY")
     if not os.path.exists("wallets.txt"):
         sys.exit("wallets.txt yok: her satıra bir cüzdan adresi yazın")
-    wallets = [l.strip() for l in open("wallets.txt") if l.strip() and not l.startswith("#")]
-    if not wallets: sys.exit("wallets.txt boş")
+    wallets = read_list("wallets.txt")
+    black = set(read_list("kara_liste.txt"))
+    for w in [w for w in wallets if w in black]:
+        print(f"  {short(w)}: kara listede (bilinen bot), izlenmeyecek", flush=True)
+    wallets = [w for w in wallets if w not in black]
+    if not wallets: sys.exit("wallets.txt boş (ya da hepsi kara listede)")
 
     client = HeliusClient(max_retries=2)
     try:
@@ -35,7 +47,13 @@ def main():
     except HeliusRPCError as e:
         sys.exit(f"Helius bağlantısı başarısız: {e}")
     paper = Paper(os.getenv("NEXORA_DB", "nexora_paper.db"))
-    tr = LiveTracker(client, paper, os.getenv("TRACKER_DB", "nexora_tracker.db"), wallets)
+    decider = None
+    if PAPER_TRADE:
+        quoter = JupiterQuoter()
+        decider = Decider(paper, quoter, TokenSafety(client))
+        if not quoter.api_key:
+            print("  Not: JUPITER_API_KEY yok, teklifler anahtarsız (0.5 istek/sn). Ücretsiz anahtar hızlandırır.", flush=True)
+    tr = LiveTracker(client, paper, os.getenv("TRACKER_DB", "nexora_tracker.db"), wallets, decider=decider)
     n = tr.reset_quarantine()
     if n: print(f"{n} cüzdan karantinadan çıkarıldı (yeniden deneniyor)", flush=True)
     if os.getenv("CLEAR_BOT") == "1":
@@ -59,7 +77,8 @@ def main():
                               log=lambda m: print("  [ws]", m, flush=True))
         threading.Thread(target=listener.run_forever, args=(stop,), daemon=True).start()
 
-    mode = "WebSocket + yedek yoklama" if USE_WS else "yalnızca yoklama"
+    mode = ("WebSocket + yedek yoklama" if USE_WS else "yalnızca yoklama") + \
+           (", gerçek Jupiter teklifleriyle paper işlem" if PAPER_TRADE else ", paper işlem kapalı")
     print(f"Takip başladı: {len(wallets)} cüzdan, {mode}, yoklama {INTERVAL} sn "
           f"(PAPER, gerçek işlem KAPALI)", flush=True)
     try:
@@ -74,6 +93,8 @@ def main():
             parts = [f"{k}: n={v['n']} P50={v['p50']:.0f}s P95={v['p95']:.0f}s" for k, v in st.items()]
             nf = tr.failed_count()
             extra = f" | okunamayan işlem: {nf}" if nf else ""
+            pf = paper.portfolio()
+            extra += f" | paper: nakit {pf['cash']:.2f} pozisyon {len(pf['positions'])} K/Z {pf['pnl']:+.2f} USDC"
             print(time.strftime("%H:%M:%S"), f"ws {ws_state} |", (" | ".join(parts) or "henüz sinyal yok") + extra, flush=True)
     finally:
         stop.set()

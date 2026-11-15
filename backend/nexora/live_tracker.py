@@ -26,8 +26,9 @@ CREATE TABLE IF NOT EXISTS tracker_signals(id INTEGER PRIMARY KEY AUTOINCREMENT,
 """
 
 class LiveTracker:
-    def __init__(self, client, paper, db_path, wallets, clock=time.time, sleep=time.sleep):
+    def __init__(self, client, paper, db_path, wallets, clock=time.time, sleep=time.sleep, decider=None):
         self.client, self.paper, self.clock, self.sleep = client, paper, clock, sleep
+        self.decider = decider
         self.lock = threading.RLock()
         self.wallets = {w.strip() for w in wallets}
         self.recent = defaultdict(deque)
@@ -113,20 +114,24 @@ class LiveTracker:
         with self.lock:
             if self._seen(wallet, sig): return None
             self.db.execute("INSERT OR IGNORE INTO tracker_seen VALUES(?,?)", (sig, wallet))
-            rec = decode_swap(tx, wallet)
-            if rec.get("event_type") not in ("BUY", "SELL"):
-                self.db.commit(); return None
-            bt = tx.get("blockTime") or 0
-            age = max(0.0, self.clock() - bt) if bt else 1e9
-            r = self.paper.handle_signal(f"{wallet}:{sig}", wallet, rec["token_mint"],
-                    rec["event_type"].lower(), 1.0, 0.0, age)   # fiyat/likidite bilinmiyor -> engellenir
+            self.db.commit()
+        rec = decode_swap(tx, wallet)
+        if rec.get("event_type") not in ("BUY", "SELL"): return None
+        bt = tx.get("blockTime") or 0
+        age = max(0.0, self.clock() - bt) if bt else 1e9      # algılama gecikmesi (karar öncesi)
+        event_id, side = f"{wallet}:{sig}", rec["event_type"].lower()
+        if self.decider:                                       # gerçek teklifle paper karar (ağ: kilit dışında)
+            r = self.decider.decide(event_id, wallet, rec["token_mint"], side, age)
+        else:                                                  # fiyat/likidite bilinmiyor -> engellenir
+            r = self.paper.handle_signal(event_id, wallet, rec["token_mint"], side, 1.0, 0.0, age)
+        with self.lock:
             self.db.execute("""INSERT INTO tracker_signals(ts,wallet,sig,side,token,token_delta,quote,
                 block_time,latency_s,decision,reason,source) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)""",
                 (self.clock(), wallet, sig, rec["event_type"], rec["token_mint"], str(rec["token_delta_raw"]),
                  rec.get("quote_mint") or "SOL", bt, age, r["decision"], r["reason"], source))
             self.db.commit()
-            return dict(wallet=wallet, sig=sig, side=rec["event_type"], token=rec["token_mint"],
-                        latency_s=age, decision=r["decision"], reason=r["reason"], source=source)
+        return dict(wallet=wallet, sig=sig, side=rec["event_type"], token=rec["token_mint"],
+                    latency_s=age, decision=r["decision"], reason=r["reason"], source=source)
 
     def _get_tx(self, sig):
         return self.client.call("getTransaction", [sig, {"encoding": "jsonParsed",

@@ -1,0 +1,5 @@
+# Bilinen bot cüzdanlar: takip edilmez, aday listesine alınmaz.
+# 826t…oonK: hacim botu (aynı miktarı alıp geri satıyor), Solscan ile doğrulandı 15.11.2026
+826tkFbLkXKmz8Pq3bm1VFp7ndq1K12VGxJavd6hoonK
+# FHpc…7wCT: dakikada onlarca SOL<->USDC işlemi, 15.11.2026
+FHpcNSe6tb2n15bAdq4BkeYWGyZKFD7yLYrH92ng7wCT

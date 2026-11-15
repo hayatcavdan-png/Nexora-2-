@@ -1,4 +1,4 @@
-import os, sys, tempfile, unittest
+import contextlib, io, os, sys, tempfile, unittest
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 import cuzdan_tarama as ct
 
@@ -39,13 +39,25 @@ class EndToEnd(unittest.TestCase):
     def tearDown(self): os.chdir(self.cwd)
     def test_scan_resume_and_candidates(self):
         c1 = FakeClient(fail=[W[3]])
-        counts = ct.main(client=c1, now_fn=lambda: NOW, sleep=lambda s: None)
+        with contextlib.redirect_stdout(io.StringIO()): counts = ct.main(client=c1, now_fn=lambda: NOW, sleep=lambda s: None)
         self.assertEqual(len(c1.calls), 5)                                    # yinelenen/geçersiz atlandı
         self.assertEqual((counts["bot"], counts["aday"], counts["hata"]), (1, 2, 1))
         aday = [l.strip() for l in open("wallets_aday.txt") if not l.startswith("#")]
-        self.assertEqual(aday, [W[1], W[2]])                                  # en aktif önce, bot yok
+        self.assertEqual(aday, [W[1], W[2]])                                  # ölçülü ve aktif önce, bot yok
         c2 = FakeClient()
-        counts = ct.main(client=c2, now_fn=lambda: NOW, sleep=lambda s: None)
+        with contextlib.redirect_stdout(io.StringIO()): counts = ct.main(client=c2, now_fn=lambda: NOW, sleep=lambda s: None)
         self.assertEqual(c2.calls, [W[3]])                                    # yalnızca hatalı yeniden denendi
         self.assertNotIn("hata", counts); self.assertEqual(counts["pasif"], 2)
+    def test_kara_liste_excluded_and_moderate_first(self):
+        with open("kara_liste.txt", "w") as f: f.write("# bot\n" + W[2] + "\n")
+        class C:
+            def call(self, m, p):
+                w = p[0]
+                if w == W[0]: return sigs([NOW - i * 120 for i in range(100)])     # >=100/gün: aday ama ölçülü değil
+                if w == W[1]: return sigs([NOW - i * 3600 for i in range(8)])      # ölçülü
+                if w == W[2]: return sigs([NOW - i * 3600 for i in range(20)])     # kara listede
+                return []
+        with contextlib.redirect_stdout(io.StringIO()): ct.main(client=C(), now_fn=lambda: NOW, sleep=lambda s: None)
+        aday = [l.strip() for l in open("wallets_aday.txt") if not l.startswith("#")]
+        self.assertEqual(aday, [W[1], W[0]])                                  # ölçülü önce, kara liste yok
 if __name__ == "__main__": unittest.main()

@@ -19,6 +19,7 @@ PASIF_SAAT = 72        # son 3 gündür işlem yoksa pasif
 BOT_10DK = 30          # 10 dakikada 30+ işlem: bot (canlı takipteki sınırla aynı)
 BOT_24S = 300          # 24 saatte 300+ işlem: bot
 ADAY_MIN_24S = 2       # aday için 24 saatte en az 2 işlem
+OLCULU = (5, 60, 10)   # öncelikli aday: 24 saatte 5-59 işlem ve 10 dk tepe <= 10
 PAUSE = float(os.getenv("TARAMA_BEKLEME", "0.15"))
 
 def classify(sigs, now):
@@ -87,11 +88,20 @@ def main(client=None, now_fn=time.time, sleep=time.sleep):
     counts = {}
     for r in rows: counts[r["durum"]] = counts.get(r["durum"], 0) + 1
     print("\nSonuç:", ", ".join(f"{k}: {v}" for k, v in sorted(counts.items(), key=lambda x: -x[1])))
-    aday = sorted((r for r in rows if r["durum"] == "aday"), key=lambda r: -int(r["islem_24s"] or 0))
+    black = set()
+    if os.path.exists("kara_liste.txt"):
+        black = {l.strip() for l in open("kara_liste.txt") if l.strip() and not l.startswith("#")}
+    def olculu(r):
+        n, peak = int(r["islem_24s"] or 0), int(r["max_10dk"] or 0)
+        return OLCULU[0] <= n < OLCULU[1] and peak <= OLCULU[2]
+    # Önce ölçülü (insan olasılığı yüksek, kota dostu), sonra diğer adaylar; kara listedekiler hariç
+    aday = sorted((r for r in rows if r["durum"] == "aday" and r["wallet"] not in black),
+                  key=lambda r: (not olculu(r), -int(r["islem_24s"] or 0)))
     with open(OUT_ADAY, "w") as f:
         f.write("# Aktif ve bot olmayan adaylar (24 saatteki işlem sayısına göre). wallets.txt'e kopyalamadan önce gözden geçirin.\n")
         for r in aday: f.write(r["wallet"] + "\n")
-    print(f"\nEn aktif 10 aday (toplam {len(aday)}, hepsi {OUT_ADAY} dosyasında):")
+    n_olc = sum(1 for r in aday if olculu(r))
+    print(f"\nÖnerilen ilk 10 (ölçülü aday: {n_olc}, toplam aday: {len(aday)}; hepsi {OUT_ADAY} dosyasında):")
     for r in aday[:10]:
         print(f"  {r['wallet'][:4]}…{r['wallet'][-4:]}  24s: {r['islem_24s']:>3}  7g: {r['islem_7g']:>3}  "
               f"son işlem: {r['son_islem_saat']} sa önce  10dk tepe: {r['max_10dk']}")
