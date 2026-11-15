@@ -49,6 +49,18 @@ fun App() {
     var islemSekme by remember { mutableIntStateOf(0) }
     var durdurOnay by remember { mutableStateOf(false) }
     val v = remember { Veri() }
+    var kilitli by remember { mutableStateOf(Kilit.var_(sp)) }
+    val yasam = androidx.compose.ui.platform.LocalLifecycleOwner.current
+    DisposableEffect(yasam) {
+        var arka = 0L
+        val g = androidx.lifecycle.LifecycleEventObserver { _, olay ->
+            if (olay == androidx.lifecycle.Lifecycle.Event.ON_STOP) arka = System.currentTimeMillis()
+            if (olay == androidx.lifecycle.Lifecycle.Event.ON_START && arka > 0 &&
+                System.currentTimeMillis() - arka > 60_000 && Kilit.var_(sp)) kilitli = true
+        }
+        yasam.lifecycle.addObserver(g)
+        onDispose { yasam.lifecycle.removeObserver(g) }
+    }
     var bildirim by remember { mutableStateOf(sp.getBoolean("bildirim", false)) }
     fun bildirimAyarla(acik: Boolean) {
         bildirim = acik
@@ -86,6 +98,8 @@ fun App() {
     }
     LaunchedEffect(Unit) { while (true) { yenile(); delay(10_000) } }
     BackHandler(enabled = ekran != "panel") { ekran = "panel" }
+
+    if (kilitli) { KilitEkrani(sp) { kilitli = false }; return }
 
     if (durdurOnay) {
         AlertDialog(
@@ -191,6 +205,7 @@ fun App() {
                             sp.edit().putString("url", u).putString("key", k).apply()
                             yenile()
                         }
+                        KilitAyari(sp)
                     }
                 }
             }

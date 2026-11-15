@@ -9,3 +9,4 @@ backend/wallets_*.txt
 backend/cuzdan_analiz.csv
 backend/takip_kaybi.json
 backend/.calisma/
+backend/yedekler/

@@ -5,6 +5,7 @@
 #   ./nexora durum     çalışıyor mu, son günlük satırları
 #   ./nexora durdur    ikisini de durdurur (yalnızca bu betiğin başlattıklarını)
 #   ./nexora log [sunucu|takip]   günlüğü canlı izle (çıkmak için CTRL+C)
+#   ./nexora yedek     veritabanı ve cüzdan listelerinin yedeği (backend/yedekler)
 set -u
 KOK="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ARKA="$KOK/backend"
@@ -104,10 +105,13 @@ case "${1:-}" in
   log)
     ad="${2:-takip}"; touch "$CALISMA/$ad.log"; tail -n 30 -f "$CALISMA/$ad.log"
     ;;
+  yedek)
+    (cd "$ARKA" && "$PY" yedek.py)
+    ;;
   _gozet)
     yukle_env; echo $$ >"$CALISMA/$2.gozetmen"; gozetmen "$2" "$3"
     ;;
   *)
-    sed -n '2,7p' "$0" | sed 's/^# \{0,1\}//'
+    sed -n '2,8p' "$0" | sed 's/^# \{0,1\}//'
     ;;
 esac

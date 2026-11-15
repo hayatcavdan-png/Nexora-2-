@@ -1,0 +1,8 @@
+[Unit]
+Description=NEXORA gunluk yedek
+
+[Service]
+Type=oneshot
+User=nexora
+WorkingDirectory=/opt/nexora/backend
+ExecStart=/usr/bin/python3 yedek.py

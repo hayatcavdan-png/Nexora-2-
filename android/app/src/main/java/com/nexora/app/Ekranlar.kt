@@ -457,7 +457,6 @@ fun AyarlarEkrani(v: Veri, url: String, key: String, bildirim: Boolean, bildirim
             Switch(checked = bildirim, onCheckedChange = bildirimDegis,
                 colors = SwitchDefaults.colors(checkedTrackColor = Nx.Yesil))
         }
-        AyarSatiri(Icons.Filled.Lock, "Güvenlik (kilit / biyometrik)", "Yakında")
         AyarSatiri(Icons.Filled.Person, "Solana cüzdan bağlantısı", "Gerçek işlem aşamasında (N12), açık onayınızla")
     }
     if (v.bagli) RiskAyarlari(v.ayarlar, riskKaydet)

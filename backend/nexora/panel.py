@@ -111,13 +111,22 @@ def asamalar(path="asamalar.json"):
     return dict(rows=d.get("rows", []), guncelleme=meta)
 
 
-def olaylar(paper_path, tracker_path, son=0.0, limit=20):
+NABIZ_SURE = 300      # takip bu kadar saniye kalp atışı yazmazsa "durdu" sayılır
+
+def olaylar(paper_path, tracker_path, son=0.0, limit=20, now=None):
     """Bildirim olayları (ts > son): kopyalanan alım, kapanan pozisyon, günlük zarar sınırı, bot işareti.
     Uygulama son gördüğü ts'yi saklar ve yalnızca yenileri ister."""
+    now = now if now is not None else time.time()
     out = []
     c = _ro(paper_path)
     if c is not None:
         try:
+            nb = {r["k"]: r["v"] for r in _rows(c, "SELECT k, v FROM state WHERE k='takip_nabiz'")}.get("takip_nabiz")
+            if nb:
+                t = float(nb) + NABIZ_SURE
+                if t <= now and t > son:
+                    out.append(dict(id=f"n{int(float(nb))}", ts=t, tur="risk", baslik="Takip durdu",
+                                    metin="Canlı takip 5 dakikadır çalışmıyor. Termux'ta: ./nexora durum"))
             gunler = set()
             for t in _rows(c, "SELECT id, ts, side, token, wallet, pnl, decision, reason FROM trades WHERE ts > ? ORDER BY ts", (son,)):
                 tok = (t["token"] or "")[:4] + "…" + (t["token"] or "")[-4:]
@@ -150,4 +159,4 @@ def olaylar(paper_path, tracker_path, son=0.0, limit=20):
         finally:
             tc.close()
     out.sort(key=lambda e: e["ts"])
-    return dict(olaylar=out[:limit], simdi=time.time())
+    return dict(olaylar=out[:limit], simdi=now)

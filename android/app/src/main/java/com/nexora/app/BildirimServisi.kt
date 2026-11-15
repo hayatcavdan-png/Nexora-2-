@@ -48,6 +48,8 @@ class BildirimServisi : Service() {
         if (!sp.contains("bildirim_son")) {
             sp.edit().putString("bildirim_son", (System.currentTimeMillis() / 1000.0).toString()).apply()
         }
+        var hataBas = 0L          // ilk başarısız denemenin zamanı (0: sorun yok)
+        var uyarildi = false
         while (true) {
             try {
                 val url = sp.getString("url", "http://127.0.0.1:8000")!!
@@ -63,9 +65,18 @@ class BildirimServisi : Service() {
                         enSon = maxOf(enSon, e.optDouble("ts", enSon))
                     }
                     sp.edit().putString("bildirim_son", enSon.toString()).apply()
+                    if (uyarildi) goster("baglanti_geri", "Sunucuya yeniden bağlanıldı", "NEXORA tekrar izleniyor.", "bilgi")
+                    hataBas = 0L; uyarildi = false
                 }
             } catch (e: Exception) {
-                // Sunucu kapalı ya da ağ yok: sessizce bir sonraki turu bekle.
+                // Sunucu kapalı ya da ağ yok. 5 dakika sürerse bir kez uyar (Termux kapanmış olabilir).
+                val simdi = System.currentTimeMillis()
+                if (hataBas == 0L) hataBas = simdi
+                if (!uyarildi && simdi - hataBas >= 5 * 60_000L) {
+                    goster("baglanti", "Sunucuya ulaşılamıyor",
+                        "5 dakikadır bağlantı yok. Termux kapanmış olabilir: cd ~/nexora_build/nexora_2 && ./nexora baslat", "risk")
+                    uyarildi = true
+                }
             }
             delay(30_000)
         }

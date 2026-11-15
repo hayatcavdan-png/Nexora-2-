@@ -14,8 +14,8 @@
    "ad": "Mimari ve veri sözleşmeleri",
    "grup": "Temel",
    "durum": "devam",
-   "yuzde": 25,
-   "yapilan": "Olay kimliği, tekrar işlem engeli, checkpoint, şema geçişleri",
+   "yuzde": 30,
+   "yapilan": "Olay kimliği, tekrar işlem engeli, checkpoint, şema geçişleri; risk ayarı değişiklik kaydı (denetim izi)",
    "eksik": "Sürümlü veri modelleri, durum makineleri, kuyruklar, denetim izi"
   },
   {
@@ -77,9 +77,9 @@
    "ad": "Sermaye ve risk yönetimi",
    "grup": "İşlem",
    "durum": "devam",
-   "yuzde": 75,
-   "yapilan": "100 USDC, %5 pozisyon, %3 günlük zarar, 5 pozisyon, cüzdan başına 2 pozisyon, 1 USDC ücret rezervi, acil durdurma",
-   "eksik": "Token yoğunlaşma limiti; limitlerin uygulamadan ayarlanması"
+   "yuzde": 85,
+   "yapilan": "100 USDC, %5 pozisyon, %3 günlük zarar, 5 pozisyon, cüzdan başına 2 pozisyon, 1 USDC ücret rezervi, acil durdurma; limitler uygulamadan değiştirilebilir (yalnızca sıkılaştırma, sunucu denetimi, değişiklik kaydı)",
+   "eksik": "Token yoğunlaşma limiti"
   },
   {
    "kod": "N9",
@@ -122,18 +122,18 @@
    "ad": "Kesintisiz sunucu",
    "grup": "Ürün",
    "durum": "devam",
-   "yuzde": 10,
-   "yapilan": "Telefonda tek komutla başlatıcı (./nexora): arka planda çalışma, çökünce otomatik yeniden başlatma, uyku kilidi",
-   "eksik": "Telefondan bağımsız sunucu, alarm, yedekleme"
+   "yuzde": 45,
+   "yapilan": "Telefonda başlatıcı (./nexora, otomatik yeniden başlatma); sunucu kurulum paketi (systemd, Tailscale özel ağ, rastgele anahtar, gece yedeği 14 gün); yedek/geri yükleme aracı; 'takip durdu' ve 'sunucuya ulaşılamıyor' uyarıları",
+   "eksik": "Sunucu kiralama ve taşıma (ücretli, sizin onayınızla); uzun süreli çalışma kanıtı"
   },
   {
    "kod": "N14",
    "ad": "Android uygulaması",
    "grup": "Ürün",
    "durum": "devam",
-   "yuzde": 72,
-   "yapilan": "Uygulama 3.4: neon arayüz; Ana Panel (bakiye, K/Z, başarı oranı, bot anahtarı, performans grafiği), Bot, Cüzdanlar, İşlemler, Rapor, Yol Haritası, Ayarlar; otomatik APK derleme; arka plan bildirimleri (alım, kapanış, risk, bot); Rapor'da zarar kesme ölçümü; token özellikleri kartı",
-   "eksik": "Risk ayarlarını uygulamadan değiştirme, kilit/biyometrik, HTTPS"
+   "yuzde": 85,
+   "yapilan": "Uygulama 3.6: neon arayüz; Ana Panel (bakiye, K/Z, başarı oranı, bot anahtarı, performans grafiği), Bot, Cüzdanlar, İşlemler, Rapor, Yol Haritası, Ayarlar; otomatik APK derleme; arka plan bildirimleri (alım, kapanış, risk, bot); Rapor'da zarar kesme ölçümü; token özellikleri kartı; risk sınırlarını değiştirme; PIN kilidi; bağlantı kopma uyarısı",
+   "eksik": "HTTPS (sunucuda Tailscale ile şifreli); biyometrik giriş"
   },
   {
    "kod": "N15",
@@ -148,7 +148,7 @@
  "meta": [
   {
    "label": "Kaynak",
-   "value": "Claude'un proje değerlendirmesi, 16.11.2026 00:35. Yüzdeler tahmini; hiçbir aşama kabul kriterleri karşılanmadan tamamlandı sayılmaz."
+   "value": "Claude'un proje değerlendirmesi, 16.11.2026 01:10. Yüzdeler tahmini; hiçbir aşama kabul kriterleri karşılanmadan tamamlandı sayılmaz."
   }
  ]
 }

@@ -64,6 +64,7 @@ def main():
     for w in tr.bot_wallets():
         print(f"  {short(w)}: yüksek frekans (bot) işaretli, izlenmiyor. "
               f"wallets.txt'ten çıkarın ya da CLEAR_BOT=1 ile yeniden deneyin.", flush=True)
+    paper.nabiz()
     tr.poll_all()                                     # başlangıç noktası / kaçanları tamamla
 
     stop = threading.Event()
@@ -88,6 +89,7 @@ def main():
     try:
         while True:
             stop.wait(INTERVAL)
+            paper.nabiz()
             if decider and time.time() - last_mark >= MARK_EVERY:
                 last_mark = time.time()
                 ok, bad = decider.mark_to_market()

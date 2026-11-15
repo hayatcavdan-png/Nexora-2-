@@ -85,3 +85,19 @@ class PanelTests(unittest.TestCase):
         finally:
             for k in ("NEXORA_API_KEY", "NEXORA_DB", "TRACKER_DB"): os.environ.pop(k, None)
 if __name__ == "__main__": unittest.main()
+
+
+class NabizTests(unittest.TestCase):
+    def test_takip_durdu_event_once(self):
+        import tempfile, os
+        from nexora.core import Paper
+        from nexora import panel
+        path = os.path.join(tempfile.mkdtemp(), "p.db")
+        p = Paper(path); p.nabiz(1000.0)
+        self.assertEqual(panel.olaylar(path, None, son=0, now=1200)["olaylar"], [])          # 200 sn: sorun yok
+        ev = panel.olaylar(path, None, son=0, now=1400)["olaylar"]
+        self.assertEqual([(e["baslik"], e["ts"]) for e in ev], [("Takip durdu", 1300.0)])
+        self.assertEqual(panel.olaylar(path, None, son=1300.0, now=1500)["olaylar"], [])     # bir kez bildirilir
+        p.nabiz(1450.0)
+        self.assertEqual(panel.olaylar(path, None, son=1300.0, now=1500)["olaylar"], [])     # yeniden çalışıyor
+        self.assertEqual(p.son_nabiz(), 1450.0)

@@ -9,7 +9,10 @@ from nexora.rapor import build_report
 from nexora import panel
 
 paper = Paper(os.getenv("NEXORA_DB", "nexora_paper.db"))
-KEY = os.getenv("NEXORA_API_KEY", "").strip()   # baştaki/sondaki boşluk anahtarı bozmasın
+KEY = os.getenv("NEXORA_API_KEY", "").strip()
+# Telefonda yalnızca bu cihazdan erişilir. Sunucuda (N13) özel ağ adresi verilir: NEXORA_HOST=100.x.y.z
+HOST = os.getenv("NEXORA_HOST", "127.0.0.1")
+PORT = int(os.getenv("NEXORA_PORT", "8000"))   # baştaki/sondaki boşluk anahtarı bozmasın
 
 def _read_list(path):
     if not os.path.exists(path): return []
@@ -51,7 +54,8 @@ class H(BaseHTTPRequestHandler):
             self._send(200, panel.olaylar(os.getenv("NEXORA_DB", "nexora_paper.db"), os.getenv("TRACKER_DB", "nexora_tracker.db"), son))
             return
         if self.path == "/durum":
-            self._send(200, dict(mod="PAPER", gercek_islem="KAPALI", acil_durdurma=paper.killed(), ayarlar=paper.ayarlar()["gecerli"]))
+            self._send(200, dict(mod="PAPER", gercek_islem="KAPALI", acil_durdurma=paper.killed(), ayarlar=paper.ayarlar()["gecerli"],
+                                 takip_nabiz=paper.son_nabiz()))
         elif self.path == "/portfoy": self._send(200, paper.portfolio())
         elif self.path == "/islemler": self._send(200, paper.trades())
         elif self.path == "/takip": self._send(200, takip_ozeti())
@@ -86,9 +90,11 @@ class H(BaseHTTPRequestHandler):
 
 if __name__ == "__main__":
     if not KEY: raise SystemExit("NEXORA_API_KEY ayarlanmadı")
+    if HOST not in ("127.0.0.1", "localhost") and len(KEY) < 16:
+        raise SystemExit("Dışarıya açık adreste en az 16 karakterlik NEXORA_API_KEY gerekir.")
     try:
-        srv = ThreadingHTTPServer(("127.0.0.1", 8000), H)
+        srv = ThreadingHTTPServer((HOST, PORT), H)
     except OSError:
-        raise SystemExit("8000 portu kullanımda: sunucu zaten başka bir oturumda çalışıyor olabilir.")
-    print("NEXORA çalışıyor: http://127.0.0.1:8000  (PAPER modu)")
+        raise SystemExit(f"{PORT} portu kullanımda: sunucu zaten başka bir oturumda çalışıyor olabilir.")
+    print(f"NEXORA çalışıyor: http://{HOST}:{PORT}  (PAPER modu)")
     srv.serve_forever()

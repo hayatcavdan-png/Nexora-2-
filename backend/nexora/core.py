@@ -113,6 +113,15 @@ class Paper:
             self.db.commit()
         return self.ayarlar()
 
+    def nabiz(self, ts=None):
+        """Takip süreci her turda yazar; sunucu ve uygulama 'takip durdu' uyarısını buradan üretir."""
+        with self.lock:
+            self._set("takip_nabiz", ts if ts is not None else time.time()); self.db.commit()
+
+    def son_nabiz(self):
+        v = self._get("takip_nabiz")
+        return float(v) if v else None
+
     def cash(self): return float(self._get("cash"))
     def killed(self): return self._get("kill") == "1"
     def set_kill(self, on):

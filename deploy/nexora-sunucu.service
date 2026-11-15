@@ -1,0 +1,19 @@
+[Unit]
+Description=NEXORA sunucu (PAPER, gercek islem kapali)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=nexora
+WorkingDirectory=/opt/nexora/backend
+EnvironmentFile=/etc/nexora.env
+ExecStart=/usr/bin/python3 -u server.py
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/opt/nexora/backend
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
