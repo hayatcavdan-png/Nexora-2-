@@ -22,7 +22,7 @@ def read_list(path):
     if not os.path.exists(path): return []
     return [l.strip() for l in open(path) if l.strip() and not l.lstrip().startswith("#")]
 INTERVAL = int(os.getenv("TRACK_INTERVAL", "60" if USE_WS else "20"))
-MARK_EVERY = int(os.getenv("MARK_INTERVAL", "300"))   # açık pozisyonları 5 dakikada bir gerçek teklifle değerle
+MARK_EVERY = int(os.getenv("MARK_INTERVAL", "120"))   # açık pozisyonları 2 dakikada bir gerçek teklifle değerle
 
 def short(a): return a[:4] + "…" + a[-4:]
 

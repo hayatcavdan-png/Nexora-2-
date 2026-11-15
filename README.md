@@ -24,6 +24,7 @@ Anahtarlar `~/.nexora_env` dosyasında, yalnızca sizin okuyabileceğiniz izinle
 | `python takip_kaybi.py` | Kopyaladığımız işlemlerde kaynağa göre giriş/çıkış kaybı |
 | `python gunluk_rapor.py` | Günlük paper raporu |
 | `python golge_rapor.py` | Reddedilen alımlara girseydik ne olurdu |
+| `python zarar_kesme.py` | Kopyalanan pozisyonlarda %10/20/30/50 zararda satsaydık ne olurdu |
 
 ## Uygulama
 

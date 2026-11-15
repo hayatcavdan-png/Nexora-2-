@@ -25,7 +25,14 @@ CREATE TABLE IF NOT EXISTS shadow(id INTEGER PRIMARY KEY AUTOINCREMENT, event_id
   status TEXT, closed_ts REAL, proceeds_usd REAL, pnl_usd REAL, close_event TEXT, note TEXT);
 CREATE TABLE IF NOT EXISTS trades(id INTEGER PRIMARY KEY AUTOINCREMENT, ts REAL, event_id TEXT UNIQUE,
   wallet TEXT, token TEXT, side TEXT, qty REAL, price REAL, fee REAL, pnl REAL, decision TEXT, reason TEXT);
+CREATE TABLE IF NOT EXISTS pos_iz(id INTEGER PRIMARY KEY AUTOINCREMENT, token TEXT, wallet TEXT, opened_ts REAL, cost REAL,
+  min_pct REAL, max_pct REAL, marks INTEGER DEFAULT 0, tam INTEGER, status TEXT, closed_ts REAL, pnl REAL);
+CREATE TABLE IF NOT EXISTS stop_tetik(iz_id INTEGER, esik REAL, ts REAL, pnl REAL, PRIMARY KEY(iz_id, esik));
 """
+
+# Zarar kesme ölçümü (yalnızca ölçüm, işlem davranışını DEĞİŞTİRMEZ): açık pozisyonun değerlemesi
+# maliyetin bu yüzdeleri kadar altına ilk düştüğünde, o anki gerçek satış teklifiyle "burada satsaydık" K/Z'si kaydedilir.
+STOP_ESIKLERI = (10, 20, 30, 50)
 
 class Paper:
     def __init__(self, path=":memory:"):
@@ -160,6 +167,8 @@ class Paper:
             self._set("cash", self.cash() - size_usd - fee)
             self.db.execute("INSERT INTO positions(token,qty,cost,last_price,wallet,qty_raw,decimals) VALUES(?,?,?,?,?,?,?)",
                             (token, qty, size_usd, price, wallet, str(int(qty_raw)), decimals))
+            self.db.execute("INSERT INTO pos_iz(token,wallet,opened_ts,cost,tam,status) VALUES(?,?,?,?,1,'open')",
+                            (token, wallet, time.time(), size_usd))
             return self._log(event_id, wallet, token, "buy", qty, price, fee, 0, "KOPYALANDI", note)
 
     def record_sell(self, event_id, wallet, token, proceeds_usd, note="ok"):
@@ -175,14 +184,39 @@ class Paper:
             price = proceeds_usd / pos["qty"] if pos["qty"] else 0
             self._set("cash", self.cash() + net)
             self.db.execute("DELETE FROM positions WHERE token=?", (token,))
+            iz = self._iz(token, pos)
+            pct = pnl / pos["cost"] * 100 if pos["cost"] else 0.0
+            self.db.execute("""UPDATE pos_iz SET status='closed', closed_ts=?, pnl=?, min_pct=MIN(COALESCE(min_pct, ?), ?),
+                max_pct=MAX(COALESCE(max_pct, ?), ?) WHERE id=?""", (time.time(), pnl, pct, pct, pct, pct, iz))
             return self._log(event_id, wallet, token, "sell", pos["qty"], price, fee, pnl, "KOPYALANDI", note)
 
     def mark_price(self, token, price):
-        """Açık pozisyonu güncel teklif fiyatıyla değerler (gerçekleşmemiş K/Z için)."""
+        """Açık pozisyonu güncel teklif fiyatıyla değerler (gerçekleşmemiş K/Z için) ve zarar kesme ölçümünü günceller."""
         with self.lock:
             self.db.execute("UPDATE positions SET last_price=? WHERE token=?", (price, token))
             self._set(f"mark_ts:{token}", time.time())
+            pos = self.db.execute("SELECT * FROM positions WHERE token=?", (token,)).fetchone()
+            if pos and pos["cost"]:
+                iz = self._iz(token, pos)
+                pnl = pos["qty"] * price - CFG["net_fee_usd"] - pos["cost"]      # şimdi satsaydık (satış ücreti dahil)
+                pct = pnl / pos["cost"] * 100
+                self.db.execute("""UPDATE pos_iz SET marks=marks+1, min_pct=MIN(COALESCE(min_pct, ?), ?),
+                    max_pct=MAX(COALESCE(max_pct, ?), ?) WHERE id=?""", (pct, pct, pct, pct, iz))
+                for e in STOP_ESIKLERI:
+                    if pct <= -e:
+                        self.db.execute("INSERT OR IGNORE INTO stop_tetik(iz_id,esik,ts,pnl) VALUES(?,?,?,?)",
+                                        (iz, e, time.time(), pnl))
             self.db.commit()
+
+    def _iz(self, token, pos):
+        """Açık pozisyonun ölçüm kaydı; bu sürümden önce açılmış pozisyon için eksik (tam=0) kayıt oluşturur."""
+        r = self.db.execute("SELECT id FROM pos_iz WHERE token=? AND status='open' ORDER BY id DESC LIMIT 1", (token,)).fetchone()
+        if r: return r["id"]
+        b = self.db.execute("SELECT ts FROM trades WHERE token=? AND side='buy' AND decision='KOPYALANDI' ORDER BY id DESC LIMIT 1",
+                            (token,)).fetchone()
+        cur = self.db.execute("INSERT INTO pos_iz(token,wallet,opened_ts,cost,tam,status) VALUES(?,?,?,?,0,'open')",
+                              (token, pos["wallet"], b["ts"] if b else time.time(), pos["cost"]))
+        return cur.lastrowid
 
     # --- Gölge işlemler: reddedilen alımlar için "girseydik ne olurdu" ölçümü -------------------
     # Nakde, pozisyonlara ve risk limitlerine dokunmaz. Eşik ayarı (N10) için veri toplar.

@@ -362,6 +362,23 @@ fun RaporEkrani(v: Veri) {
         }
         Text("20 kapanan örnekten önce eşik kararı verilmez.", color = Nx.Soluk, fontSize = 11.sp)
     }
+    val z = r.optJSONObject("zarar_kesme")
+    if (z != null) Kart(Modifier.fillMaxWidth()) {
+        Text("Zarar kesme ölçümü", color = Nx.Metin, fontWeight = FontWeight.SemiBold)
+        Text("Kopyalanan pozisyon eşik kadar zarara düştüğünde satsaydık ne olurdu? Yalnızca ölçüm; işlem kuralı değişmedi.",
+             color = Nx.Soluk, fontSize = 12.sp)
+        val gercek = z.optDouble("gercek_kz", 0.0)
+        Satir("Kapanan / açık pozisyon", "${z.optInt("kapanan")} / ${z.optInt("acik")}")
+        Satir("Gerçekleşen K/Z", "${isaretli(gercek)} $", kzRenk(gercek))
+        val es = z.optJSONArray("esikler")
+        if (es != null) for (i in 0 until es.length()) {
+            val x = es.getJSONObject(i)
+            val fark = x.optDouble("fark", 0.0)
+            Satir("%${x.optInt("esik")} zarar kes · ${x.optInt("tetiklenen")} tetik (${x.optInt("korudu")} korudu, ${x.optInt("kacirdi")} kaçırdı)",
+                  "${isaretli(fark)} $", kzRenk(fark))
+        }
+        Text("Sağdaki değer, gerçekleşene göre fark. 20 kapanan pozisyondan önce karar verilmez.", color = Nx.Soluk, fontSize = 11.sp)
+    }
 }
 
 // ---------------------------------------------------------------- Yol haritası

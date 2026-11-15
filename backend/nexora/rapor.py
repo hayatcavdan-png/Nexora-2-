@@ -43,6 +43,35 @@ def shadow_summary(shadows):
             satilamadi=sum(1 for r in rs if r["status"] == "satilamadi")))
     return out
 
+def stop_summary(iz_rows, tetik_rows):
+    """Zarar kesme ölçümü: kapanmış pozisyonlarda her eşik için "bu eşikte satsaydık" toplam K/Z'si ile
+    gerçekleşen toplam K/Z'nin karşılaştırması. Tetik, ilk değerlemede eşiğin altı görüldüğünde gerçek teklifle kaydedilir."""
+    try:
+        from nexora.core import STOP_ESIKLERI
+    except Exception:
+        STOP_ESIKLERI = (10, 20, 30, 50)
+    closed = [r for r in iz_rows if r.get("status") == "closed"]
+    tet = {(t["iz_id"], t["esik"]): t["pnl"] for t in tetik_rows}
+    gercek = sum(r["pnl"] or 0 for r in closed)
+    esikler = []
+    for e in STOP_ESIKLERI:
+        stoplu, tetik, korudu, kacirdi = 0.0, 0, 0, 0
+        for r in closed:
+            sp = tet.get((r["id"], e))
+            if sp is None: stoplu += r["pnl"] or 0; continue
+            tetik += 1; stoplu += sp
+            if sp > (r["pnl"] or 0) + 1e-9: korudu += 1
+            elif sp < (r["pnl"] or 0) - 1e-9: kacirdi += 1
+        esikler.append(dict(esik=e, tetiklenen=tetik, korudu=korudu, kacirdi=kacirdi,
+                            stoplu_kz=round(stoplu, 2), fark=round(stoplu - gercek, 2)))
+    acik_tetik = sum(1 for r in iz_rows if r.get("status") == "open" for e in STOP_ESIKLERI if (r["id"], e) in tet)
+    def ort(k):
+        v = [r[k] for r in closed if r.get(k) is not None]
+        return round(sum(v) / len(v), 1) if v else None
+    return dict(kapanan=len(closed), acik=len(iz_rows) - len(closed), eksik=sum(1 for r in closed if not r.get("tam")),
+                gercek_kz=round(gercek, 2), en_dusuk_ort=ort("min_pct"), en_yuksek_ort=ort("max_pct"),
+                acik_tetik=acik_tetik, esikler=esikler)
+
 def build_report(paper_path, tracker_path=None, now=None):
     now = now if now is not None else time.time()
     since = start_of_local_day(now)
@@ -54,6 +83,8 @@ def build_report(paper_path, tracker_path=None, now=None):
         trades = _rows(p, "SELECT * FROM trades ORDER BY id")
         positions = _rows(p, "SELECT * FROM positions")
         shadows = _rows(p, "SELECT * FROM shadow ORDER BY id")
+        iz = _rows(p, "SELECT * FROM pos_iz ORDER BY id")
+        tetik = _rows(p, "SELECT * FROM stop_tetik")
         state = {r["k"]: r["v"] for r in _rows(p, "SELECT k, v FROM state")}
     finally:
         p.close()
@@ -111,6 +142,7 @@ def build_report(paper_path, tracker_path=None, now=None):
         golge=dict(toplam=len(shadows), acik=sum(1 for s in shadows if s["status"] == "open"),
                    gruplar=shadow_summary(shadows)),
         cuzdanlar=wallet_rows,
+        zarar_kesme=stop_summary(iz, tetik),
         gecikme=gecikme,
     )
 
@@ -130,6 +162,12 @@ def as_text(r):
         L.append(f"  {x['grup']:<20} kapanan {x['kapanan']:>3}, kazanan {x['kazanan']:>3}, "
                  f"K/Z {x['toplam_kz']:+.2f}$, ort. {x['ort_getiri']:+.1f}%, açık {x['acik']}"
                  + (f", satılamadı {x['satilamadi']}" if x["satilamadi"] else ""))
+    z = r.get("zarar_kesme")
+    if z and (z["kapanan"] or z["acik"]):
+        L += ["", f"Zarar kesme ölçümü: {z['kapanan']} kapanmış pozisyon, gerçekleşen K/Z {z['gercek_kz']:+.2f}$"]
+        for x in z["esikler"]:
+            L.append(f"  %{x['esik']:<3} zarar kes: {x['tetiklenen']} kez tetiklenirdi, toplam {x['stoplu_kz']:+.2f}$ "
+                     f"(fark {x['fark']:+.2f}$; {x['korudu']} korudu, {x['kacirdi']} toparlanmayı kaçırdı)")
     if r["cuzdanlar"]:
         L += ["", "Cüzdan bazında (tüm zamanlar):"]
         for w in r["cuzdanlar"]:
