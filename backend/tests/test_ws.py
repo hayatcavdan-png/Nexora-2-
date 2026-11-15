@@ -206,3 +206,54 @@ class HeliusRpcCodeTests(unittest.TestCase):
         with patch("nexora.helius_client.requests.Session.post", return_value=resp):
             with self.assertRaises(HeliusRPCError) as ctx: c.call("getTransaction", ["s", {}])
         self.assertEqual(ctx.exception.rpc_code, -32015); c.close()
+
+from nexora.swap_decoder import decode_swap
+from nexora.constants import USDC_MINT
+from nexora.live_tracker import RATE_MAX
+
+def sol_to_token_tx(sig, W, mint):
+    """Cüzdan SOL harcayıp `mint` alır (FHpc örneğindeki SOL->USDC gibi)."""
+    JUP = "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4"
+    bal = lambda a: dict(accountIndex=1, mint=mint, owner=W, uiTokenAmount=dict(amount=str(a), decimals=6))
+    return dict(slot=1, blockTime=1000, transaction=dict(signatures=[sig], message=dict(accountKeys=[W, "x"], instructions=[dict(programId=JUP)])),
+        meta=dict(err=None, fee=5000, logMessages=[f"Program {JUP} invoke [1]"], preBalances=[10**9, 0], postBalances=[5 * 10**8, 0],
+                  preTokenBalances=[bal(1)], postTokenBalances=[bal(10**6)]))
+
+class StableSwapTests(unittest.TestCase):
+    def test_sol_to_usdc_not_a_token_buy(self):
+        r = decode_swap(sol_to_token_tx("s", "W", USDC_MINT), "W")
+        self.assertEqual(r["event_type"], "UNKNOWN"); self.assertIn("quote_asset_swap_not_copyable", r["evidence"])
+    def test_sol_to_meme_token_still_buy(self):
+        self.assertEqual(decode_swap(sol_to_token_tx("s", "W", "MEMEmint111"), "W")["event_type"], "BUY")
+
+class CountingClient:
+    def __init__(self): self.tx_calls = 0
+    def call(self, method, params):
+        if method == "getTransaction":
+            self.tx_calls += 1; return swap_tx(params[0], "A")
+        return []
+
+class RateLimitTests(unittest.TestCase):
+    def setUp(self):
+        self.now = [1000.0]; self.c = CountingClient()
+        self.tr = LiveTracker(self.c, Paper(), ":memory:", ["A", "B"], clock=lambda: self.now[0], sleep=lambda s: None)
+    def test_high_frequency_wallet_flagged_and_stops_api_calls(self):
+        for i in range(RATE_MAX + 10): self.tr.handle_signature("A", f"s{i}")
+        self.assertEqual(self.c.tx_calls, RATE_MAX)                     # sınırdan sonra API çağrısı yok
+        self.assertEqual(self.tr.bot_wallets(), ["A"]); self.assertEqual(self.tr.flagged, ["A"])
+        self.assertNotIn("A", self.tr.active_wallets()); self.assertIn("B", self.tr.active_wallets())
+        before = self.c.tx_calls; self.tr.handle_signature("B", "b1")
+        self.assertEqual(self.c.tx_calls, before + 1)                  # diğer cüzdan etkilenmez
+    def test_slow_wallet_never_flagged(self):
+        for i in range(RATE_MAX * 2):
+            self.now[0] += 60; self.tr.handle_signature("A", f"s{i}")   # dakikada 1 işlem
+        self.assertEqual(self.tr.bot_wallets(), [])
+    def test_bot_flag_survives_restart_reset_but_can_be_cleared(self):
+        for i in range(RATE_MAX + 1): self.tr.handle_signature("A", f"s{i}")
+        self.tr.reset_quarantine(); self.assertEqual(self.tr.bot_wallets(), ["A"])
+        self.tr.clear_bot_flag("A"); self.assertIn("A", self.tr.active_wallets())
+    def test_wallet_removed_from_list_not_tracked(self):
+        db = os.path.join(tempfile.mkdtemp(), "t.db")
+        LiveTracker(self.c, Paper(), db, ["A", "B"])
+        tr2 = LiveTracker(self.c, Paper(), db, ["B"])                    # A wallets.txt'ten çıkarıldı
+        self.assertEqual(tr2.active_wallets(), ["B"])

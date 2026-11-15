@@ -9,6 +9,9 @@ JUPITER_PROGRAM_ID = "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4"
 
 
 
+# SOL/WSOL/USDC/USDT arasındaki dönüşümler token alım-satımı değildir; kopyalanmaz.
+NON_COPYABLE_MINTS = {WSOL_MINT, USDC_MINT, USDT_MINT}
+
 SUPPORTED_SWAP_PROGRAMS = {
     "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4": "JUPITER",
     "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P": "PUMP_FUN",
@@ -358,6 +361,12 @@ def decode_swap(transaction, wallet):
             }
 
         change = token_changes[0]
+        if change["mint"] in NON_COPYABLE_MINTS:
+            return {
+                "event_type": "UNKNOWN",
+                "confidence": "none",
+                "evidence": ["quote_asset_swap_not_copyable"],
+            }
         quote_delta_raw = wsol_changes[0]["token_delta_raw"]
         quote_mint = WSOL_MINT
 
@@ -421,6 +430,12 @@ def decode_swap(transaction, wallet):
             }
 
         change = token_changes[0]
+        if change["mint"] in NON_COPYABLE_MINTS:
+            return {
+                "event_type": "UNKNOWN",
+                "confidence": "none",
+                "evidence": ["quote_asset_swap_not_copyable"],
+            }
         sol_delta = _wallet_sol_delta(transaction, wallet)
 
         if sol_delta is None:

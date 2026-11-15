@@ -38,6 +38,11 @@ def main():
     tr = LiveTracker(client, paper, os.getenv("TRACKER_DB", "nexora_tracker.db"), wallets)
     n = tr.reset_quarantine()
     if n: print(f"{n} cüzdan karantinadan çıkarıldı (yeniden deneniyor)", flush=True)
+    if os.getenv("CLEAR_BOT") == "1":
+        for w in tr.bot_wallets(): tr.clear_bot_flag(w)
+    for w in tr.bot_wallets():
+        print(f"  {short(w)}: yüksek frekans (bot) işaretli, izlenmiyor. "
+              f"wallets.txt'ten çıkarın ya da CLEAR_BOT=1 ile yeniden deneyin.", flush=True)
     tr.poll_all()                                     # başlangıç noktası / kaçanları tamamla
 
     stop = threading.Event()
@@ -47,6 +52,9 @@ def main():
         def on_sig(wallet, sig):
             r = tr.handle_signature(wallet, sig, source="ws")
             if r: show(r)
+            while tr.flagged:
+                print(f"  UYARI {short(tr.flagged.pop())}: 10 dk içinde 30+ işlem, bot olabilir. "
+                      f"Takip durduruldu (API kotası korunuyor).", flush=True)
         listener = WSListener(ws_url, tr.active_wallets(), on_sig,
                               log=lambda m: print("  [ws]", m, flush=True))
         threading.Thread(target=listener.run_forever, args=(stop,), daemon=True).start()

@@ -7,9 +7,13 @@
 Token güvenliği, fiyat ve likidite henüz bilinmediği için sinyaller paper motorunda
 REDDEDİLİR (BİLİNMİYOR = ENGELLE). Bu aşama yalnızca algılamayı ve gecikmeyi ölçer."""
 import sqlite3, threading, time
+from collections import defaultdict, deque
 from nexora.swap_decoder import decode_swap
 
 QUARANTINE_AFTER = 5
+RATE_WINDOW_S = 600       # 10 dakika
+RATE_MAX = 30             # 10 dakikada bundan fazla işlem: yüksek frekans (bot) -> takip durur, API harcanmaz
+QUARANTINE_ERRORS, QUARANTINE_BOT = 1, 2
 TX_VERSION = 1      # Solana transaction v1 (Eylül 2026). 0 verilirse v1 işlemlerde RPC -32015 döner.
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS tracker_wallets(wallet TEXT PRIMARY KEY, last_sig TEXT,
@@ -25,6 +29,9 @@ class LiveTracker:
     def __init__(self, client, paper, db_path, wallets, clock=time.time, sleep=time.sleep):
         self.client, self.paper, self.clock, self.sleep = client, paper, clock, sleep
         self.lock = threading.RLock()
+        self.wallets = {w.strip() for w in wallets}
+        self.recent = defaultdict(deque)
+        self.flagged = []
         self.db = sqlite3.connect(db_path, check_same_thread=False, timeout=10)
         self.db.executescript(SCHEMA)
         cols = {r[1] for r in self.db.execute("PRAGMA table_info(tracker_signals)")}
@@ -61,6 +68,23 @@ class LiveTracker:
             self.db.commit()
         return out
 
+    def _rate_ok(self, wallet):
+        """Cüzdan başına kaynak limiti. Aşılırsa cüzdan 'bot' olarak durdurulur (kilit içinde çağrılır)."""
+        row = self.db.execute("SELECT quarantined FROM tracker_wallets WHERE wallet=?", (wallet,)).fetchone()
+        if row and row[0]: return False
+        now, q = self.clock(), self.recent[wallet]
+        while q and now - q[0] > RATE_WINDOW_S: q.popleft()
+        if len(q) >= RATE_MAX:
+            self.db.execute("UPDATE tracker_wallets SET quarantined=?, last_error=?, updated=? WHERE wallet=?",
+                (QUARANTINE_BOT, f"yüksek frekans: {RATE_WINDOW_S // 60} dk içinde {RATE_MAX}+ işlem (bot olabilir)", now, wallet))
+            self.db.commit(); q.clear()
+            self.flagged.append(wallet)
+            return False
+        q.append(now)
+        return True
+
+    flagged = None
+
     def _seen(self, wallet, sig):
         return self.db.execute("SELECT 1 FROM tracker_seen WHERE sig=? AND wallet=?", (sig, wallet)).fetchone()
 
@@ -69,6 +93,7 @@ class LiveTracker:
         İşlem henüz okunamazsa 'görüldü' işaretlenmez, yoklama sonra tamamlar."""
         with self.lock:
             if self._seen(wallet, sig): return None
+            if not self._rate_ok(wallet): return None
         tx = None
         for i in range(retries):
             try:
@@ -128,7 +153,18 @@ class LiveTracker:
     def status(self):
       with self.lock:
         return [dict(zip(("wallet", "errors", "quarantined", "last_error"), r)) for r in
-                self.db.execute("SELECT wallet, errors, quarantined, last_error FROM tracker_wallets")]
+                self.db.execute("SELECT wallet, errors, quarantined, last_error FROM tracker_wallets")
+                if r[0] in self.wallets]
+
+    def bot_wallets(self):
+        with self.lock:
+            return [r[0] for r in self.db.execute("SELECT wallet FROM tracker_wallets WHERE quarantined=?",
+                                                    (QUARANTINE_BOT,)) if r[0] in self.wallets]
+
+    def clear_bot_flag(self, wallet):
+        with self.lock:
+            self.db.execute("UPDATE tracker_wallets SET quarantined=0, errors=0, last_error=NULL WHERE wallet=?", (wallet,))
+            self.db.commit()
 
     def signals(self, limit=50):
       with self.lock:
@@ -138,7 +174,8 @@ class LiveTracker:
 
     def active_wallets(self):
         with self.lock:
-            return [r[0] for r in self.db.execute("SELECT wallet FROM tracker_wallets WHERE quarantined=0")]
+            return [r[0] for r in self.db.execute("SELECT wallet FROM tracker_wallets WHERE quarantined=0")
+                    if r[0] in self.wallets]          # wallets.txt'ten çıkarılan cüzdan izlenmez
 
     def latency_stats(self):
         with self.lock:
@@ -154,7 +191,8 @@ class LiveTracker:
     def reset_quarantine(self):
         """Yeniden başlatmada karantinadaki cüzdanlara yeni şans verir; sayısını döndürür."""
         with self.lock:
-            n = self.db.execute("UPDATE tracker_wallets SET quarantined=0, errors=0 WHERE quarantined=1").rowcount
+            n = self.db.execute("UPDATE tracker_wallets SET quarantined=0, errors=0 WHERE quarantined=?",
+                                (QUARANTINE_ERRORS,)).rowcount        # bot işaretlileri (2) kalıcıdır
             self.db.commit()
             return n
 
