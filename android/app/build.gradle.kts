@@ -2,7 +2,7 @@ plugins { id("com.android.application"); id("org.jetbrains.kotlin.android") }
 android {
     namespace = "com.nexora.app"
     compileSdk = 34
-    defaultConfig { applicationId = "com.nexora.app"; minSdk = 26; targetSdk = 34; versionCode = 22; versionName = "4.0.3" }
+    defaultConfig { applicationId = "com.nexora.app"; minSdk = 26; targetSdk = 34; versionCode = 23; versionName = "4.1.0" }
     signingConfigs {
         // Sabit debug anahtarı: her GitHub derlemesi aynı imzayı kullanır, uygulama üzerine güncellenebilir.
         // Yalnızca test (debug) içindir; Play Store / gerçek dağıtım anahtarı ayrı ve gizli tutulmalıdır.
@@ -31,4 +31,5 @@ dependencies {
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.material:material-icons-core")
     implementation("androidx.activity:activity-compose:1.9.1")
+    implementation("androidx.biometric:biometric:1.1.0")
 }

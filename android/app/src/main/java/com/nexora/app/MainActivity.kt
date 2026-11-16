@@ -29,7 +29,7 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.*
 import org.json.JSONObject
 
-class MainActivity : ComponentActivity() {
+class MainActivity : androidx.fragment.app.FragmentActivity() {   // BiometricPrompt FragmentActivity ister
     override fun onCreate(b: Bundle?) {
         super.onCreate(b)
         window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(0xFF07061A.toInt()))

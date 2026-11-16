@@ -37,10 +37,30 @@ object Kilit {
     }
 
     fun gecerliPin(pin: String) = pin.length in 4..8 && pin.all { it.isDigit() }
+
+    // --- Biyometrik (parmak izi / yüz): PIN'e ek kolaylık; PIN her zaman yedek yöntem olarak kalır ---
+    private const val YONTEM = androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_WEAK
+    fun biyometrikDestek(ctx: android.content.Context) =
+        androidx.biometric.BiometricManager.from(ctx).canAuthenticate(YONTEM) == androidx.biometric.BiometricManager.BIOMETRIC_SUCCESS
+    fun biyometrikAcik(sp: SharedPreferences) = sp.getBoolean("biyometrik", false)
+
+    fun biyometrikSor(akt: androidx.fragment.app.FragmentActivity, basari: () -> Unit) {
+        val istem = androidx.biometric.BiometricPrompt(akt, androidx.core.content.ContextCompat.getMainExecutor(akt),
+            object : androidx.biometric.BiometricPrompt.AuthenticationCallback() {
+                override fun onAuthenticationSucceeded(r: androidx.biometric.BiometricPrompt.AuthenticationResult) = basari()
+            })
+        istem.authenticate(androidx.biometric.BiometricPrompt.PromptInfo.Builder()
+            .setTitle("NEXORA kilidi").setSubtitle("Parmak izi ya da yüz ile açın")
+            .setNegativeButtonText("PIN kullan").setAllowedAuthenticators(YONTEM).build())
+    }
 }
 
 @Composable
 fun KilitEkrani(sp: SharedPreferences, acildi: () -> Unit) {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val akt = ctx as? androidx.fragment.app.FragmentActivity
+    val bio = akt != null && Kilit.biyometrikAcik(sp) && Kilit.biyometrikDestek(ctx)
+    LaunchedEffect(Unit) { if (bio) Kilit.biyometrikSor(akt!!, acildi) }
     var pin by remember { mutableStateOf("") }
     var hata by remember { mutableStateOf("") }
     var yanlis by remember { mutableIntStateOf(0) }
@@ -64,6 +84,7 @@ fun KilitEkrani(sp: SharedPreferences, acildi: () -> Unit) {
                 else hata = "PIN yanlış (${5 - yanlis} deneme kaldı)"
             }
         }, colors = NxButonRenk(), modifier = Modifier.fillMaxWidth()) { Text("Aç") }
+        if (bio) OutlinedButton({ Kilit.biyometrikSor(akt!!, acildi) }, modifier = Modifier.fillMaxWidth()) { Text("Parmak izi / yüz ile aç") }
         Text("PIN'i unutursanız: telefon Ayarları → Uygulamalar → NEXORA → Verileri temizle (sunucu verisi silinmez; " +
              "adres ve anahtarı yeniden girmeniz gerekir).", color = Nx.Soluk, fontSize = 11.sp)
     }
@@ -84,6 +105,18 @@ fun KilitAyari(sp: SharedPreferences) {
                      color = Nx.Soluk, fontSize = 12.sp)
             }
             if (acik) TextButton({ Kilit.kaldir(sp); acik = false; mesaj = "Kilit kaldırıldı" }) { Text("Kaldır", color = Nx.Kirmizi) }
+        }
+        val ctx = androidx.compose.ui.platform.LocalContext.current
+        if (acik && Kilit.biyometrikDestek(ctx)) {
+            var bio by remember { mutableStateOf(Kilit.biyometrikAcik(sp)) }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Parmak izi / yüz ile aç", color = Nx.Metin, fontSize = 15.sp)
+                    Text("PIN yedek yöntem olarak kalır", color = Nx.Soluk, fontSize = 12.sp)
+                }
+                Switch(bio, { bio = it; sp.edit().putBoolean("biyometrik", it).apply() },
+                    colors = SwitchDefaults.colors(checkedTrackColor = Nx.Yesil))
+            }
         }
         if (!acik) {
             OutlinedTextField(pin1, { if (it.length <= 8 && it.all(Char::isDigit)) pin1 = it }, label = { Text("Yeni PIN (4-8 rakam)") },
