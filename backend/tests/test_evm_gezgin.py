@@ -93,6 +93,19 @@ class BlokAraligiTest(unittest.TestCase):
         with self.assertRaises(EvmHatasi): _loglar(H(), {}, 0, 1000)
 
 
+class V4HavuzTest(unittest.TestCase):
+    def test_32_bayt_havuz_kimligi_adres_filtresine_konmaz(self):
+        from nexora.evm_kesif import erken_alicilar
+        from nexora.evm import TRANSFER, _konu
+        A1 = "0x" + "e1" * 20
+        class Rp:
+            def call(self, m, p):
+                f = p[0]
+                if len(f["topics"]) > 1: raise EvmHatasi("RPC: Invalid params")
+                return [{"topics": [TRANSFER, _konu("0x" + "f0" * 20), _konu(A1)]}]
+        self.assertEqual(erken_alicilar(Rp(), "0x" + "aa" * 20, "0x" + "bb" * 32, 100, pencere_blok=10, parca=10), {A1})
+
+
 class SwaplarGezginTest(unittest.TestCase):
     def test_gezgin_varsa_loglara_gidilmez(self):
         class Rp:

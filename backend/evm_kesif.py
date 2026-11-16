@@ -28,7 +28,8 @@ def main(argv, rpc=None, s=None, ekle_en_fazla=EKLE, liste_siniri=None):
     print(f"{c['ad']}: {len(tok)} yükselen token, her birinin ilk ~30 dakikasındaki alıcılar inceleniyor…", flush=True)
     mevcut = ekosistem.cuzdanlar(z)
     gruplar = []
-    adaylar, say = K.kesfet(rpc, tok, EN_AZ, bilinen=mevcut, gruplar=gruplar)
+    pencere = int(1800 / A.BLOK_SURESI.get(z, 0.75))     # ilk ~30 dakika: BNB 2400 blok, Base 900 blok (düğüm kotası)
+    adaylar, say = K.kesfet(rpc, tok, EN_AZ, bilinen=mevcut, pencere_blok=pencere, gruplar=gruplar)
     print(f"{len(say)} farklı erken alıcı; {len(adaylar)} kullanıcı cüzdanı en az {EN_AZ} yükselen token'ı erken aldı", flush=True)
     havuz = K.analiz_adaylari(rpc, gruplar, say, mevcut, ANALIZ * 4)
     blok = int(GUN * 86400 / A.BLOK_SURESI[z]); son = rpc.blok(); gun1 = int(86400 / A.BLOK_SURESI[z])

@@ -131,7 +131,8 @@ def erken_alicilar(rpc, token, cift, bas_blok, pencere_blok=2400, parca=800):
                 t = l.get("topics") or []
                 if len(t) == 3 and t[1] != t[2]: out.add(_adr(t[2]))
         return out
-    alicilar = tara([TRANSFER, _konu(cift)])
+    v4 = not (isinstance(cift, str) and len(cift) == 42)   # Uniswap v4 havuz kimliği 32 bayt: adres değil (filtrede "Invalid params")
+    alicilar = set() if v4 else tara([TRANSFER, _konu(cift)])
     if not alicilar: alicilar = tara([TRANSFER])
     return alicilar - {cift, SIFIR}
 
