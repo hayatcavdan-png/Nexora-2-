@@ -103,12 +103,23 @@ fun App() {
             v.bagli = true; v.hata = ""; v.guncelleme = System.currentTimeMillis() / 1000.0
         } catch (e: Exception) {
             v.bagli = false
-            v.hata = if (e.message?.contains("401") == true) "API anahtarı sunucudakiyle aynı değil (HTTP 401)"
-                     else "Bağlantı hatası: ${e.message}"
+            v.hata = when {
+                e.message?.contains("401") == true -> "API anahtarı sunucudakiyle aynı değil."
+                url.contains("127.0.0.1") -> "Sunucuya bağlanılamadı: adres hâlâ telefonun kendisi (127.0.0.1)."
+                else -> "Sunucuya bağlanılamadı. Tailscale açık mı?"
+            }
         }
     }
     fun yenile() = scope.launch { yukleSessiz() }
-    fun cekYenile() = scope.launch { yenileniyor = true; yukleSessiz(); yenileniyor = false }
+    // Gösterge her durumda kapanabilsin diye en az 600 ms sürer (anında biten yenileme göstergeyi askıda bırakıyordu).
+    fun cekYenile() = scope.launch {
+        yenileniyor = true
+        val bas = System.currentTimeMillis()
+        yukleSessiz()
+        val kalan = 600 - (System.currentTimeMillis() - bas)
+        if (kalan > 0) delay(kalan)
+        yenileniyor = false
+    }
     fun mesaj(m: String) = android.widget.Toast.makeText(ctx, m, android.widget.Toast.LENGTH_LONG).show()
     fun komut(path: String) = scope.launch {
         try { withContext(Dispatchers.IO) { api(url, key, path, true) }; yukleSessiz() }
@@ -191,11 +202,15 @@ fun App() {
                 if (ekran in ALT_EKRAN) item(key = "alt_bas") {
                     SayfaBasligi(ALT_EKRAN[ekran]!!, if (ekran == "takip") "Analiz ve takip durumu" else "NEXORA", geri = { ekran = "profil" })
                 }
-                if (v.hata.isNotEmpty()) item(key = "hata") { Text(v.hata, color = Nx.Kirmizi, fontSize = 13.sp) }
-                else if (key.isEmpty()) item(key = "anahtar") {
-                    BilgiKutusu("Sunucuya bağlanmak için Profil › Sunucu bağlantısı bölümüne adres ve API anahtarını girin.")
-                }
-                when (ekran) {
+                val bagliDegil = !v.bagli && v.guncelleme == 0.0
+                if (v.hata.isNotEmpty() && !(bagliDegil && ekran == "ana")) item(key = "hata") { Text(v.hata, color = Nx.Kirmizi, fontSize = 13.sp) }
+                if (bagliDegil && ekran == "ana") item(key = "baglan") {
+                    BaglanKarti(url, key, v.hata) { u, k ->
+                        url = u; key = k
+                        sp.edit().putString("url", u).putString("key", k).apply()
+                        cekYenile()
+                    }
+                } else when (ekran) {
                     "ana" -> anaSayfa(v, gizle, { gizle = !gizle; sp.edit().putBoolean("gizle", gizle).apply() }, aralik, { aralik = it },
                                       { ekran = it }, { kesfetSekme = it }, { ekran = "bot" }, { durdurOnay = true })
                     "kesfet" -> {
@@ -283,5 +298,27 @@ fun AnaUstBaslik(git: (String) -> Unit) {
             IconButton({ git("rapor") }) { Icon(Icons.Filled.Notifications, "Rapor", tint = Nx.Metin) }
             Box(Modifier.align(Alignment.TopEnd).padding(top = 10.dp, end = 10.dp).size(8.dp).clip(CircleShape).background(Nx.Mor))
         }
+    }
+}
+
+
+/** Bağlantı yokken Ana Sayfa'da yalnızca bu kart görünür (sıfır bakiye gibi yanıltıcı değerler gösterilmez). */
+@Composable
+fun BaglanKarti(url: String, key: String, hata: String, kaydet: (String, String) -> Unit) {
+    var u by remember(url) { mutableStateOf(if (url.contains("127.0.0.1")) "http://100.105.213.95:8000" else url) }
+    var k by remember(key) { mutableStateOf(key) }
+    NeonKart(Modifier.fillMaxWidth(), kenar = Nx.KenarParlak, dolgu = Nx.DolguMor) {
+        Text("Sunucuya bağlan", color = Nx.Metin, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+        Text("Bakiye, bot ve işlemler sunucudan gelir. Telefonda Tailscale açık olmalı.", color = Nx.Soluk, fontSize = 13.sp)
+        OutlinedTextField(u, { u = it }, label = { Text("Sunucu adresi") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(14.dp))
+        OutlinedTextField(k, { k = it }, label = { Text("API anahtarı") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(14.dp), visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation())
+        Button({ kaydet(u.trim(), k.trim()) }, enabled = u.isNotBlank() && k.isNotBlank(), colors = NxButonRenk(),
+            modifier = Modifier.fillMaxWidth().height(52.dp), shape = RoundedCornerShape(14.dp)) {
+            Text("Bağlan", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+        }
+        if (hata.isNotEmpty()) Text(hata, color = Nx.Kirmizi, fontSize = 13.sp)
+        Text("Anahtar sunucuda: sudo grep NEXORA_API_KEY /etc/nexora.env", color = Nx.Soluk, fontSize = 11.sp)
     }
 }

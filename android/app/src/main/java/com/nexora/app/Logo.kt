@@ -27,9 +27,9 @@ import androidx.compose.ui.unit.sp
 
 /** Orbitron (SIL Open Font License) — derleme sırasında Google Fonts deposundan indirilir. */
 val Orbitron = FontFamily(
-    Font(R.font.orbitron, FontWeight.Black),
-    Font(R.font.orbitron, FontWeight.Bold),
-    Font(R.font.orbitron, FontWeight.SemiBold),
+    Font(R.font.orbitron_black, FontWeight.Black),
+    Font(R.font.orbitron_bold, FontWeight.Bold),
+    Font(R.font.orbitron_bold, FontWeight.SemiBold),
 )
 
 private val AmblemRenk = listOf(Color(0xFFC4A8FF), Color(0xFF8B5CF6), Color(0xFF5B5BF6), Color(0xFF3B82F6), Color(0xFF22D3EE))

@@ -12,7 +12,11 @@ jobs:
       # Logo yazı tipi: Orbitron (SIL Open Font License 1.1), Google Fonts deposundan
       - run: |
           mkdir -p android/app/src/main/res/font
-          curl -fsSL --retry 3 -o android/app/src/main/res/font/orbitron.ttf "https://github.com/google/fonts/raw/main/ofl/orbitron/Orbitron%5Bwght%5D.ttf"
+          curl -fsSL --retry 3 -o /tmp/orbitron_var.ttf "https://github.com/google/fonts/raw/main/ofl/orbitron/Orbitron%5Bwght%5D.ttf"
+          pip install --quiet fonttools
+          # Değişken yazı tipinden sabit kalın sürümler (Android değişken ağırlığı her cihazda uygulamıyor)
+          fonttools varLib.instancer /tmp/orbitron_var.ttf wght=900 -o android/app/src/main/res/font/orbitron_black.ttf
+          fonttools varLib.instancer /tmp/orbitron_var.ttf wght=700 -o android/app/src/main/res/font/orbitron_bold.ttf
           ls -la android/app/src/main/res/font
       - run: gradle -p android assembleRelease --no-daemon
       - uses: actions/upload-artifact@v4
