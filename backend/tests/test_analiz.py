@@ -79,7 +79,7 @@ class CliTests(unittest.TestCase):
         self.d = tempfile.mkdtemp(); self.cwd = os.getcwd(); os.chdir(self.d)
         with open("cuzdan_tarama.csv", "w", newline="") as f:
             w = csv.DictWriter(f, fieldnames=["wallet", "durum", "islem_24s", "max_10dk"]); w.writeheader()
-            for name, n, peak in [("A", 20, 3), ("B", 30, 5), ("C", 150, 40), ("K", 20, 3)]:
+            for name, n, peak in [("A", 20, 3), ("B", 30, 5), ("C", 150, 40), ("K", 20, 3), ("D", 20, 3)]:
                 w.writerow(dict(wallet=name * 32, durum="aday", islem_24s=n, max_10dk=peak))
         with open("kara_liste.txt", "w") as f: f.write("K" * 32 + "\n")
     def tearDown(self): os.chdir(self.cwd)
@@ -89,6 +89,9 @@ class CliTests(unittest.TestCase):
         class C:
             calls = []
             def call(self, m, p):
+                if m == "getMultipleAccounts":                      # D bir protokol (program) hesabı
+                    return {"value": [dict(owner="675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8") if a[0] == "D"
+                                      else dict(owner="11111111111111111111111111111111") for a in p[0]]}
                 self.calls.append(p[0]); opts = p[1]
                 assert opts["maxSupportedTransactionVersion"] == 1 and opts["transactionDetails"] == "full"
                 src = good if p[0] == "A" * 32 else bad
@@ -97,15 +100,17 @@ class CliTests(unittest.TestCase):
             def quote(self, i, o, a): return dict(in_amount=a, out_amount=150 * 10**6, price_impact_pct=0)
         # testte cüzdan adresi W sabit: fixture'ları her cüzdan için yeniden adresle
         import cuzdan_analiz as mod
-        orig = mod.analyze
+        orig, egri = mod.analyze, mod.hesap_turu.egri_ustunde
         mod.analyze = lambda txs, w, p: dict(orig(txs, W, p), wallet=w)
+        mod.hesap_turu.egri_ustunde = lambda a: True                    # test adresleri ("AAA…") gerçek açık anahtar değil
         try:
             c = C()
             with contextlib.redirect_stdout(io.StringIO()) as out: rows = mod.main(client=c, quoter=Q(), sleep=lambda s: None)
         finally:
-            mod.analyze = orig
-        self.assertEqual(sorted(c.calls), ["A" * 32, "B" * 32])                    # bot (C) ve kara liste (K) hariç
-        self.assertEqual({r["wallet"][0]: r["karar"] for r in rows}, {"A": "kopyalanabilir", "B": "zararda"})
+            mod.analyze, mod.hesap_turu.egri_ustunde = orig, egri
+        self.assertEqual(sorted(c.calls), ["A" * 32, "B" * 32])                    # bot (C), kara liste (K), protokol hesabı (D) hariç
+        self.assertEqual({r["wallet"][0]: r["karar"] for r in rows}, {"A": "kopyalanabilir", "B": "zararda", "D": "kullanıcı değil"})
+        self.assertIn("program hesabı", out.getvalue())
         self.assertEqual([l.strip() for l in open("wallets_onerilen.txt") if not l.startswith("#")], ["A" * 32])
         self.assertIn("SOL ≈ 150.00", out.getvalue()); self.assertTrue(os.path.exists("cuzdan_analiz.csv"))
 if __name__ == "__main__": unittest.main()

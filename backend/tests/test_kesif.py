@@ -66,8 +66,12 @@ class KesifTests(unittest.TestCase):
         cl = FakeClient({"TOKA": [swap_tx("ERKEN", "TOKA", 29_000), swap_tx("KNOWN", "TOKA", 29_500), swap_tx("GEC", "TOKA", 30_500),
                                   swap_tx("TEK", "TOKA", 29_900)],
                          "TOKB": [swap_tx("ERKEN", "TOKB", 19_500)]})
-        with redirect_stdout(io.StringIO()):
-            aday = K.main(client=cl, tracker_db=self.tdb, out_dir=self.d)
+        egri = K.egri_ustunde; K.egri_ustunde = lambda a: a != "TEK"     # test adları gerçek anahtar değil; TEK eğri dışı sayılır
+        try:
+            with redirect_stdout(io.StringIO()):
+                aday = K.main(client=cl, tracker_db=self.tdb, out_dir=self.d)
+        finally:
+            K.egri_ustunde = egri
         self.assertEqual(aday, ["ERKEN"])                                 # iki token'da erken; KNOWN bilinen, GEC sonra aldı
         self.assertEqual(cl.calls[0][1]["filters"]["blockTime"], {"gte": 30_000 - K.PENCERE, "lt": 30_000})
         rows = open(os.path.join(self.d, K.OUT_CSV)).read()

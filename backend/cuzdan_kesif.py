@@ -16,6 +16,7 @@ from collections import defaultdict
 
 from nexora.helius_client import HeliusClient, HeliusRPCError
 from nexora.swap_decoder import decode_swap
+from nexora.hesap_turu import egri_ustunde
 
 TOKEN_SAYI = int(os.getenv("KESIF_TOKEN", "10"))
 LIMIT = int(os.getenv("KESIF_LIMIT", "100"))
@@ -118,7 +119,7 @@ def main(client=None, tracker_db=None, out_dir="."):
     with open(os.path.join(out_dir, OUT_CSV), "w", newline="") as f:
         wr = csv.writer(f); wr.writerow(["wallet", "token_sayisi", "tokenler", "yeni"])
         for w, n, t in satir: wr.writerow([w, n, t, int(w not in bilinen)])
-    aday = [w for w, n, _ in satir if n >= EN_AZ and w not in bilinen]
+    aday = [w for w, n, _ in satir if n >= EN_AZ and w not in bilinen and egri_ustunde(w)]
     with open(os.path.join(out_dir, OUT_TXT), "w") as f:
         f.write("# cuzdan_kesif.py çıktısı: analiz için  python cuzdan_analiz.py wallets_kesif.txt\n")
         f.writelines(w + "\n" for w in aday)

@@ -13,6 +13,7 @@ from nexora.helius_client import HeliusClient, HeliusRPCError
 from nexora.market import JupiterQuoter, QuoteError
 from nexora.constants import WSOL_MINT, USDC_MINT
 from nexora.wallet_analysis import analyze, verdict, score, THRESHOLDS
+from nexora import hesap_turu
 
 LIMIT = int(os.getenv("ANALIZ_LIMIT", "200"))
 OUT_CSV, OUT_TXT = "cuzdan_analiz.csv", "wallets_onerilen.txt"
@@ -67,6 +68,15 @@ def main(client=None, quoter=None, sleep=time.sleep, list_path=None):
           f"(tahmini maliyet ≈ {len(wallets) * max(10, -(-LIMIT // 100) * 10)} Helius kredisi)", flush=True)
     client = client or HeliusClient(max_retries=2)
     rows = []
+    try:                                                            # N3: borsa/protokol/program hesaplarını ayır (100 adres = 1 istek)
+        turler = hesap_turu.siniflandir(client, wallets, hesap_turu.bilinenler())
+    except (HeliusRPCError, ValueError, OSError) as e:
+        turler = {}; print(f"  Not: hesap türü denetlenemedi ({str(e)[:60]}); analiz türsüz sürüyor", flush=True)
+    disla = {w: t for w, t in turler.items() if t[0] != hesap_turu.KULLANICI}
+    for w, (t, why) in disla.items():
+        rows.append(dict(wallet=w, karar="kullanıcı değil", gerekce=f"{t}: {why}"))
+    if disla: print(f"  {len(disla)} adres kullanıcı cüzdanı değil, analiz edilmeyecek", flush=True)
+    wallets = [w for w in wallets if w not in disla]
     for i, w in enumerate(wallets, 1):
         try:
             m = analyze(fetch(client, w), w, price)
@@ -97,6 +107,9 @@ def main(client=None, quoter=None, sleep=time.sleep, list_path=None):
               f"kazanma %{100 * r['kazanma_orani']:.0f}  KF {r['kar_faktoru']}  ort %{100 * r['ort_getiri']:.0f}  "
               f"tutma {r['medyan_tutma_sn']} sn  [{r['karar']}]")
     if not good: print("  (gerekçeler cuzdan_analiz.csv dosyasında)")
+    if disla:
+        print(f"\nKullanıcı cüzdanı olmayan adresler ({len(disla)}):")
+        for w, (t, why) in disla.items(): print(f"  {w[:4]}…{w[-4:]}  {t} ({why})")
     bots = [r for r in rows if r["karar"] == "bot şüphesi"]
     if bots:
         print(f"\nHacim botu şüphesi ({len(bots)}): kara_liste.txt'e eklemeyi düşünün (otomatik eklenmez):")
