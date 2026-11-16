@@ -257,9 +257,9 @@
    "ad": "Yapay zekâ yönlendirici (sinyal birleştirici)",
    "grup": "Faz 2 · Çoklu platform",
    "durum": "devam",
-   "yuzde": 20,
-   "yapilan": "Altyapı var: borsada listeli Solana sinyallerini borsa fiyatıyla işleyen motor (N22) ve tüm coinler için momentum/trend stratejileri, ayrı paper portföyler, BTC kıyası.",
-   "eksik": "Cüzdan sinyalleri ve piyasa stratejilerini tek kararda birleştirmek: hangi sinyal, hangi borsa, hangi büyüklük; sinyal kaynaklarının karneye göre ağırlıklandırılması; borsada olmayan token sinyallerinin bildirim olarak ayrılması. Kabul: 3 hafta paper'da her kaynaktan iyi ya da eşit sonuç. Önkoşul: N22 verisi."
+   "yuzde": 45,
+   "yapilan": "1. sürüm çalışıyor (saatlik zamanlayıcı, nexora-yonlendirici): Solana cüzdanları, borsa sinyalleri, piyasa stratejileri, BNB ve Base kaynaklarını son 14 günlük kapanan işlem karnesine göre ağırlıklandıran ayrı sanal portföy. Az işlemli kaynak temkinli puanlanıyor (sıfıra doğru çekme), en az 5 kapanan işlem ve pozitif karne şartı, tek kaynağa en fazla %40, kalan nakit. Ağırlık önce verilir, getiri sonra ölçülür (geleceğe bakma yok). Kaynak defterlerine dokunmaz. Karne sekmesinde her kaynakla kıyaslı kart (uygulama 5.13.0).",
+   "eksik": "3 haftalık paper kanıt (kabul: kaynakların her birinden iyi ya da eşit, ya da benzer getiride daha düşük düşüş); işlem düzeyinde yönlendirme (hangi sinyal hangi borsada, hangi büyüklükte); borsada olmayan token sinyallerinin bildirime ayrılması (N32 ile)."
   },
   {
    "kod": "N29",

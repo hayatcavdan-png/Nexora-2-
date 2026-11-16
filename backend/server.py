@@ -174,6 +174,9 @@ class H(BaseHTTPRequestHandler):
             try: durum = json.load(open("piyasa_durum.json"))
             except (OSError, ValueError): durum = None
             self._send(200, dict(stratejiler=out, durum=durum)); return
+        if parts.path == "/yonlendirici":                  # N28: kaynak ağırlıklı yönlendirici (paper)
+            from nexora.yonlendirici import Yonlendirici, kaynaklar
+            self._send(200, Yonlendirici(os.getenv("YONLENDIRICI_DB", "nexora_yonlendirici.db")).durum(kaynaklar())); return
         if parts.path == "/hazirlik":
             from nexora import hazirlik as _hz
             from nexora.etiket import ozet as _et

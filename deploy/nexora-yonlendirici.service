@@ -1,0 +1,12 @@
+[Unit]
+Description=NEXORA yapay zeka yonlendirici turu (PAPER, kaynaklari yalniz okur)
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=nexora
+WorkingDirectory=/opt/nexora/backend
+EnvironmentFile=/etc/nexora.env
+ExecStart=/usr/bin/python3 -u yonlendirici.py
+TimeoutStartSec=300
+Nice=10

@@ -147,3 +147,36 @@ fun StratejiKarti(v: Veri) {
         Text("Borsanın gerçek alış/satış fiyatı, %0.1 işlem ücreti ve kaymayla sanal işlem; gerçek emir yok.", color = Nx.Soluk, fontSize = 11.sp)
     }
 }
+
+
+/** N28: yapay zekâ yönlendirici. Kaynakları geçmiş karnelerine göre ağırlıklandıran sanal portföy; her kaynakla kıyas. */
+@Composable
+fun YonlendiriciKarti(v: Veri) {
+    val j = v.yonlendirici ?: return
+    NeonKart(Modifier.fillMaxWidth(), kenar = Nx.KenarParlak, dolgu = Nx.DolguMor) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("YAPAY ZEKÂ YÖNLENDİRİCİ", color = Nx.Soluk, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+            Etiket("paper", Nx.Gok)
+        }
+        if (j.optBoolean("bos")) { Text("İlk tur bekleniyor (saatlik).", color = Nx.Soluk, fontSize = 12.sp); return@NeonKart }
+        val g = j.optDouble("getiri_pct", 0.0)
+        Text((if (g >= 0) "+" else "") + yuzde(g, 2), color = kzRenk(g), fontSize = 26.sp, fontWeight = FontWeight.Bold)
+        Text("${j.optDouble("olcum_gun")} gün · zirveden düşüş ${yuzde(j.optDouble("zirveden_dusus_pct", 0.0), 2)} · nakitte ${yuzde(100 * j.optDouble("nakit_pay", 1.0), 0)}",
+             color = Nx.Soluk, fontSize = 12.sp)
+        val a = j.optJSONArray("kaynaklar") ?: return@NeonKart
+        for (i in 0 until a.length()) {
+            val s = a.getJSONObject(i)
+            val kg = if (s.isNull("getiri_pct")) null else s.optDouble("getiri_pct")
+            val kr = s.optJSONObject("karne")
+            Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(s.optString("ad"), color = Nx.Metin, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                    Text("pay ${yuzde(100 * s.optDouble("pay", 0.0), 0)} · ${kr?.optInt("n") ?: 0} kapanan (14 gün)", color = Nx.Soluk, fontSize = 11.sp)
+                }
+                Text(kg?.let { (if (it >= 0) "+" else "") + yuzde(it, 2) } ?: "—", color = kg?.let { kzRenk(it) } ?: Nx.Soluk, fontSize = 13.sp)
+            }
+        }
+        Text("Ağırlık önce verilir, getiri sonra ölçülür (geleceğe bakma yok). En az 5 kapanan işlemi ve pozitif karnesi olmayan kaynağa pay verilmez; tek kaynağa en fazla %40. Gerçek para yok.",
+             color = Nx.Soluk, fontSize = 11.sp, lineHeight = 14.sp)
+    }
+}
