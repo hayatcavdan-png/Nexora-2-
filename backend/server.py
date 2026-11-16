@@ -124,6 +124,9 @@ class H(BaseHTTPRequestHandler):
             if yol == "/uye/cikis": uyelik.cikis((self.headers.get("X-Oturum") or "").strip()); self._send(200, {"ok": True}); return
             u = self._uye()
             if not u: return
+            if yol == "/uye/portfoy":
+                uyelik.portfoy_baslat(u["id"], d.get("baslangic"), paper.equity())
+                self._send(200, uyelik.uye_bakiye(u["id"], paper.equity(), KOMISYON_PCT)); return
             if yol == "/uye/baglanti":
                 if d.get("sil"): uyelik.baglanti_sil(u["id"], d.get("tur"))
                 else: uyelik.baglanti_kaydet(u["id"], d.get("tur"), d.get("adres"))
@@ -145,7 +148,8 @@ class H(BaseHTTPRequestHandler):
             return
         if parts.path == "/uye/bakiye":
             if self._uye():
-                p = paper.portfolio(); self._send(200, Uyelik.bakiye(CFG["start_cash"], p["pnl"], KOMISYON_PCT))
+                u = uyelik.uye((self.headers.get("X-Oturum") or "").strip())
+                self._send(200, uyelik.uye_bakiye(u["id"], paper.equity(), KOMISYON_PCT))
             return
         if parts.path == "/radar":
             from nexora.token_bilgi import toplu

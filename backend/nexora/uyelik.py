@@ -11,6 +11,7 @@ import hashlib, hmac, os, re, secrets, sqlite3, time
 from nexora.ed25519 import _ALFABE
 
 OTURUM_SN = 30 * 86400
+PORTFOY_MIN, PORTFOY_MAX, PORTFOY_VARSAYILAN = 10.0, 100_000.0, 100.0
 GIRIS_DENEME, GIRIS_PENCERE_SN = 5, 600
 DAVET_ALFABE = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"          # karışan harf/rakamlar yok
 EPOSTA_RE = re.compile(r"^[^@\s]{1,64}@[^@\s]{1,200}\.[^@\s]{2,24}$")
@@ -64,6 +65,8 @@ class Uyelik:
         CREATE TABLE IF NOT EXISTS oturum(ozet TEXT PRIMARY KEY, uye INTEGER NOT NULL, bitis REAL NOT NULL);
         CREATE TABLE IF NOT EXISTS baglanti(uye INTEGER NOT NULL, tur TEXT NOT NULL, adres TEXT NOT NULL, ts REAL NOT NULL, PRIMARY KEY(uye, tur));
         CREATE TABLE IF NOT EXISTS giris_deneme(anahtar TEXT NOT NULL, ts REAL NOT NULL);
+        CREATE TABLE IF NOT EXISTS uye_portfoy(uye INTEGER PRIMARY KEY, baslangic REAL NOT NULL, giris_deger REAL NOT NULL,
+            zirve REAL NOT NULL, ts REAL NOT NULL);
         """)
 
     # ---- kayıt / giriş
@@ -145,6 +148,32 @@ class Uyelik:
                       self.db.execute("SELECT eposta, ts FROM uye WHERE davet_eden=? ORDER BY id DESC", (u["id"],))]
         return dict(eposta=u["eposta"], davet_kodu=u["davet_kodu"], davet_sayisi=len(davetliler), davetliler=davetliler[:20],
                     baglantilar=self.baglantilar(u["id"]))
+
+    # ---- üye başına sanal hesap (N15: hesap izolasyonu)
+    def portfoy_baslat(self, uye_id, baslangic, sistem_deger, now=None):
+        """Üyenin sanal hesabını (yeniden) başlatır: katılım anındaki sistem değeri kaydedilir. Pozisyonlar portföyün
+        yüzdesiyle açıldığı için üyenin getirisi = sistemin bu andan sonraki yüzde getirisi."""
+        try: baslangic = float(baslangic)
+        except (TypeError, ValueError): raise UyelikHatasi("başlangıç tutarı sayı olmalı") from None
+        if not PORTFOY_MIN <= baslangic <= PORTFOY_MAX: raise UyelikHatasi(f"başlangıç {PORTFOY_MIN:.0f}-{PORTFOY_MAX:.0f} USDC arası olmalı")
+        if not sistem_deger or sistem_deger <= 0: raise UyelikHatasi("sistem değeri okunamadı")
+        self.db.execute("INSERT OR REPLACE INTO uye_portfoy VALUES(?,?,?,?,?)", (uye_id, baslangic, sistem_deger, baslangic, now or time.time()))
+        self.db.commit()
+
+    def uye_bakiye(self, uye_id, sistem_deger, pct, now=None):
+        """Üyenin kendi sanal bakiyesi; kayıt yoksa 100 USDC ile şimdi başlatılır. Zirve (yüksek su işareti) tutulur."""
+        r = self.db.execute("SELECT * FROM uye_portfoy WHERE uye=?", (uye_id,)).fetchone()
+        if r is None:
+            self.portfoy_baslat(uye_id, PORTFOY_VARSAYILAN, sistem_deger, now)
+            r = self.db.execute("SELECT * FROM uye_portfoy WHERE uye=?", (uye_id,)).fetchone()
+        deger = r["baslangic"] * sistem_deger / r["giris_deger"]
+        zirve = max(r["zirve"], deger)
+        if zirve > r["zirve"]:
+            self.db.execute("UPDATE uye_portfoy SET zirve=? WHERE uye=?", (zirve, uye_id)); self.db.commit()
+        d = self.bakiye(r["baslangic"], deger - r["baslangic"], pct)
+        d.update(katilim_ts=r["ts"], getiri_pct=round((deger / r["baslangic"] - 1) * 100, 2), zirve=round(zirve, 2),
+                 zirveden_dusus_pct=round((zirve - deger) / zirve * 100, 2) if zirve > 0 else 0.0, kisisel=True)
+        return d
 
     @staticmethod
     def bakiye(baslangic, brut_kar, pct):

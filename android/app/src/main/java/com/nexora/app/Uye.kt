@@ -113,7 +113,7 @@ fun UyeEkrani(url: String, key: String, sp: SharedPreferences) {
         // ---- komisyon sonrası bakiye (sanal)
         bakiye?.let { b ->
             NeonKart(Modifier.fillMaxWidth(), dolgu = Nx.DolguMor) {
-                Text("BAKİYE · KOMİSYON SONRASI", color = Nx.Soluk, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                Text("KİŞİSEL SANAL HESABIN · KOMİSYON SONRASI", color = Nx.Soluk, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                 Spacer(Modifier.height(6.dp))
                 Text(para(b.optDouble("net_bakiye")), color = Nx.Metin, fontSize = 30.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(8.dp))
@@ -121,6 +121,21 @@ fun UyeEkrani(url: String, key: String, sp: SharedPreferences) {
                 SatirKV("Brüt kâr/zarar", paraIsaretli(b.optDouble("brut_kar")))
                 SatirKV("Uygulama komisyonu (%${String.format(Locale.US, "%.0f", b.optDouble("komisyon_pct"))} kâr payı)", "−" + para(b.optDouble("komisyon")))
                 SatirKV("Net kâr/zarar", paraIsaretli(b.optDouble("net_kar")))
+                if (b.has("getiri_pct")) {
+                    SatirKV("Getiri (katılımdan beri)", (if (b.optDouble("getiri_pct") >= 0) "+" else "") + String.format(Locale.US, "%.2f%%", b.optDouble("getiri_pct")))
+                    SatirKV("Zirve · zirveden düşüş", para(b.optDouble("zirve")) + " · %" + String.format(Locale.US, "%.1f", b.optDouble("zirveden_dusus_pct")))
+                    SatirKV("Katılım", gunAy(b.optDouble("katilim_ts")) + " " + saat(b.optDouble("katilim_ts")).take(5))
+                }
+                Spacer(Modifier.height(8.dp))
+                var yeni by remember { mutableStateOf("") }
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(yeni, { yeni = it.filter { c -> c.isDigit() }.take(6) }, label = { Text("Yeni başlangıç (USDC)") }, singleLine = true,
+                                      modifier = Modifier.weight(1f), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+                    Button({ cagri("/uye/portfoy", true, JSONObject().put("baslangic", yeni.toDouble())) { bakiye = JSONObject(it); yeni = "" } },
+                           enabled = !mesgul && yeni.isNotEmpty(), colors = NxGriButon()) { Text("Sıfırla") }
+                }
+                Text("Hesabın, katıldığın andan itibaren sistemin yüzde getirisini izler. Sıfırlarsan yeni tutarla bugünden başlar (10–100.000).",
+                     color = Nx.Soluk, fontSize = 11.sp, lineHeight = 15.sp)
                 Spacer(Modifier.height(6.dp))
                 Text("Komisyon yalnızca kârdan hesaplanır; zararda 0'dır. Bu bir SANAL gösterimdir: para saklanmaz, tahsilat yapılmaz.",
                      color = Nx.Soluk, fontSize = 11.sp, lineHeight = 15.sp)

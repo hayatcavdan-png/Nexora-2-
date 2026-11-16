@@ -69,3 +69,24 @@ class Test(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestPortfoy(unittest.TestCase):
+    def test_kisisel_hesap_katilimdan_itibaren(self):
+        u = Uyelik(); a = u.uye(u.kayit("a@b.co", "gizli-parola-1"))["id"]; b = u.uye(u.kayit("c@d.co", "gizli-parola-1"))["id"]
+        r = u.uye_bakiye(a, 103.54, 20)                                   # ilk bakış: 100 USDC ile şimdi başlar
+        self.assertEqual((r["baslangic"], r["brut_kar"], r["komisyon"]), (100.0, 0.0, 0.0))
+        u.portfoy_baslat(b, 1000, 103.54)
+        r = u.uye_bakiye(b, 113.894, 20)                                  # sistem +%10
+        self.assertAlmostEqual(r["brut_kar"], 100.0, places=1); self.assertAlmostEqual(r["komisyon"], 20.0, places=1)
+        self.assertAlmostEqual(r["net_bakiye"], 1080.0, places=1); self.assertAlmostEqual(r["getiri_pct"], 10.0, places=1)
+        r = u.uye_bakiye(b, 98.363, 20)                                   # sistem katılıma göre −%5: komisyon yok, zirve korunur
+        self.assertEqual(r["komisyon"], 0.0); self.assertAlmostEqual(r["zirve"], 1100.0, places=1)
+        self.assertAlmostEqual(r["zirveden_dusus_pct"], (1100 - 950) / 1100 * 100, places=1)
+        self.assertAlmostEqual(u.uye_bakiye(a, 98.363, 20)["getiri_pct"], -5.0, places=1)   # a'nın hesabı ayrı
+
+    def test_sinirlar(self):
+        u = Uyelik(); a = u.uye(u.kayit("a@b.co", "gizli-parola-1"))["id"]
+        for kotu in (5, 1e9, "abc", None):
+            with self.assertRaises(UyelikHatasi): u.portfoy_baslat(a, kotu, 100)
+        with self.assertRaises(UyelikHatasi): u.portfoy_baslat(a, 100, 0)
