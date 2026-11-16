@@ -266,18 +266,18 @@
    "ad": "Kullanıcı başına borsa bağlantısı",
    "grup": "Faz 2 · Çoklu platform",
    "durum": "devam",
-   "yuzde": 10,
-   "yapilan": "Hesabım ekranında bağlantı listesi var; Binance alanı kilitli; gizli anahtar saklanmıyor.",
-   "eksik": "Dört borsa için API anahtarı girişi; anahtarın sunucuda şifreli saklanması; anahtar yetkisinin borsadan sorgulanıp para çekme yetkisi açıksa REDDEDİLMESİ; IP kısıtı rehberi; tek dokunuşla bağlantıyı silme. Yalnızca okuma/doğrulama, emir yok. Önkoşul: N35 (şifreleme)."
+   "yuzde": 70,
+   "yapilan": "Dört borsa (Binance, OKX, KuCoin, MEXC) için API anahtarı girişi (uygulama 5.12.0, Profil › Borsa hesaplarım). Anahtar izinleri borsadan sorgulanıyor; para çekme izni açık ya da doğrulanamayan anahtar reddedilip saklanmıyor. Kabul edilen anahtar sunucuda şifreli (üye+borsa bağlamlı), ekranda yalnızca son 4 karakter; tek dokunuşla kaldırma; saatte 10 deneme sınırı. İstemci yalnızca okuma uç noktalarını çağırabiliyor (emir/çekim yolu yok). 11 yeni test.",
+   "eksik": "Gerçek anahtarlarla her borsada canlı doğrulama (özellikle MEXC'nin çekim alanı ve KuCoin izin adları); IP kısıtı için sunucu adresi rehberi."
   },
   {
    "kod": "N30",
    "ad": "Kişisel portföy ve risk",
    "grup": "Faz 2 · Çoklu platform",
    "durum": "devam",
-   "yuzde": 15,
-   "yapilan": "Üye başına sanal hesap (katılımdan itibaren sistem getirisi, zirve, düşüş, kâr payı gösterimi).",
-   "eksik": "Her kullanıcının kendi borsa bakiyesine göre ayrı paper portföyü ve kendi risk ayarı (yalnızca sıkılaştırılabilir); kullanıcılar arası tam izolasyon. Önkoşul: N29."
+   "yuzde": 40,
+   "yapilan": "Üye başına sanal hesap (katılımdan itibaren sistem getirisi, zirve, düşüş, kâr payı gösterimi). Bağlı borsaların GERÇEK bakiyesi yalnızca okunarak gösteriliyor (borsa başına toplam USD, varlıklar; stablecoin=1 $, diğerleri borsanın güncel fiyatıyla).",
+   "eksik": "Her kullanıcının gerçek bakiyesine göre ayrı paper portföyü ve kendi risk ayarı (yalnızca sıkılaştırılabilir); kullanıcılar arası tam izolasyon."
   },
   {
    "kod": "N31",
