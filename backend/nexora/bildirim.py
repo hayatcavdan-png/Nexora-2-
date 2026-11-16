@@ -51,3 +51,27 @@ class Bildirim:
     def son(self, limit=20):
         return [dict(id=r[0], tur=r[1], token=r[2], wallet=r[3], ts=r[4], metin=r[5], okundu=bool(r[6]))
                 for r in self.db.execute("SELECT id, tur, token, wallet, ts, metin, okundu FROM bildirim ORDER BY id DESC LIMIT ?", (limit,))]
+
+
+def islem_bildirimleri(satirlar, ekosistem="solana"):
+    """Paper işlemlerden bildirim: satirlar = [(id, ts, side, token, pnl, decision, wallet)]. Yalnızca KOPYALANDI işlemler."""
+    out = []
+    for i, ts, side, token, pnl, decision, wallet in satirlar:
+        if decision != "KOPYALANDI": continue
+        kisa = (token or "")[:6] + "…" + (token or "")[-4:]
+        if (side or "").lower() == "buy":
+            metin = f"[{ekosistem}] Paper alım açıldı: {kisa}. Gerçek para kullanılmadı."
+        else:
+            metin = f"[{ekosistem}] Paper satım kapandı: {kisa}, K/Z {pnl:+.2f} USDC. Gerçek para kullanılmadı."
+        out.append(dict(olay=f"islem:{ekosistem}:{i}", tur="islem", token=token or "", wallet=wallet or "", ts=ts or time.time(), metin=metin))
+    return out
+
+
+def gunluk_zarar_bildirimi(ekosistem, gun, gun_basi, equity, esik):
+    """Günlük zarar sınırı aşıldıysa (gün başına göre düşüş >= esik) o gün için EN FAZLA bir bildirim. Boş liste: aşılmadı."""
+    if not gun_basi or gun_basi <= 0: return []
+    dusus = (gun_basi - equity) / gun_basi
+    if dusus < esik: return []
+    return [dict(olay=f"gunluk:{ekosistem}:{gun}", tur="gunluk_zarar", token="", wallet="", ts=time.time(),
+                 metin=f"[{ekosistem}] Günlük zarar sınırı aşıldı (%{dusus * 100:.1f} ≥ %{esik * 100:.0f}). "
+                       "Bugün yeni paper alım durduruldu. Gerçek para kullanılmadı.")]
