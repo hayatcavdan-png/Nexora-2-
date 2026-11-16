@@ -292,10 +292,10 @@
    "kod": "N32",
    "ad": "Bildirim sinyalleri",
    "grup": "Faz 2 · Çoklu platform",
-   "durum": "baslamadi",
-   "yuzde": 0,
-   "yapilan": "",
-   "eksik": "Borsada olmayan zincir token'ları için kullanıcıya bildirim (elle işlem için); işlem açıldı/kapandı, günlük zarar sınırı ve sunucu durumu bildirimleri. Önkoşul: N23."
+   "durum": "devam",
+   "yuzde": 25,
+   "yapilan": "1. sürüm: öncü cüzdanların dört borsada listesiz tokenlere yaptığı alımlar için bildirim kaydı (bildirim.py, bildirim_tara.py); yalnızca bildirim, emir yok; her sinyal bir kez bildirilir; /bildirim uç noktası. 4 yeni test.",
+   "eksik": "Zamanlayıcı (saatlik tarama) kurulumu; uygulamada bildirim kartı; işlem açıldı/kapandı ve günlük zarar sınırı bildirimleri; cihaz bildirimi (push) için karar."
   },
   {
    "kod": "N33",

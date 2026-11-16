@@ -174,6 +174,9 @@ class H(BaseHTTPRequestHandler):
             try: durum = json.load(open("piyasa_durum.json"))
             except (OSError, ValueError): durum = None
             self._send(200, dict(stratejiler=out, durum=durum)); return
+        if parts.path == "/bildirim":                      # N32: borsada listesiz token sinyalleri (yalnızca bildirim)
+            from nexora.bildirim import Bildirim
+            self._send(200, dict(son=Bildirim(os.getenv("BILDIRIM_DB", "nexora_bildirim.db")).son(20))); return
         if parts.path == "/kanit":                         # kanıt karnesi: hangi kaynak gerçekten kazandırıyor
             from nexora.kanit import karne as _kanit
             self._send(200, _kanit(yon_db=os.getenv("YONLENDIRICI_DB", "nexora_yonlendirici.db"))); return
