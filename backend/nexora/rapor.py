@@ -124,6 +124,34 @@ def boyut_summary(iz_rows, boyut_rows, ucret=0.01):
     return dict(kapanan=n, yontemler=[dict(yontem=k, kz=round(v[0], 4), sermaye=round(v[1], 2),
                                            getiri_pct=round(v[0] / v[1] * 100, 2) if v[1] else None) for k, v in yontem.items()])
 
+TOLERANSLAR = (0.5, 1.0, 2.0, 3.0, 5.0)   # gerçek emirde kayma (slippage) toleransı adayları, %
+
+
+def _wilson_ust(k, n, z=1.96):
+    """k/n oranının %95 Wilson üst sınırı (az örnekte iyimser olmamak için)."""
+    if not n: return None
+    p = k / n; d = 1 + z * z / n
+    return min(1.0, (p + z * z / (2 * n) + z * ((p * (1 - p) + z * z / (4 * n)) / n) ** 0.5) / d)
+
+
+def basarisizlik_modeli(rows, toleranslar=TOLERANSLAR):
+    """N9: gerçek emir başarısız olma olasılığı. Emir, karardan ~3 sn sonra zincire ulaşır; o andaki fiyat
+    ilk tekliften tolerans kadar kötüyse işlem 'kayma aşıldı' hatasıyla düşer (ücret yine ödenir).
+    Yeniden teklif alınamayan ölçümler (rota kayboldu, likidite çekildi) her toleransta başarısız sayılır."""
+    out = dict(olculen=len(rows), teklif_yok=sum(1 for r in rows if r.get("kayip_pct") is None), toleranslar=[])
+    for side in ("buy", "sell", None):
+        satir = [r for r in rows if side is None or r["side"] == side]
+        n = len(satir)
+        if not n: continue
+        for t in toleranslar:
+            dusen = sum(1 for r in satir if r.get("kayip_pct") is None or r["kayip_pct"] > t)
+            kalan = [r["kayip_pct"] for r in satir if r.get("kayip_pct") is not None and r["kayip_pct"] <= t]
+            out["toleranslar"].append(dict(yon=side or "hepsi", tolerans=t, n=n, basarisiz=dusen,
+                                           oran=round(dusen / n, 3), ust_sinir=round(_wilson_ust(dusen, n), 3),
+                                           basarili_ort_kayip=round(sum(kalan) / len(kalan), 3) if kalan else None))
+    return out
+
+
 def yurutme_summary(rows):
     """Yürütme gecikmesi kaybı: karardan ~3 sn sonraki teklifin ilk teklife göre farkı (pozitif = kayıp)."""
     ok = [r for r in rows if r.get("kayip_pct") is not None]
@@ -134,6 +162,7 @@ def yurutme_summary(rows):
                          medyan=round(v[len(v) // 2], 3) if v else None,
                          p90=round(v[min(len(v) - 1, int(len(v) * 0.9))], 3) if v else None,
                          en_kotu=round(v[-1], 3) if v else None)
+    out["basarisizlik"] = basarisizlik_modeli(rows)
     return out
 
 def _etiket_ozet():
@@ -275,6 +304,13 @@ def as_text(r):
             x = y[side]
             if x["n"]: parca.append(f"{ad} {x['n']} ölçüm, ort. %{x['ort']:+.2f}, en kötü %{x['en_kotu']:+.2f}")
         L += ["", "Yürütme gecikmesi (3 sn geç kalsaydık): " + ("; ".join(parca) or "henüz sonuç yok")]
+        bm = y.get("basarisizlik") or {}
+        hep = [t for t in bm.get("toleranslar", []) if t["yon"] == "hepsi"]
+        if hep:
+            L.append(f"Gerçek emir başarısızlık tahmini ({hep[0]['n']} ölçüm; tolerans → düşen emir oranı, %95 üst sınır):")
+            L += [f"  kayma toleransı %{t['tolerans']:<4} → %{100 * t['oran']:.0f} (en çok %{100 * t['ust_sinir']:.0f})"
+                  + (f", geçenlerde ort. kayıp %{t['basarili_ort_kayip']:+.2f}" if t["basarili_ort_kayip"] is not None else "")
+                  for t in hep]
     bo = r.get("boyut") or {}
     if bo.get("kapanan"):
         L += ["", f"Büyüklük yöntemleri ({bo['kapanan']} kapanmış kopya):"]

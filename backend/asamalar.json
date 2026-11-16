@@ -86,9 +86,9 @@
    "ad": "Gerçekçi paper trading",
    "grup": "İşlem",
    "durum": "devam",
-   "yuzde": 78,
-   "yapilan": "Gerçek Jupiter teklifiyle doldurma, 2 dakikada bir değerleme, gölge işlemler, günlük rapor (komut satırı ve uygulama); ilk kapanan işlemler ve gerçekleşen K/Z kaydedildi; yürütme gecikmesi ölçümü: kopyalanan her işlemde teklif 3 sn sonra yeniden alınıyor; portföy denetimi (defter işlemlerden yeniden hesaplanır); tutarsız teklif (al-sat 'kazancı' >%2) ile alım engellendi, geçmişteki 3 işlem işaretlendi",
-   "eksik": "Başarısız işlem olasılığı modeli; uzun süreli sonuç"
+   "yuzde": 85,
+   "yapilan": "Gerçek Jupiter teklifiyle doldurma, 2 dakikada bir değerleme, gölge işlemler, günlük rapor (komut satırı ve uygulama); ilk kapanan işlemler ve gerçekleşen K/Z kaydedildi; yürütme gecikmesi ölçümü: kopyalanan her işlemde teklif 3 sn sonra yeniden alınıyor; portföy denetimi (defter işlemlerden yeniden hesaplanır); tutarsız teklif (al-sat 'kazancı' >%2) ile alım engellendi, geçmişteki 3 işlem işaretlendi; başarısız işlem olasılığı modeli: 3 sn gecikme ölçümlerinden kayma toleransı başına (%0,5–5) düşen emir oranı, %95 Wilson üst sınırı ve geçen emirlerde ortalama kayıp; günlük raporda",
+   "eksik": "Uzun süreli sonuç; gerçek emir öncesi kayma toleransı kararı (yeterli ölçümle)"
   },
   {
    "kod": "N10",
