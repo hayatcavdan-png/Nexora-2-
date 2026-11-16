@@ -9,15 +9,18 @@ from nexora import ekosistem
 from nexora.evm import ZINCIRLER, EvmRpc
 from nexora import evm_kesif as K
 
-TOKEN = int(os.getenv("EVM_KESIF_TOKEN", "15")); EN_AZ = int(os.getenv("EVM_KESIF_EN_AZ", "2")); EKLE = 5
+TOKEN = int(os.getenv("EVM_KESIF_TOKEN", "25")); EN_AZ = int(os.getenv("EVM_KESIF_EN_AZ", "2")); EKLE = 5
 
 
 def main(argv, rpc=None, s=None):
     z = argv[0] if argv else "bnb"
     if z not in ZINCIRLER: sys.exit("zincir: bnb ya da base")
     c = ZINCIRLER[z]; rpc = rpc or EvmRpc(os.getenv(c["rpc_env"]) or c["rpc"]); s = s or requests.Session()
-    tok = K.sicak_tokenler(s, z, TOKEN)
-    if not tok: sys.exit("Uygun yükselen token bulunamadı (DexScreener yanıtı boş ya da filtreler sıkı).")
+    ist = {}
+    tok = K.sicak_tokenler(s, z, TOKEN, istatistik=ist)
+    print(f"Kaynaklar: DexScreener {ist.get('dexscreener', 0)} token, GeckoTerminal {ist.get('geckoterminal', 0)} token; "
+          f"filtreden geçen {len(tok)} (likidite ≥ 50 bin $, hacim ≥ 50 bin $, son 30 gün)", flush=True)
+    if not tok: sys.exit("Uygun yükselen token bulunamadı.")
     print(f"{c['ad']}: {len(tok)} yükselen token, her birinin ilk ~30 dakikasındaki alıcılar inceleniyor…", flush=True)
     mevcut = ekosistem.cuzdanlar(z)
     adaylar, say = K.kesfet(rpc, tok, EN_AZ, bilinen=mevcut)

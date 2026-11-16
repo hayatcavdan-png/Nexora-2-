@@ -26,7 +26,7 @@ def _iso(v):
 def gt_havuzlari(s, zincir, timeout=15, uyku=time.sleep):
     """GeckoTerminal (anahtarsız): zincirin yükselen ve yeni havuzları -> {token: dict(lik, cift, ts, hacim)}."""
     out = {}
-    for i, yol in enumerate(("trending_pools", "new_pools", "pools")):
+    for i, yol in enumerate(("trending_pools", "trending_pools?page=2", "new_pools", "pools", "pools?page=2")):
         if i: uyku(2.1)                                          # herkese açık hız sınırı (dakikada ~30)
         try:
             d = s.get(GT.format(GT_ZINCIR[zincir], yol), timeout=timeout).json()
@@ -44,7 +44,8 @@ def gt_havuzlari(s, zincir, timeout=15, uyku=time.sleep):
 SIFIR = "0x" + "0" * 40
 
 
-def sicak_tokenler(s, zincir, en_fazla=15, min_likidite=50_000, min_hacim=100_000, maks_yas_gun=14, now=None, timeout=15, uyku=time.sleep):
+def sicak_tokenler(s, zincir, en_fazla=25, min_likidite=50_000, min_hacim=50_000, maks_yas_gun=30, now=None, timeout=15, uyku=time.sleep,
+                   istatistik=None):
     """[(token, çift, çift_oluşturma_ts, likidite, hacim24)] — likiditeli, hacimli ve son günlerde açılmış çiftler."""
     now = now or time.time(); hedef = DS_ZINCIR[zincir]
     adresler = []
@@ -72,7 +73,10 @@ def sicak_tokenler(s, zincir, en_fazla=15, min_likidite=50_000, min_hacim=100_00
                 en_iyi[tok] = dict(lik=lik, cift=(p.get("pairAddress") or "").lower(), ts=(p.get("pairCreatedAt") or 0) / 1000,
                                   hacim=float((p.get("volume") or {}).get("h24") or 0))
         for tok, v in en_iyi.items(): hepsi_ekle(tok, v)
-    for tok, v in gt_havuzlari(s, zincir, timeout, uyku).items(): hepsi_ekle(tok, v)
+    n_ds = len(toplam)
+    gt = gt_havuzlari(s, zincir, timeout, uyku)
+    for tok, v in gt.items(): hepsi_ekle(tok, v)
+    if istatistik is not None: istatistik.update(dexscreener=n_ds, geckoterminal=len(gt), toplam=len(toplam))
     for tok, v in toplam.items():
         if v["lik"] >= min_likidite and v["hacim"] >= min_hacim and v["cift"] and 0 < now - v["ts"] <= maks_yas_gun * 86400:
             out.append((tok, v["cift"], v["ts"], v["lik"], v["hacim"]))
@@ -102,12 +106,18 @@ def _loglar(rpc, filtre, bas, son, en_az=25):
 
 
 def erken_alicilar(rpc, token, cift, bas_blok, pencere_blok=2400, parca=800):
-    """Çiftten token'ı ilk `pencere_blok` blokta alan adresler (çiftin kendisi ve sıfır adres hariç)."""
-    alicilar = set()
-    for b in range(bas_blok, bas_blok + pencere_blok, parca):
-        for l in _loglar(rpc, {"address": token, "topics": [TRANSFER, _konu(cift)]}, b, min(b + parca - 1, bas_blok + pencere_blok)):
-            t = l.get("topics") or []
-            if len(t) == 3: alicilar.add(_adr(t[2]))
+    """Çiftten token'ı ilk `pencere_blok` blokta alan adresler (çiftin kendisi ve sıfır adres hariç).
+    Çift adresinden hiç çıkış yoksa (ör. PancakeSwap v4'te token'lar ortak kasadan çıkar) token'ın o penceredeki
+    TÜM alıcılarına bakılır; gönderen = alıcı olanlar atlanır (sözleşmeler sonra ayıklanır)."""
+    def tara(konular):
+        out = set()
+        for b in range(bas_blok, bas_blok + pencere_blok, parca):
+            for l in _loglar(rpc, {"address": token, "topics": konular}, b, min(b + parca - 1, bas_blok + pencere_blok)):
+                t = l.get("topics") or []
+                if len(t) == 3 and t[1] != t[2]: out.add(_adr(t[2]))
+        return out
+    alicilar = tara([TRANSFER, _konu(cift)])
+    if not alicilar: alicilar = tara([TRANSFER])
     return alicilar - {cift, SIFIR}
 
 

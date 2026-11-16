@@ -28,7 +28,7 @@ class DS:
         cift = lambda tok, p, lik, hacim, yas: dict(baseToken=dict(address=tok), pairAddress=p, liquidity=dict(usd=lik),
                                                      volume=dict(h24=hacim), pairCreatedAt=(NOW - yas) * 1000)
         return R([cift(TOK1, P1, 90000, 5e5, 3600), cift(TOK1, "0x" + "99" * 20, 100, 9e9, 60), cift(TOK2, P2, 60000, 2e5, 7200),
-                  cift(ESKI, "0x" + "98" * 20, 9e5, 9e6, 30 * 86400)])
+                  cift(ESKI, "0x" + "98" * 20, 9e5, 9e6, 40 * 86400)])
 
 
 class Rpc:
@@ -36,16 +36,28 @@ class Rpc:
     def blok_zamani(self, n): return NOW - (10_000 - n) * 1.0           # 1 sn/blok
     def call(self, y, p):
         if y == "eth_getCode": return "0x6080" if p[0] == KONTRAT else "0x"
-        f = p[0]; cift = "0x" + f["topics"][1][-40:]
+        f = p[0]
+        if len(f["topics"]) == 1: return []
+        cift = "0x" + f["topics"][1][-40:]
         alici = {P1: [U1, U2, KONTRAT, P1], P2: [U1, KONTRAT]}.get(cift, [])
         return [dict(topics=[TRANSFER, f["topics"][1], _konu(a)]) for a in alici] if f["fromBlock"] == hex(int(f["fromBlock"], 16)) and int(f["fromBlock"], 16) < 9000 else []
 
 
 class Test(unittest.TestCase):
     def test_sicak_tokenler(self):
-        t = K.sicak_tokenler(DS(), "bnb", now=NOW, uyku=lambda x: None)
+        ist = {}
+        t = K.sicak_tokenler(DS(), "bnb", now=NOW, uyku=lambda x: None, istatistik=ist)
+        self.assertEqual((ist["dexscreener"], ist["geckoterminal"]), (3, 1))
         self.assertEqual([(x[0], x[1]) for x in t], [(TOK1, P1), (GTT, GTP), (TOK2, P2)])   # GeckoTerminal de kaynak; eski çift elenir
         self.assertEqual(K.sicak_tokenler(DS(), "bnb", min_likidite=80000, now=NOW, uyku=lambda x: None)[0][0], TOK1)
+
+    def test_kasa_yedek_yolu(self):
+        class V:                                                        # v4: çiftten çıkış yok, token ortak kasadan geliyor
+            def call(self, y, p):
+                k = p[0]["topics"]
+                if len(k) == 2: return []
+                return [dict(topics=[TRANSFER, _konu(KONTRAT), _konu(U1)]), dict(topics=[TRANSFER, _konu(U2), _konu(U2)])]
+        self.assertEqual(K.erken_alicilar(V(), TOK1, P1, 0, 100, 100), {U1})
 
     def test_limit_bolme(self):
         from nexora.evm import EvmHatasi
