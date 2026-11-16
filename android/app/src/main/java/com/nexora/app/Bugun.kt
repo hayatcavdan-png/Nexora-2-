@@ -37,7 +37,8 @@ fun BugunKarti(v: Veri, durdurIste: () -> Unit = {}, pozisyonlaraGit: () -> Unit
     val durum = when {
         v.acilDurdurma -> "Acil durdurma açık: yeni alım yapılmıyor." to Nx.Kirmizi
         dolu -> "Tüm yerler dolu: bir pozisyon kapanınca yeni alım açılır." to Nx.Sari
-        nedenler.isNotEmpty() -> "Yer var. Bugün en sık red: ${nedenler.first().first} (${nedenler.first().second}×)." to Nx.Soluk
+        nedenler.isNotEmpty() -> "Şu an yer var ($acik/$maks). Bugünkü en sık red: ${nedenler.first().first} (${nedenler.first().second}×); " +
+            "bu sayım yerlerin dolu olduğu dönemleri de kapsar." to Nx.Soluk
         else -> "Yer var, yeni sinyal bekleniyor." to Nx.Nane
     }
     NeonKart(Modifier.fillMaxWidth().clickable(onClick = pozisyonlaraGit)) {
