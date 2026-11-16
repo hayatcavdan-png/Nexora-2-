@@ -16,6 +16,7 @@ from nexora.wallet_analysis import analyze, verdict, score, THRESHOLDS, gercekle
 from nexora import hesap_turu
 
 LIMIT = int(os.getenv("ANALIZ_LIMIT", "200"))
+UZUN_LIMIT = int(os.getenv("ANALIZ_UZUN_LIMIT", "500"))   # "eksik veri" çıkan (yavaş işlem yapan) cüzdan bu pencereyle bir kez daha denenir
 OUT_CSV, OUT_TXT = "cuzdan_analiz.csv", "wallets_onerilen.txt"
 ADDR = re.compile(r"^[1-9A-HJ-NP-Za-km-z]{32,44}$")
 FIELDS = ["wallet", "karar", "gerekce", "gerceklesen_usd", "kapanan", "kazanma_orani", "kar_faktoru", "ort_getiri",
@@ -53,9 +54,9 @@ def usd_deger(quoter, token, miktar_raw):
     except (QuoteError, ValueError, KeyError, TypeError):
         return None
 
-def fetch(client, wallet):
+def fetch(client, wallet, limit=None):
     res = client.call("getTransactionsForAddress", [wallet, {
-        "transactionDetails": "full", "limit": LIMIT, "sortOrder": "desc", "commitment": "confirmed",
+        "transactionDetails": "full", "limit": limit or LIMIT, "sortOrder": "desc", "commitment": "confirmed",
         "encoding": "jsonParsed", "maxSupportedTransactionVersion": 1,
         "filters": {"status": "succeeded", "tokenAccounts": "balanceChanged"}}])
     if not isinstance(res, dict) or not isinstance(res.get("data"), list):
@@ -90,6 +91,10 @@ def main(client=None, quoter=None, sleep=time.sleep, list_path=None):
         try:
             m = analyze(fetch(client, w), w, price)
             karar, why = verdict(m)
+            if karar == "eksik veri" and UZUN_LIMIT > LIMIT:             # alışlar pencere dışında kalmış olabilir
+                m = analyze(fetch(client, w, UZUN_LIMIT), w, price)
+                karar, why = verdict(m)
+                m["uzun_pencere"] = 1
             if karar == "kopyalanabilir" and m.get("acik_lotlar"):        # N4: açık pozisyonlarla birlikte hâlâ kârlı mı?
                 g = gerceklesmemis(m["acik_lotlar"], lambda t, raw: usd_deger(quoter, t, raw))
                 m.update(g, toplam_usd=round(m["gerceklesen_usd"] + g["gerceklesmemis_usd"], 2))
