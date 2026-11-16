@@ -143,6 +143,14 @@ class DecisionTests(unittest.TestCase):
         for i in range(CFG["max_positions_per_wallet"]): self.assertEqual(d.decide(f"e{i}", "W1", f"T{i}", "buy", 1)["decision"], "KOPYALANDI")
         self.assertEqual(d.decide("x", "W1", "T9", "buy", 1)["reason"], "bu cüzdan için pozisyon sınırı dolu")
         self.assertEqual(d.decide("y", "W2", "T9", "buy", 1)["decision"], "KOPYALANDI")    # başka cüzdan etkilenmez
+    def test_watch_only_wallet(self):
+        p, q = Paper(), FakeQuoter(); d = Decider(p, q, Safe(), izle={"IZ"})
+        self.assertEqual(d.decide("e1", "IZ", TOK, "buy", 1)["reason"], "cüzdan yalnızca izleniyor")
+        self.assertEqual(q.calls, []); self.assertIsNone(p.position(TOK))               # ağ isteği yok, pozisyon yok
+        self.assertEqual(d.decide("e2", "W", TOK, "buy", 1)["decision"], "KOPYALANDI")  # diğer cüzdanlar etkilenmez
+        d2 = Decider(p, q, Safe())                                                      # izlemeye alınmadan önce açılmış pozisyon
+        d2.decide("e3", "IZ", "T2", "buy", 1)
+        self.assertEqual(d.decide("s3", "IZ", "T2", "sell", 1)["decision"], "KOPYALANDI")  # satış kapatmaya devam eder
     def test_fee_reserve_kept(self):
         p = Paper(); d = Decider(p, FakeQuoter(), Safe())
         p.db.execute("UPDATE state SET v='5.5' WHERE k IN ('cash','day_start')"); p.db.commit()   # 5.5 USDC (zarar limiti dışı)

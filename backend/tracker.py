@@ -67,8 +67,10 @@ def main():
                 except ValueError: pass
                 cuzdan_ist[r["wallet"]] = {k: r.get(k) for k in ("karar", "kazanma_orani", "kar_faktoru", "ort_getiri", "kapanan",
                                                                   "medyan_tutma_sn", "skor", "dusus_kazanc_orani", "sifir_tur_orani")}
+        izle = [w for w in read_list("izle_listesi.txt") if w in wallets]
         decider = Decider(paper, quoter, TokenSafety(client), bilgi=bilgi, yurutme=YurutmeOlcer(quoter, paper).baslat(),
-                          puanlar=puanlar)
+                          puanlar=puanlar, izle=izle)
+        if izle: print(f"  {len(izle)} cüzdan yalnızca izleniyor (izle_listesi.txt): sinyalleri etiketlenir, alımları kopyalanmaz", flush=True)
         if not quoter.api_key:
             print("  Not: JUPITER_API_KEY yok, teklifler anahtarsız (0.5 istek/sn). Ücretsiz anahtar hızlandırır.", flush=True)
     etiketci = None
