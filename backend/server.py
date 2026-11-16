@@ -11,6 +11,7 @@ from nexora import gizle as _gizle
 _gizle.kur()
 import glob, yedek, threading, time as _time
 from nexora import kesif_api
+from nexora.uyelik import Uyelik, UyelikHatasi
 
 _servis = {}
 _servis_kilit = threading.Lock()
@@ -45,6 +46,8 @@ def servis(ad):
         return _servis[ad]
 
 paper = Paper(os.getenv("NEXORA_DB", "nexora_paper.db"))
+uyelik = Uyelik(os.getenv("UYELIK_DB", "nexora_uyelik.db"))
+KOMISYON_PCT = float(os.getenv("KOMISYON_PCT", "20"))      # uygulama kâr payı (sanal gösterim)
 KEY = os.getenv("NEXORA_API_KEY", "").strip()
 # Telefonda yalnızca bu cihazdan erişilir. Sunucuda (N13) özel ağ adresi verilir: NEXORA_HOST=100.x.y.z
 HOST = os.getenv("NEXORA_HOST", "127.0.0.1")
@@ -107,10 +110,39 @@ class H(BaseHTTPRequestHandler):
         except PermissionError as e: self._send(429, {"hata": str(e)})
         except Exception as e: self._send(502, {"hata": f"analiz yapılamadı: {type(e).__name__}"})
 
+    def _uye(self):
+        u = uyelik.uye((self.headers.get("X-Oturum") or "").strip())
+        if not u: self._send(401, {"hata": "oturum yok veya süresi doldu"})
+        return u
+
+    def _uye_islem(self, yol, raw):
+        try: d = json.loads(raw or b"{}")
+        except ValueError: d = {}
+        try:
+            if yol == "/uye/kayit": self._send(200, {"oturum": uyelik.kayit(d.get("eposta"), d.get("parola"), d.get("davet"))}); return
+            if yol == "/uye/giris": self._send(200, {"oturum": uyelik.giris(d.get("eposta"), d.get("parola"))}); return
+            if yol == "/uye/cikis": uyelik.cikis((self.headers.get("X-Oturum") or "").strip()); self._send(200, {"ok": True}); return
+            u = self._uye()
+            if not u: return
+            if yol == "/uye/baglanti":
+                if d.get("sil"): uyelik.baglanti_sil(u["id"], d.get("tur"))
+                else: uyelik.baglanti_kaydet(u["id"], d.get("tur"), d.get("adres"))
+                self._send(200, uyelik.profil(u))
+        except UyelikHatasi as e: self._send(400, {"hata": str(e)})
+        except PermissionError as e: self._send(429, {"hata": str(e)})
+
     def do_GET(self):
         if not self._ok(): return
         parts = urlsplit(self.path)
         if parts.path == "/yedek/son": self._yedek_gonder(); return
+        if parts.path == "/uye/ben":
+            u = self._uye()
+            if u: self._send(200, uyelik.profil(u))
+            return
+        if parts.path == "/uye/bakiye":
+            if self._uye():
+                p = paper.portfolio(); self._send(200, Uyelik.bakiye(CFG["start_cash"], p["pnl"], KOMISYON_PCT))
+            return
         if parts.path == "/radar":
             from nexora.token_bilgi import toplu
             self._send(200, kesif_api.radar(os.getenv("TRACKER_DB", "nexora_tracker.db"), lambda ms: toplu(servis("bilgi"), ms)))
@@ -157,6 +189,7 @@ class H(BaseHTTPRequestHandler):
         if not self._ok(): return
         n = int(self.headers.get("Content-Length", 0) or 0)
         raw = self.rfile.read(n) if n else b"{}"
+        if self.path.startswith("/uye/"): self._uye_islem(self.path, raw); return
         if self.path == "/acil-durdur": paper.set_kill(True); self._send(200, {"acil_durdurma": True})
         elif self.path == "/devam": paper.set_kill(False); self._send(200, {"acil_durdurma": False})
         elif self.path == "/cuzdan-dna":

@@ -8,10 +8,11 @@ import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 
-fun api(base: String, key: String, path: String, post: Boolean = false, govde: String = "{}", zamanAsimi: Int = 8000): String {
+fun api(base: String, key: String, path: String, post: Boolean = false, govde: String = "{}", zamanAsimi: Int = 8000, oturum: String = ""): String {
     val c = URL(base.trim().trimEnd('/') + path).openConnection() as HttpURLConnection
     c.connectTimeout = 8000; c.readTimeout = zamanAsimi
     c.setRequestProperty("X-API-Key", key.trim())
+    if (oturum.isNotEmpty()) c.setRequestProperty("X-Oturum", oturum)
     if (post) {
         c.requestMethod = "POST"; c.doOutput = true
         c.setRequestProperty("Content-Type", "application/json")
