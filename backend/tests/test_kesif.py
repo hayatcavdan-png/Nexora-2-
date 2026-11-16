@@ -1,3 +1,5 @@
+import io
+from contextlib import redirect_stdout
 import os, sqlite3, tempfile, unittest
 import cuzdan_kesif as K
 from nexora.helius_client import HeliusRPCError
@@ -53,7 +55,8 @@ class KesifTests(unittest.TestCase):
         cl = FakeClient({"TOKA": [swap_tx("ERKEN", "TOKA", 29_000), swap_tx("KNOWN", "TOKA", 29_500), swap_tx("GEC", "TOKA", 30_500),
                                   swap_tx("TEK", "TOKA", 29_900)],
                          "TOKB": [swap_tx("ERKEN", "TOKB", 19_500)]})
-        aday = K.main(client=cl, tracker_db=self.tdb, out_dir=self.d)
+        with redirect_stdout(io.StringIO()):
+            aday = K.main(client=cl, tracker_db=self.tdb, out_dir=self.d)
         self.assertEqual(aday, ["ERKEN"])                                 # iki token'da erken; KNOWN bilinen, GEC sonra aldı
         self.assertEqual(cl.calls[0][1]["filters"]["blockTime"], {"gte": 30_000 - K.PENCERE, "lt": 30_000})
         rows = open(os.path.join(self.d, K.OUT_CSV)).read()
