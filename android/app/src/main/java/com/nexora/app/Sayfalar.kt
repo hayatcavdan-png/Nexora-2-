@@ -369,7 +369,8 @@ private val RISK_ON_AYAR = listOf(
     "Yüksek" to mapOf("max_pos_pct" to 0.05, "daily_loss_pct" to 0.03, "max_positions" to 5, "max_roundtrip_loss_pct" to 6.0),
 )
 
-fun LazyListScope.autoPilot(v: Veri, geri: () -> Unit, ayarla: (JSONObject) -> Unit, baslat: () -> Unit, durdurIste: () -> Unit) {
+fun LazyListScope.autoPilot(v: Veri, geri: () -> Unit, ayarla: (JSONObject) -> Unit, baslat: () -> Unit, durdurIste: () -> Unit,
+                            modelKapat: () -> Unit = {}) {
     val a = v.ayarlar
     val pos = a.optDouble("max_pos_pct", 0.05); val gunluk = a.optDouble("daily_loss_pct", 0.03); val maxp = a.optInt("max_positions", 5)
     item(key = "ap_bas") {
@@ -430,6 +431,28 @@ fun LazyListScope.autoPilot(v: Veri, geri: () -> Unit, ayarla: (JSONObject) -> U
             }
             Button(durdurIste, enabled = !v.acilDurdurma, colors = NxGriButon(), modifier = Modifier.weight(1f).height(54.dp), shape = RoundedCornerShape(14.dp)) {
                 Icon(Icons.Filled.Close, null); Text(" Durdur", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+            }
+        }
+    }
+    item(key = "ap_model") {
+        val mf = v.modelFiltre
+        val acik = mf.optBoolean("acik"); val etkin = mf.optBoolean("etkin")
+        NeonKart(Modifier.fillMaxWidth()) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text("Yapay Zekâ Filtresi", color = Nx.Metin, fontWeight = FontWeight.SemiBold)
+                    Text(when {
+                        etkin -> "Açık · model ${mf.str("model")} düşük olasılıklı sinyalleri kopyalamıyor"
+                        acik -> "Açık ama model yok: filtre uygulanmıyor"
+                        else -> "Kapalı · tüm uygun sinyaller kopyalanıyor. Açmak yalnızca sunucuda, gölge sınavından sonra."
+                    }, color = Nx.Soluk, fontSize = 12.sp)
+                }
+                Etiket(if (etkin) "AÇIK" else "KAPALI", if (etkin) Nx.Mor else Nx.Soluk)
+            }
+            if (acik) {
+                Button(modelKapat, colors = NxGriButon(), modifier = Modifier.fillMaxWidth().padding(top = 8.dp), shape = RoundedCornerShape(12.dp)) {
+                    Text("Filtreyi kapat (geri al)")
+                }
             }
         }
     }

@@ -15,6 +15,7 @@ from nexora.live_tracker import LiveTracker
 from nexora.ws_listener import WSListener
 from nexora.market import JupiterQuoter
 from nexora.token_safety import TokenSafety
+from nexora.model_kapisi import ModelDosyasi, ModelKapisi
 from nexora.decision import Decider
 from nexora.token_bilgi import TokenBilgi, Toplayici
 from nexora.yurutme import YurutmeOlcer
@@ -68,15 +69,19 @@ def main():
                 cuzdan_ist[r["wallet"]] = {k: r.get(k) for k in ("karar", "kazanma_orani", "kar_faktoru", "ort_getiri", "kapanan",
                                                                   "medyan_tutma_sn", "skor", "dusus_kazanc_orani", "sifir_tur_orani")}
         izle = [w for w in read_list("izle_listesi.txt") if w in wallets]
+        model = ModelDosyasi()                            # N19/N20: yz_model.json (yalnızca N18'de kabul edilmiş model)
+        kapi = ModelKapisi(model, bilgi=TokenBilgi(api_key=quoter.api_key, throttle=quoter._throttle), cuzdanlar=cuzdan_ist)
         decider = Decider(paper, quoter, TokenSafety(client), bilgi=bilgi, yurutme=YurutmeOlcer(quoter, paper).baslat(),
-                          puanlar=puanlar, izle=izle)
+                          puanlar=puanlar, izle=izle, kapi=kapi)
+        kd = kapi.durum()
+        if kd["acik"]: print(f"  Model filtresi AÇIK (model {kd['model'] or 'YOK: filtre uygulanmıyor'})", flush=True)
         if izle: print(f"  {len(izle)} cüzdan yalnızca izleniyor (izle_listesi.txt): sinyalleri etiketlenir, alımları kopyalanmaz", flush=True)
         if not quoter.api_key:
             print("  Not: JUPITER_API_KEY yok, teklifler anahtarsız (0.5 istek/sn). Ücretsiz anahtar hızlandırır.", flush=True)
     etiketci = None
     if decider and os.getenv("ETIKET", "1") != "0":       # N16: her sinyali etiketle (yalnızca ölçüm)
         etiketci = Etiketci(os.getenv("ETIKET_DB", "nexora_etiket.db"), quoter, bilgi=TokenBilgi(api_key=quoter.api_key),
-                            cuzdanlar=cuzdan_ist).baslat()
+                            cuzdanlar=cuzdan_ist, model=model).baslat()
     tr = LiveTracker(client, paper, os.getenv("TRACKER_DB", "nexora_tracker.db"), wallets, decider=decider, etiketci=etiketci)
     n = tr.reset_quarantine()
     if n: print(f"{n} cüzdan karantinadan çıkarıldı (yeniden deneniyor)", flush=True)

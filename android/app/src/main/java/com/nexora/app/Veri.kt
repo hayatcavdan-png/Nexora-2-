@@ -53,6 +53,7 @@ class Veri {
 
     var acilDurdurma by mutableStateOf(false)
     var ayarlar by mutableStateOf(JSONObject())
+    var modelFiltre by mutableStateOf(JSONObject())
 
     var nakit by mutableStateOf(0.0)
     var toplam by mutableStateOf(0.0)
@@ -90,6 +91,7 @@ class Veri {
         val d = JSONObject(api(url, key, "/durum"))
         acilDurdurma = d.optBoolean("acil_durdurma")
         ayarlar = d.optJSONObject("ayarlar") ?: JSONObject()
+        modelFiltre = d.optJSONObject("model_filtre") ?: JSONObject()
         baslangic = ayarlar.optDouble("start_cash", 100.0)
 
         val p = JSONObject(api(url, key, "/portfoy"))

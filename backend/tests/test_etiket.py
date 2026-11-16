@@ -42,6 +42,23 @@ class EtiketTests(unittest.TestCase):
         self.assertAlmostEqual(o["al_sat_kaybi_pct"], 2.0)
         self.assertEqual(json.loads(o["cuzdan"])["skor"], "1.2")
 
+    def test_shadow_model_decision(self):
+        gorulen = []
+        class M:
+            def olasilik(self, satir):
+                gorulen.append(satir); return dict(olasilik=0.8, esik=0.5, surum="v1", secerdi=True)
+        self.e.model = M()
+        self.e.sinyal("W:s1", "W", "TOK", "buy", "s1", 999_990, 1.5, "KOPYALANDI", "")
+        self.run_all()
+        g = self.rows("SELECT * FROM golge_karar")
+        self.assertEqual([(x["event_id"], x["model_surumu"], x["secerdi"]) for x in g], [("W:s1", "v1", 1)])
+        self.assertAlmostEqual(gorulen[0]["al_sat_kaybi_pct"], 2.0)                    # t0 özellikleriyle çağrılır
+        class Bozuk:
+            def olasilik(self, satir): raise RuntimeError("x")
+        self.e.model = Bozuk(); self.t[0] += 4000
+        self.e.sinyal("W:s2", "W", "TOK2", "buy", "s2", self.t[0] - 1, 1.0, "KOPYALANDI", ""); self.run_all()
+        self.assertEqual(len(self.rows("SELECT * FROM etiket_olay")), 2)                # model hatası etiketlemeyi durdurmaz
+
     def test_horizons_and_source_sell(self):
         self.e.sinyal("W:s1", "W", "TOK", "buy", "s1", 0, 1, "KOPYALANDI", "ok"); self.run_all()
         self.q.carpan = 1.5; self.at(300)                                     # 5 dk

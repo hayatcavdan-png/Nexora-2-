@@ -175,19 +175,19 @@
    "kod": "N19",
    "ad": "Gölge karar",
    "grup": "Yapay zekâ",
-   "durum": "baslamadi",
-   "yuzde": 0,
-   "yapilan": "Planlandı",
-   "eksik": "En az 2 hafta işlemlere dokunmadan paralel karar; sınama ile tutarlılık"
+   "durum": "devam",
+   "yuzde": 40,
+   "yapilan": "Altyapı hazır: kabul edilmiş model (yz_model.json) varsa etiketlenen her sinyal için olasılık ve 'seçerdim/seçmezdim' kararı model sürümüyle kaydediliyor (işlemlere dokunmaz); model dosyası değişince yeniden başlatmadan yenileniyor; gölge raporu: seçilen/seçilmeyen/hepsi getirisi, kalibrasyon, kayma (yz_filtre.py)",
+   "eksik": "N18'de kabul edilmiş model (≥500 etiket) ve en az 2 hafta gölge çalışma"
   },
   {
    "kod": "N20",
    "ad": "Kontrollü devreye alma (paper)",
    "grup": "Yapay zekâ",
-   "durum": "baslamadi",
-   "yuzde": 0,
-   "yapilan": "Planlandı",
-   "eksik": "Paper kuralına model filtresi, geri alma anahtarı, kayma uyarısı; gerçek para yalnızca N12 onayıyla"
+   "durum": "devam",
+   "yuzde": 40,
+   "yapilan": "Altyapı hazır: paper kopyalamada model filtresi (elenen sinyal gölgede ölçülür, karar izine model sürümü ve olasılık yazılır); açma yalnızca sunucuda ve gölge kabulüyle (≥14 gün, ≥100 etiket, seçilenler hepsinden iyi, kayma ≤0,25); uygulamadan tek dokunuşla kapatma; model yok/bozuksa filtre uygulanmaz",
+   "eksik": "Gölge kabulünden sonra açma ve 2 hafta paper gözlemi; geri alma denemesi"
   },
   {
    "kod": "N21",

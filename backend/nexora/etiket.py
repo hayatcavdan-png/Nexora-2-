@@ -9,6 +9,7 @@ Takipteki her kaynak ALIM'ı için:
 Ayrı veritabanı (nexora_etiket.db). Canlı kopyalama öncelikli: teklif hattı boşken çalışır. Aynı cüzdan+token için
 30 dk içinde tek örnek alınır; günlük üst sınır ETIKET_GUNLUK. Geç kalınan ufuklar 'kaçırıldı' olarak işaretlenir
 (geç alınmış bir 5 dk etiketi yanıltıcı olur)."""
+from nexora.model_kapisi import golge_yaz
 import heapq, json, os, queue, sqlite3, threading, time
 
 from nexora.constants import USDC_MINT
@@ -38,11 +39,12 @@ def getiri(cikis_usdc, giris=ETIKET_USD):
 
 
 class Etiketci:
-    def __init__(self, db_path, quoter, bilgi=None, cuzdanlar=None, clock=time.time, sleep=time.sleep):
+    def __init__(self, db_path, quoter, bilgi=None, cuzdanlar=None, clock=time.time, sleep=time.sleep, model=None):
         self.db = sqlite3.connect(db_path, check_same_thread=False, timeout=10)
         self.db.row_factory = sqlite3.Row
         self.db.executescript(SEMA); self.db.commit()
         self.quoter, self.bilgi, self.cuzdanlar = quoter, bilgi, cuzdanlar or {}
+        self.model = model                              # N19: varsa her sinyale gölge model kararı yazılır (işleme dokunmaz)
         self.clock, self.sleep = clock, sleep
         self.lock = threading.Lock()
         self.yeni = queue.Queue(maxsize=500)
@@ -111,6 +113,12 @@ class Etiketci:
             k = ",".join(satir); self.db.execute(f"INSERT OR IGNORE INTO etiket_olay({k}) VALUES({','.join('?' * len(satir))})",
                                                  tuple(satir.values()))
             self.db.commit()
+            if satir["durum"] == "izleniyor" and self.model is not None:
+                try:
+                    k = self.model.olasilik(satir)
+                    if k is not None: golge_yaz(self.db, event_id, t0, k); self.db.commit()
+                except Exception:
+                    pass                                # gölge karar ölçümdür: hata etiketlemeyi durdurmaz
             if satir["durum"] == "izleniyor":
                 for u, (gec, _) in UFUKLAR.items(): heapq.heappush(self.plan, (t0 + gec, event_id, u))
                 heapq.heappush(self.plan, (t0 + KAYNAK_ZAMAN_ASIMI, event_id, "kaynak_asim"))

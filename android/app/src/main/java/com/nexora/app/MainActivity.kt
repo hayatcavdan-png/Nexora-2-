@@ -131,6 +131,12 @@ fun App() {
             yukleSessiz(); mesaj("Risk ayarı kaydedildi")
         } catch (e: Exception) { v.hata = "Kaydedilemedi: ${e.message}"; mesaj("Kaydedilemedi: ${e.message}") }
     }
+    fun modelKapat() = scope.launch {
+        try {
+            withContext(Dispatchers.IO) { api(url, key, "/model-filtre", true, "{\"acik\": false}") }
+            yukleSessiz(); mesaj("Yapay zekâ filtresi kapatıldı")
+        } catch (e: Exception) { v.hata = "Kapatılamadı: ${e.message}"; mesaj("Kapatılamadı: ${e.message}") }
+    }
     fun yedekIndir() = scope.launch {
         try {
             val yer = withContext(Dispatchers.IO) {
@@ -230,7 +236,7 @@ fun App() {
                     }
                     "takip" -> takipListesi(v)
                     "bot" -> {
-                        autoPilot(v, { ekran = "ana" }, { riskKaydet(it) }, { komut("/devam") }, { durdurOnay = true })
+                        autoPilot(v, { ekran = "ana" }, { riskKaydet(it) }, { komut("/devam") }, { durdurOnay = true }, { modelKapat() })
                         item(key = "bot_ayrinti") { Column(verticalArrangement = Arrangement.spacedBy(12.dp)) { BotEkrani(v, { durdurOnay = true }, { komut("/devam") }) } }
                         items(v.sinyaller, key = { "s_" + it.ts + it.token + it.yon }) { SinyalKarti(it) }
                     }

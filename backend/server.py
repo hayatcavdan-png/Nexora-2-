@@ -6,7 +6,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from nexora.core import Paper, CFG
 from nexora.live_tracker import latency_from_db
 from nexora.rapor import build_report
-from nexora import panel
+from nexora import model_kapisi, panel
 from nexora import gizle as _gizle
 _gizle.kur()
 import glob, yedek, threading, time as _time
@@ -120,7 +120,7 @@ class H(BaseHTTPRequestHandler):
             return
         if self.path == "/durum":
             self._send(200, dict(mod="PAPER", gercek_islem="KAPALI", acil_durdurma=paper.killed(), ayarlar=paper.ayarlar()["gecerli"],
-                                 takip_nabiz=paper.son_nabiz()))
+                                 takip_nabiz=paper.son_nabiz(), model_filtre=model_kapisi.ModelKapisi().durum()))
         elif self.path == "/portfoy": self._send(200, paper.portfolio())
         elif self.path == "/islemler": self._send(200, paper.trades())
         elif self.path == "/takip": self._send(200, takip_ozeti())
@@ -137,6 +137,9 @@ class H(BaseHTTPRequestHandler):
         elif self.path == "/saglik":
             self._send(200, panel.saglik(os.getenv("NEXORA_DB", "nexora_paper.db"), os.getenv("TRACKER_DB", "nexora_tracker.db")))
         elif self.path == "/ayarlar": self._send(200, paper.ayarlar())
+        elif self.path == "/model-filtre":
+            self._send(200, dict(model_kapisi.ModelKapisi().durum(),
+                                 golge=model_kapisi.golge_rapor(os.getenv("ETIKET_DB", "nexora_etiket.db"))))
         elif self.path == "/rapor":
             self._send(200, build_report(os.getenv("NEXORA_DB", "nexora_paper.db"), os.getenv("TRACKER_DB", "nexora_tracker.db")))
         else: self._send(404, {"hata": "yok"})
@@ -167,6 +170,13 @@ class H(BaseHTTPRequestHandler):
                 self._send(200, paper.ayar_degistir(json.loads(raw or b"{}")))
             except ValueError as e:
                 self._send(400, {"hata": str(e)})
+        elif self.path == "/model-filtre":                 # N20: uygulamadan YALNIZCA kapatılabilir (tek dokunuş geri alma)
+            try: d = json.loads(raw or b"{}")
+            except ValueError: d = {}
+            if d.get("acik") is False:
+                model_kapisi.filtre_kapat(kaynak="uygulama"); self._send(200, model_kapisi.ModelKapisi().durum())
+            else:
+                self._send(403, {"hata": "model filtresi yalnızca sunucuda açılır (yz_filtre.py ac)"})
         elif self.path == "/sinyal":
             try:
                 s = json.loads(raw)

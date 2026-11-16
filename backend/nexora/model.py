@@ -59,6 +59,18 @@ class Model:
         """Standartlaştırılmış etki (eksiklik göstergeleri hariç), büyükten küçüğe."""
         return sorted(((k, round(self.w[2 * i], 4)) for i, k in enumerate(self.oz)), key=lambda x: -abs(x[1]))
 
+    @classmethod
+    def yukle(cls, d):
+        """kaydet() çıktısından modeli kurar. Eksik/bozuk alan ValueError verir."""
+        try:
+            m = cls(ozellikler=d["ozellikler"])
+            m.w, m.b = [float(x) for x in d["w"]], float(d["b"])
+            m.medyan, m.ort, m.std = dict(d["medyan"]), dict(d["ort"]), dict(d["std"])
+        except (KeyError, TypeError, ValueError) as e:
+            raise ValueError(f"model dosyası bozuk: {e}") from None
+        if len(m.w) != 2 * len(m.oz): raise ValueError("model ağırlık sayısı tutarsız")
+        return m
+
     def kaydet(self, yol, meta):
         with open(yol, "w") as f:
             json.dump(dict(surum=1, olusturma=time.time(), ozellikler=self.oz, w=self.w, b=self.b, medyan=self.medyan,

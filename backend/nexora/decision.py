@@ -23,8 +23,10 @@ def puan_agirligi(puanlar, wallet):
 
 
 class Decider:
-    def __init__(self, paper, quoter, safety, bilgi=None, yurutme=None, puanlar=None, izle=None):
+    def __init__(self, paper, quoter, safety, bilgi=None, yurutme=None, puanlar=None, izle=None, kapi=None):
         self.paper, self.quoter, self.safety = paper, quoter, safety
+        self.kapi = kapi              # N20: model filtresi (yalnızca açıkça açıldıysa ve model varsa etkili)
+        self._yas = None
         self.izle = set(izle or ())   # yalnızca izlenen cüzdanlar: sinyalleri etiketlenir, alımları kopyalanmaz (satış açık pozisyonu kapatır)
         self.puanlar = puanlar or {}  # N7: cüzdan -> analiz skoru (yalnızca büyüklük karşılaştırma ölçümü için)
         self.bilgi = bilgi            # isteğe bağlı token bilgisi toplayıcı (yalnızca ölçüm; kararı etkilemez)
@@ -37,6 +39,7 @@ class Decider:
         p = self.paper
         if p.seen(event_id): return dict(decision="ATLANDI", reason="tekrarlanan olay")
         iz = []                       # N1: her adımın girdisi ve sonucu (değiştirilemez kayıt)
+        self._yas = signal_age_s
         r = None
         try:
             if side == "sell": self._close_shadows(event_id, wallet, token)
@@ -101,6 +104,19 @@ class Decider:
             if p.shadow_open(event_id, wallet, token, size, q["out_amount"], s["decimals"], rt, q["price_impact_pct"], why):
                 self._olc(event_id, token)
             return p.reject(event_id, wallet, token, "buy", why)
+        if self.kapi is not None:
+            try:
+                k = self.kapi.izin(wallet, token, self._yas, q["price_impact_pct"], round(rt, 4))
+            except Exception as e:                       # filtre arızası alımı engellemez; izde görünür
+                k = None; iz.append(dict(adim="model", sonuc=f"hata: {type(e).__name__}"))
+            if k is not None:
+                iz.append(dict(adim="model", sonuc="geçti" if k["secerdi"] else "eledi", olasilik=k["olasilik"],
+                               esik=k["esik"], surum=k["surum"]))
+                if not k["secerdi"]:
+                    why = f"model olasılığı düşük (%{100 * k['olasilik']:.0f} < %{100 * k['esik']:.0f})"
+                    if p.shadow_open(event_id, wallet, token, size, q["out_amount"], s["decimals"], rt, q["price_impact_pct"], why):
+                        self._olc(event_id, token)
+                    return p.reject(event_id, wallet, token, "buy", why)
         etki = "etki bilinmiyor" if q["price_impact_pct"] is None else f"etki %{q['price_impact_pct']:.2f}"
         r = p.record_buy(event_id, wallet, token, size, q["out_amount"], s["decimals"],
                          note=f"{etki}, al-sat kaybı %{rt:.1f}")
