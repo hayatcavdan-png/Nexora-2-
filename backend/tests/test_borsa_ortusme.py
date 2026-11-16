@@ -16,6 +16,9 @@ class S:
         self.cagri.append(url)
         if "binance" in url:
             return R({"symbols": [{"baseAsset": "BONK", "status": "TRADING"}, {"baseAsset": "ESKI", "status": "BREAK"}]})
+        if "mexc" in url: return R({"symbols": [{"baseAsset": "YENI", "status": "1"}]})
+        if "okx" in url: return R({"data": [{"baseCcy": "BONK", "state": "live"}]})
+        if "kucoin" in url: return R({}, 503)
         if "tokens/v2" in url:
             return R([{"id": BONK, "symbol": "Bonk"}, {"id": SAHTE, "symbol": "BONK"}, {"id": YENI, "symbol": "YENI"}])
         for m, v in self.gecko.items():
@@ -38,19 +41,22 @@ def db(now):
 class Test(unittest.TestCase):
     def test_olcum(self):
         now = time.time(); t, p = db(now)
-        s = S({BONK: R({"tickers": [{"market": {"identifier": "binance"}}]}), SAHTE: R({}, 404)})
+        s = S({BONK: R({"tickers": [{"market": {"identifier": "binance"}}, {"market": {"identifier": "okex"}}]}), SAHTE: R({}, 404),
+               YENI: R({"tickers": [{"market": {"identifier": "mxc"}}]})})
         r = B.olc(s, t, p, 7, now, uyku=lambda x: None)
-        self.assertEqual((r["token"], r["sinyal"], r["kopya"]), (3, 10, 2))
-        self.assertEqual((r["sembol_eslesen"], r["dogrulanan"], r["dogrulanan_sinyal"]), (2, 1, 3))   # sahte BONK elendi
-        self.assertEqual((r["sinyal_payi_pct"], r["kopya_payi_pct"]), (30.0, 50.0))
-        self.assertEqual({x["mint"]: x["binance"] for x in r["tokenler"]}[BONK], "evet")
-        self.assertIn("hayır", [x for x in r["tokenler"] if x["mint"] == SAHTE][0]["binance"])
+        self.assertEqual((r["token"], r["sinyal"], r["kopya"], r["sembol_eslesen"]), (3, 10, 2, 3))
+        b = r["borsalar"]
+        self.assertEqual((b["Binance"]["sinyal_payi_pct"], b["Binance"]["kopya_payi_pct"]), (30.0, 50.0))      # sahte BONK elendi
+        self.assertEqual((b["OKX"]["token"], b["MEXC"]["sinyal_payi_pct"], b["KuCoin"]["okunamadi"]), (1, 50.0, True))
+        self.assertEqual((r["herhangi"]["sinyal_payi_pct"], r["herhangi"]["kopya_payi_pct"]), (80.0, 100.0))
+        tk = {x["mint"]: x["borsalar"] for x in r["tokenler"]}
+        self.assertEqual((tk[BONK], tk[YENI]), ("Binance, OKX", "MEXC")); self.assertIn("hiçbiri", tk[SAHTE])
 
     def test_dogrulanamayan_ust_sinir_ve_cikti(self):
         now = time.time(); t, p = db(now)
         s = S({BONK: R({}, 500), SAHTE: R({}, 429)})
         r = B.olc(s, t, p, 7, now, uyku=lambda x: None)
-        self.assertEqual((r["dogrulanan"], r["dogrulanamayan"], r["sinyal_payi_pct"], r["ust_sinir_pct"]), (0, 2, 0.0, 50.0))
+        self.assertEqual((r["herhangi"]["token"], r["dogrulanamayan"], r["herhangi"]["sinyal_payi_pct"], r["ust_sinir_pct"]), (0, 2, 0.0, 50.0))
         bos = B.olc(s, os.path.join(tempfile.mkdtemp(), "yok.db"), p, 7, now)
         self.assertEqual(bos["token"], 0)
 
