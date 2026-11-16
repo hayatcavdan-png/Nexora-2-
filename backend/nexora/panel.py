@@ -67,7 +67,7 @@ def dusus(pts, start):
 
 
 def cuzdanlar(paper_path, tracker_path, analiz_csv="cuzdan_analiz.csv", tarama_csv="cuzdan_tarama.csv",
-              kayip_json="takip_kaybi.json"):
+              kayip_json="takip_kaybi.json", gecmis_db=None):
     """Takip edilen ve analiz edilen cüzdanlar: analiz metrikleri + takip durumu + paper performansı."""
     tracked = [w for w in _read_list("wallets.txt") if w not in set(_read_list("kara_liste.txt"))]
     black = _read_list("kara_liste.txt")
@@ -97,8 +97,12 @@ def cuzdanlar(paper_path, tracker_path, analiz_csv="cuzdan_analiz.csv", tarama_c
         except ValueError: return None
 
     out = []
+    from nexora import analiz_gecmis
+    gecmis_db = gecmis_db or os.getenv("DNA_DB", "nexora_dna.db")
     for w in dict.fromkeys(tracked + [w for w, r in analiz.items() if r.get("karar") == "kopyalanabilir"]):
         a, s, p, k = analiz.get(w), status.get(w), perf.get(w, {}), kayip.get(w, {})
+        try: eg = analiz_gecmis.ozet(gecmis_db, [w])[0] if os.path.exists(gecmis_db) else {}
+        except Exception: eg = {}
         q = (s or {}).get("quarantined") or 0
         out.append(dict(
             wallet=w, takipte=w in tracked,
@@ -110,6 +114,9 @@ def cuzdanlar(paper_path, tracker_path, analiz_csv="cuzdan_analiz.csv", tarama_c
             kapanan_kaynak=num(a, "kapanan", lambda v: int(float(v))),
             skor=num(a, "skor") or 0.0,
             max_dusus_usd=num(a, "max_dusus_usd"), dusus_kazanc_orani=num(a, "dusus_kazanc_orani"),
+            kalite_puani=num(a, "kalite_puani", lambda v: int(float(v))), gerekce=(a or {}).get("gerekce") or "",
+            medyan_getiri=num(a, "medyan_getiri"), son_yari_getiri=num(a, "son_yari_getiri"), en_iyi_haric_usd=num(a, "en_iyi_haric_usd"),
+            egilim=eg.get("egilim"), analiz_goruntu=eg.get("goruntu", 0), analiz_ts=eg.get("son_ts"),
             paper_sinyal=p.get("sinyal", 0), paper_kopyalanan=p.get("kopyalanan", 0),
             paper_kapanan=p.get("kapanan", 0), paper_kz=p.get("gerceklesen_kz", 0.0), paper_acik=p.get("acik", 0),
             takip_tur=k.get("islem", 0), takip_giris=k.get("giris_kaybi_ort"), takip_cikis=k.get("cikis_kaybi_ort"),
@@ -142,6 +149,11 @@ def kesif_olayi(path, son):
     if k.get("durum") == "hata":
         return dict(id=f"x{int(ts)}", ts=ts, tur="risk", baslik="Otomatik keşif başarısız", metin=k.get("hata") or "bilinmeyen hata")
     yeni = k.get("kopyalanabilir") or []
+    bozuk = [b for b in (k.get("takip") or {}).get("bozulan") or [] if b.get("yeni")]
+    if not yeni and bozuk:                       # takipteki bir cüzdan yeni eşik altına düştü
+        satir = "; ".join(f"{b['wallet'][:4]}…{b['wallet'][-4:]} {b.get('karar')}: {b.get('gerekce')}" for b in bozuk[:3])
+        return dict(id=f"x{int(ts)}", ts=ts, tur="risk", baslik=f"Takipteki {len(bozuk)} cüzdan eşik altına düştü",
+                    metin=satir + ". Listeden çıkarmak sizin kararınız (wallets.txt).")
     if not yeni: return None
     satir = "; ".join(f"{c['wallet'][:4]}…{c['wallet'][-4:]} K/Z {c['gerceklesen_usd']:+.0f}$ kazanma %{100 * c['kazanma_orani']:.0f}"
                       for c in yeni[:3])

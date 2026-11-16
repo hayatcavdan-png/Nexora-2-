@@ -32,8 +32,8 @@
    "ad": "Cüzdan keşfi",
    "grup": "Seçim",
    "durum": "devam",
-   "yuzde": 88,
-   "yapilan": "413 cüzdan tarandı; 190 aday kârlılık analizinden geçti; bot, pasif, şüpheli ayrımı; hacim botu kalıbı otomatik tespit ediliyor; 3 cüzdan kara listede; zincirden yeni cüzdan keşfi aracı: kaynakların aldığı token'ları onlardan önce alan cüzdanlar (sınırlı kredi, elle çalışır); uygulamadan tek cüzdan analizi (Wallet DNA, günlük sınırlı); sunucuda keşif turu (40 token × 500 işlem): sniper/hızlı al-satçılar otomatik eleniyor; 27 adaydan 1 kopyalanabilir cüzdan (DVi9…TN7N) bulundu; yedekli ekleme aracı (cuzdan_ekle.py: ön izleme, --uygula, --geri); hesap türü ayrımı: eğri dışı (PDA), program, program hesabı ve boş adresler analizden önce ayıklanıyor (100 adres = 1 istek), bilinen_hesaplar.txt ile borsa/köprü etiketleme; takip listesi denetimi (hesap_denetim.py); günlük otomatik keşif (systemd zamanlayıcı, 05:40): yalnızca öneri üretir, yeni kopyalanabilir cüzdan veya hata uygulamaya bildirim olarak gelir; 14 gün içinde analiz edilen aday tekrar analiz edilmez; analiz sonuçları birleştirilerek saklanıyor",
+   "yuzde": 90,
+   "yapilan": "413 cüzdan tarandı; 190 aday kârlılık analizinden geçti; bot, pasif, şüpheli ayrımı; hacim botu kalıbı otomatik tespit ediliyor; 3 cüzdan kara listede; zincirden yeni cüzdan keşfi aracı: kaynakların aldığı token'ları onlardan önce alan cüzdanlar (sınırlı kredi, elle çalışır); uygulamadan tek cüzdan analizi (Wallet DNA, günlük sınırlı); sunucuda keşif turu (40 token × 500 işlem): sniper/hızlı al-satçılar otomatik eleniyor; 27 adaydan 1 kopyalanabilir cüzdan (DVi9…TN7N) bulundu; yedekli ekleme aracı (cuzdan_ekle.py: ön izleme, --uygula, --geri); hesap türü ayrımı: eğri dışı (PDA), program, program hesabı ve boş adresler analizden önce ayıklanıyor (100 adres = 1 istek), bilinen_hesaplar.txt ile borsa/köprü etiketleme; takip listesi denetimi (hesap_denetim.py); günlük otomatik keşif (systemd zamanlayıcı, 05:40): yalnızca öneri üretir, yeni kopyalanabilir cüzdan veya hata uygulamaya bildirim olarak gelir; 14 gün içinde analiz edilen aday tekrar analiz edilmez; analiz sonuçları birleştirilerek saklanıyor. Günlük takip denetimi: takipteki cüzdanlar her gün yeniden analiz edilir, eşik altına düşen bildirilir (listeden otomatik çıkarma yok).",
    "eksik": "Eklenen cüzdanların paper sonucunu izlemek (birkaç gün veri)"
   },
   {
@@ -41,8 +41,8 @@
    "ad": "Cüzdan kârlılığı",
    "grup": "Seçim",
    "durum": "devam",
-   "yuzde": 85,
-   "yapilan": "FIFO gerçekleşen K/Z, kazanma oranı, kâr faktörü, elde tutma; hesap açma/kapama düzeltmesi; 190 cüzdanda 7 kopyalanabilir; paper portföyde en büyük düşüş (drawdown) ölçümü; kaynak cüzdanlarda gerçekleşen K/Z eğrisinde en büyük düşüş; gerçekleşmemiş K/Z: kopyalanabilir çıkan cüzdanın açık pozisyonları güncel Jupiter satış teklifiyle değerleniyor (teklifsiz token değersiz sayılır); gerçekleşen + açık toplamı negatifse karar 'zayıf'a düşürülüyor",
+   "yuzde": 90,
+   "yapilan": "FIFO gerçekleşen K/Z, kazanma oranı, kâr faktörü, elde tutma; hesap açma/kapama düzeltmesi; 190 cüzdanda 7 kopyalanabilir; paper portföyde en büyük düşüş (drawdown) ölçümü; kaynak cüzdanlarda gerçekleşen K/Z eğrisinde en büyük düşüş; gerçekleşmemiş K/Z: kopyalanabilir çıkan cüzdanın açık pozisyonları güncel Jupiter satış teklifiyle değerleniyor (teklifsiz token değersiz sayılır); gerçekleşen + açık toplamı negatifse karar 'zayıf'a düşürülüyor. Sağlamlık ölçüleri: kalite puanı (0-100), medyan getiri, %95 güven alt sınırı, en iyi işlem hariç K/Z, iki yarı ve son 10 işlem formu, hızlı satış oranı, kayıp serisi; yeterli örnekte karara dahil. Analiz geçmişi veritabanı (cüzdan başına 60 görüntü) ve eğilim (bozuldu/iyileşti).",
    "eksik": "Uzun dönem (200 işlemden eski) geçmiş; SOL fiyatının işlem anına göre değil tek fiyatla hesaplanması"
   },
   {

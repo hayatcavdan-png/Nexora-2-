@@ -32,7 +32,53 @@ THRESHOLDS = dict(
     bot_flat_return=0.02,     # |getiri| < %2 olan satış "sıfır kârlı tur" sayılır
     bot_flat_share=0.6,       # satışların %60'ı sıfır kârlı tur ve...
     bot_same_token=5,         # ...aynı token'da en az 5 tur: hacim botu şüphesi
+    # --- sağlamlık (N4): kâr şans/tek işlem/eski form ürünü mü?
+    min_robust_n=8,           # aşağıdaki sağlamlık eşikleri en az bu kadar kapanmış satışla uygulanır
+    max_fast_share=0.5,       # satışların yarısından fazlası < min_hold_s tutulduysa takip edilemez
+    max_loss_streak=8,        # üst üste kayıp serisi
 )
+GUVEN_Z = 1.645               # tek yönlü %95
+
+
+def saglamlik(closed, min_hold_s=60):
+    """Kapanan satışlardan (zaman sıralı) sağlamlık ölçüleri. Ortalama tek başına yanıltır: bir büyük kazanç zayıf bir
+    cüzdanı iyi gösterebilir. Bu ölçüler 'kâr tekrarlanabilir mi?' sorusuna bakar."""
+    c = sorted((x for x in closed if x["cost"] > 0), key=lambda x: x["ts"])
+    n = len(c)
+    if n == 0:
+        return dict(medyan_getiri=0.0, getiri_guven_alt=None, en_iyi_haric_usd=0.0, hizli_satis_orani=0.0, max_kayip_serisi=0,
+                    ilk_yari_getiri=None, son_yari_getiri=None, son10_getiri=None, kalite_puani=0)
+    r = [x["pnl"] / x["cost"] for x in c]
+    ort = sum(r) / n
+    alt = None
+    if n > 1:
+        sd = (sum((v - ort) ** 2 for v in r) / (n - 1)) ** 0.5
+        alt = ort - GUVEN_Z * sd / n ** 0.5
+    pnl = [x["pnl"] for x in c]
+    seri = en_seri = 0
+    for v in pnl:
+        seri = seri + 1 if v < 0 else 0
+        en_seri = max(en_seri, seri)
+    tutma = [median(x["holds"]) for x in c if x["holds"]]
+    hizli = sum(1 for t in tutma if t < min_hold_s) / len(tutma) if tutma else 0.0
+    yari = n // 2
+    ilk = sum(r[:yari]) / yari if yari else None
+    son = sum(r[yari:]) / (n - yari) if n - yari else None
+    son10 = sum(r[-10:]) / len(r[-10:])
+    haric = sum(pnl) - max(pnl)
+    # 0-100 kalite puanı: her biri kopyalanabilirliğin ayrı bir yönü; örneklem küçükse puan kısılır
+    puan = 0
+    puan += 25 if (alt is not None and alt > 0) else (10 if ort > 0 else 0)          # istatistiksel olarak pozitif
+    puan += 20 if median(r) > 0 else 0                                               # tipik işlem kârlı
+    puan += 20 if haric > 0 else 0                                                   # en iyi işlem olmadan da kârlı
+    puan += 15 if (ilk is not None and son is not None and ilk > 0 and son > 0) else 0   # iki yarıda da kârlı
+    puan += 10 if son10 > 0 else 0                                                   # güncel form
+    puan += 10 if hizli <= 0.25 else 0                                               # takip edilebilir hız
+    puan = round(puan * min(1.0, n / 20))
+    return dict(medyan_getiri=round(median(r), 4), getiri_guven_alt=round(alt, 4) if alt is not None else None,
+                en_iyi_haric_usd=round(haric, 2), hizli_satis_orani=round(hizli, 3), max_kayip_serisi=en_seri,
+                ilk_yari_getiri=round(ilk, 4) if ilk is not None else None, son_yari_getiri=round(son, 4) if son is not None else None,
+                son10_getiri=round(son10, 4), kalite_puani=puan)
 
 def _normalize(event):
     """WSOL ile yerel SOL'u aynı kuyrukta eşleştirmek için tek kimliğe indirger."""
@@ -123,6 +169,7 @@ def analyze(transactions, wallet, sol_usd):
         max_dusus_usd=round(dd, 2),
         dusus_kazanc_orani=round(dd / gains, 3) if gains > 0 else (1.0 if dd > 0 else 0.0),  # düşüş / toplam kazanç
         acik_lotlar=acik_lotlar,   # CSV'ye yazılmaz; gerceklesmemis() için
+        **saglamlik(closed, THRESHOLDS["min_hold_s"]),
     )
 
 
@@ -160,8 +207,18 @@ def verdict(m, t=THRESHOLDS):
     if m["ort_getiri"] < t["min_mean_return"]: reasons.append(f"işlem başı ortalama getiri %{100 * m['ort_getiri']:.1f}")
     if m["en_buyuk_token_payi"] > t["max_top_token_share"]:
         reasons.append(f"kazancın %{100 * m['en_buyuk_token_payi']:.0f}'i tek token'dan")
+    if m["kapanan"] >= t.get("min_robust_n", 10 ** 9):                # sağlamlık: yeterli örnek varsa uygulanır
+        if m.get("en_iyi_haric_usd", 1) <= 0: reasons.append(f"en iyi işlem çıkarılınca K/Z {m['en_iyi_haric_usd']} USD (tek işlem şansı)")
+        if m.get("medyan_getiri", 1) <= 0: reasons.append(f"medyan işlem getirisi %{100 * m['medyan_getiri']:.1f} (tipik işlem kârsız)")
+        if m.get("son_yari_getiri") is not None and m["son_yari_getiri"] <= 0:
+            reasons.append(f"son dönem ortalama getiri %{100 * m['son_yari_getiri']:.1f} (form düşmüş)")
+        if m.get("hizli_satis_orani", 0) > t["max_fast_share"]:
+            reasons.append(f"satışların %{100 * m['hizli_satis_orani']:.0f}'i {t['min_hold_s']} sn'den kısa tutulmuş")
+        if m.get("max_kayip_serisi", 0) > t["max_loss_streak"]: reasons.append(f"üst üste {m['max_kayip_serisi']} kayıp")
     return ("zayıf", reasons) if reasons else ("kopyalanabilir", ["tüm eşikler geçti"])
 
 def score(m):
-    """Kopyalanabilirler arasında sıralama: ortalama getiri x örnek büyüklüğü (aşırı küçük örnekleri cezalandırır)."""
-    return m["ort_getiri"] * min(1.0, m["kapanan"] / 20) * min(m["kar_faktoru"], 5)
+    """Kopyalanabilirler arasında sıralama: ortalama getiri x örnek büyüklüğü x kâr faktörü x kalite puanı.
+    Kalite puanı (0-100) tekrarlanabilirliği ölçer; eski kayıtlarda yoksa etkisizdir."""
+    kalite = 0.5 + m.get("kalite_puani", 50) / 100
+    return m["ort_getiri"] * min(1.0, m["kapanan"] / 20) * min(m["kar_faktoru"], 5) * kalite

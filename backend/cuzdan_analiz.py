@@ -13,7 +13,7 @@ from nexora.helius_client import HeliusClient, HeliusRPCError
 from nexora.market import JupiterQuoter, QuoteError
 from nexora.constants import WSOL_MINT, USDC_MINT
 from nexora.wallet_analysis import analyze, verdict, score, THRESHOLDS, gerceklesmemis
-from nexora import hesap_turu
+from nexora import hesap_turu, analiz_gecmis
 
 LIMIT = int(os.getenv("ANALIZ_LIMIT", "200"))
 UZUN_LIMIT = int(os.getenv("ANALIZ_UZUN_LIMIT", "500"))   # "eksik veri" çıkan (yavaş işlem yapan) cüzdan bu pencereyle bir kez daha denenir
@@ -23,7 +23,8 @@ FIELDS = ["wallet", "karar", "gerekce", "gerceklesen_usd", "kapanan", "kazanma_o
           "medyan_tutma_sn", "en_buyuk_token_payi", "token_sayisi", "swap", "alis", "satis", "eslesmeyen_satis",
           "acik_pozisyon", "ort_alis_usd", "pencere_gun", "islem", "hesap_ac_kapa", "sifir_tur_orani", "tek_token_tur", "skor",
           "max_dusus_usd", "dusus_kazanc_orani", "acik_token", "acik_maliyet_usd", "acik_deger_usd", "gerceklesmemis_usd",
-          "toplam_usd", "teklifsiz_token"]
+          "toplam_usd", "teklifsiz_token", "kalite_puani", "medyan_getiri", "getiri_guven_alt", "en_iyi_haric_usd",
+          "hizli_satis_orani", "max_kayip_serisi", "ilk_yari_getiri", "son_yari_getiri", "son10_getiri"]
 
 def read_list(path):
     if not os.path.exists(path): return []
@@ -63,7 +64,7 @@ def fetch(client, wallet, limit=None):
         raise ValueError("geçersiz yanıt")
     return res["data"]
 
-def main(client=None, quoter=None, sleep=time.sleep, list_path=None):
+def main(client=None, quoter=None, sleep=time.sleep, list_path=None, yaz_oneri=True, gecmis_db=None):
     if client is None and not os.getenv("HELIUS_API_KEY") and not os.getenv("SOLANA_RPC_URL"):
         sys.exit("HELIUS_API_KEY tanımlı değil: read -s HELIUS_API_KEY && export HELIUS_API_KEY")
     black = set(read_list("kara_liste.txt"))
@@ -116,9 +117,14 @@ def main(client=None, quoter=None, sleep=time.sleep, list_path=None):
     with open(OUT_CSV, "w", newline="") as f:
         wr = csv.DictWriter(f, fieldnames=FIELDS, extrasaction="ignore"); wr.writeheader(); wr.writerows(birlesik.values())
     good = sorted((r for r in rows if r["karar"] == "kopyalanabilir"), key=lambda r: -r["skor"])
-    with open(OUT_TXT, "w") as f:
-        f.write("# Kârlılık analizinden geçen cüzdanlar (en iyisi önce). wallets.txt'e kopyalamadan önce gözden geçirin.\n")
-        for r in good: f.write(r["wallet"] + "\n")
+    if yaz_oneri:
+        with open(OUT_TXT, "w") as f:
+            f.write("# Kârlılık analizinden geçen cüzdanlar (en iyisi önce). wallets.txt'e kopyalamadan önce gözden geçirin.\n")
+            for r in good: f.write(r["wallet"] + "\n")
+    try:                                                             # N4: analiz geçmişi (eğilim için)
+        analiz_gecmis.kaydet(gecmis_db or os.getenv("DNA_DB", "nexora_dna.db"), rows)
+    except Exception as e:
+        print(f"  Not: analiz geçmişi yazılamadı ({type(e).__name__})", flush=True)
 
     counts = {}
     for r in rows: counts[r["karar"]] = counts.get(r["karar"], 0) + 1
@@ -131,7 +137,7 @@ def main(client=None, quoter=None, sleep=time.sleep, list_path=None):
     for r in show:
         print(f"  {r['wallet'][:4]}…{r['wallet'][-4:]}  K/Z {r['gerceklesen_usd']:+.0f}$  {r['kapanan']} satış  "
               f"kazanma %{100 * r['kazanma_orani']:.0f}  KF {r['kar_faktoru']}  ort %{100 * r['ort_getiri']:.0f}  "
-              f"tutma {r['medyan_tutma_sn']} sn"
+              f"tutma {r['medyan_tutma_sn']} sn  kalite {r.get('kalite_puani', '—')}/100"
               + (f"  açık {r['acik_token']} token {r['gerceklesmemis_usd']:+.0f}$" if r.get("acik_token") else "")
               + f"  [{r['karar']}]")
     if not good: print("  (gerekçeler cuzdan_analiz.csv dosyasında)")

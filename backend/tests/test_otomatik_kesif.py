@@ -21,6 +21,7 @@ class Test(unittest.TestCase):
             w.writerow(dict(wallet=B, karar="çok hızlı", gerceklesen_usd=500, kapanan=90, kazanma_orani=0.5, kar_faktoru=2, skor=0, medyan_tutma_sn=11))
 
     def calis(self, **kw):
+        kw.setdefault("denetim", lambda: dict(denetlenen=0, bozulan=[]))      # testte ağa çıkılmaz
         with redirect_stdout(io.StringIO()): return O.calistir(**kw)
 
     def test_oneri_ve_gorulen(self):
@@ -57,6 +58,26 @@ class Test(unittest.TestCase):
         self.assertEqual(len(e), 1)
         self.assertEqual(e[0]["tur"], "kesif"); self.assertIn("1 yeni kopyalanabilir", e[0]["baslik"])
         self.assertIn("+119$", e[0]["metin"]); self.assertIn("--uygula", e[0]["metin"])
+
+    def test_takip_denetimi_bozulani_bildirir(self):
+        from nexora import analiz_gecmis as G
+        W = "9" * 43; db = os.path.join(self.d, "g.db")
+        G.kaydet(db, [dict(wallet=W, karar="kopyalanabilir", kalite_puani=80, gerceklesen_usd=50)], now=100.0)
+        def analiz():
+            rows = [dict(wallet=W, karar="zayıf", gerekce="son dönem ortalama getiri %-4.0 (form düşmüş)", kalite_puani=30, gerceklesen_usd=20)]
+            G.kaydet(db, rows, now=200.0); return rows
+        t = O.takip_denetimi(analiz=analiz, gecmis_db=db)
+        self.assertEqual((t["denetlenen"], t["iyi"], len(t["bozulan"])), (1, 0, 1)); self.assertTrue(t["bozulan"][0]["yeni"])
+        s = self.calis(kesif=lambda: [], now=3000.0, denetim=lambda: t)
+        self.assertEqual(s["takip"]["bozulan"][0]["wallet"], W)
+        e = panel.kesif_olayi("kesif_son.json", 0)
+        self.assertEqual(e["tur"], "risk"); self.assertIn("eşik altına", e["baslik"])
+        self.assertEqual(open("wallets.txt").read().strip(), W)                 # listeden kimse çıkarılmaz
+
+    def test_denetim_hatasi_kesfi_bozmaz(self):
+        def patla(): raise RuntimeError("ağ yok")
+        s = self.calis(kesif=lambda: [], now=4000.0, denetim=patla)
+        self.assertEqual(s["durum"], "tamam"); self.assertIn("RuntimeError", s["takip"]["hata"])
 
 
 if __name__ == "__main__":

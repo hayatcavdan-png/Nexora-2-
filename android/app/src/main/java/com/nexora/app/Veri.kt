@@ -39,7 +39,9 @@ data class CuzdanSatiri(val adres: String, val takipte: Boolean, val durum: Stri
                         val tutmaSn: Int?, val paperKopyalanan: Int, val paperKapanan: Int, val paperKz: Double, val paperAcik: Int,
                         val takipTur: Int = 0, val takipGiris: Double? = null, val takipCikis: Double? = null,
                         val takipKaynak: Double? = null, val takipBizim: Double? = null,
-                        val maxDusus: Double? = null, val dususOrani: Double? = null)
+                        val maxDusus: Double? = null, val dususOrani: Double? = null,
+                        val kalite: Int? = null, val gerekce: String = "", val medyanGetiri: Double? = null, val sonYari: Double? = null,
+                        val enIyiHaric: Double? = null, val egilim: String = "", val goruntu: Int = 0)
 data class Asama(val kod: String, val ad: String, val durum: String, val yuzde: Int, val yapilan: String, val eksik: String)
 data class Nokta2(val ts: Double, val deger: Double)
 data class RadarToken(val token: String, val sembol: String, val ad: String, val fiyat: Double?, val degisim: Double?,
@@ -147,7 +149,9 @@ class Veri {
                     x.dbl("medyan_tutma_sn")?.toInt(), x.optInt("paper_kopyalanan"), x.optInt("paper_kapanan"),
                     x.optDouble("paper_kz", 0.0), x.optInt("paper_acik"),
                     x.optInt("takip_tur"), x.dbl("takip_giris"), x.dbl("takip_cikis"), x.dbl("takip_kaynak"), x.dbl("takip_bizim"),
-                    x.dbl("max_dusus_usd"), x.dbl("dusus_kazanc_orani"))
+                    x.dbl("max_dusus_usd"), x.dbl("dusus_kazanc_orani"),
+                    x.dbl("kalite_puani")?.toInt(), x.str("gerekce"), x.dbl("medyan_getiri"), x.dbl("son_yari_getiri"),
+                    x.dbl("en_iyi_haric_usd"), x.str("egilim"), x.optInt("analiz_goruntu"))
             }
         } catch (e: Exception) { eksik += "cüzdanlar" }
 

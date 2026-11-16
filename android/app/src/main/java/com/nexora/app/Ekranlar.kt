@@ -236,6 +236,21 @@ fun CuzdanKarti(sira: Int, c: CuzdanSatiri) {
             Etiket(c.karar, kararRengi(c.karar))
             Text("kaynak K/Z ${c.kaynakKz?.let { isaretli(it) } ?: "—"} $", color = Nx.Soluk, fontSize = 12.sp)
         }
+        if (c.kalite != null) {
+            val kr = when { c.kalite >= 70 -> Nx.Nane; c.kalite >= 40 -> Nx.Sari; else -> Nx.Kirmizi }
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Kalite ${c.kalite}/100", color = kr, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                Box(Modifier.weight(1f).height(6.dp).clip(CircleShape).background(Nx.Cizgi)) {
+                    Box(Modifier.fillMaxWidth(c.kalite.coerceIn(0, 100) / 100f).fillMaxHeight().clip(CircleShape).background(kr))
+                }
+                when (c.egilim) { "bozuldu" -> Etiket("▼ bozuluyor", Nx.Kirmizi); "iyilesti" -> Etiket("▲ iyileşiyor", Nx.Nane); "ayni" -> Etiket("● sabit", Nx.Soluk) }
+            }
+            fun y(x: Double?) = x?.let { (if (it >= 0) "+" else "") + yuzde(it * 100) } ?: "—"
+            Text("Tipik işlem ${y(c.medyanGetiri)} · son dönem ${y(c.sonYari)} · en iyi işlem hariç ${c.enIyiHaric?.let { isaretli(it) } ?: "—"} $",
+                 color = Nx.Soluk, fontSize = 12.sp)
+        }
+        if (c.karar != "kopyalanabilir" && c.gerekce.isNotEmpty() && c.gerekce != "tüm eşikler geçti")
+            Text("Neden: ${c.gerekce}", color = Nx.Sari, fontSize = 12.sp)
         if (c.maxDusus != null && c.maxDusus > 0)
             Text("En büyük düşüş ${usd(c.maxDusus)} $" + (c.dususOrani?.let { " (kazancın %${(it * 100).toInt()}'i)" } ?: ""),
                  color = if ((c.dususOrani ?: 0.0) > 0.5) Nx.Sari else Nx.Soluk, fontSize = 12.sp)

@@ -87,9 +87,19 @@ def dna_ozeti(m, karar, gerekce):
         dict(ad="Veri penceresi", deger=f"{_f(m.get('pencere_gun')) or 0:.1f} gün", iyi=(_f(m.get("pencere_gun")) or 0) >= 3),
         dict(ad="Bot / hacim kalıbı", deger="Var" if karar == "bot şüphesi" else "Düşük", iyi=karar != "bot şüphesi"),
     ]
+    if m.get("kalite_puani") is not None and (_f(m.get("kapanan")) or 0) > 0:      # N4 sağlamlık ölçüleri
+        kal = int(_f(m.get("kalite_puani")) or 0); med = _f(m.get("medyan_getiri")) or 0
+        son = _f(m.get("son_yari_getiri")); haric = _f(m.get("en_iyi_haric_usd")) or 0
+        kontrol += [
+            dict(ad="Tekrarlanabilirlik (kalite)", deger=f"{kal}/100", iyi=kal >= 60),
+            dict(ad="Tipik işlem (medyan getiri)", deger=f"%{med * 100:+.1f}", iyi=med > 0),
+            dict(ad="Güncel form (son dönem)", deger="—" if son is None else f"%{son * 100:+.1f}", iyi=son is not None and son > 0),
+            dict(ad="En iyi işlem hariç K/Z", deger=f"{haric:+.0f} $", iyi=haric > 0),
+        ]
     return dict(puan=puan, risk=risk, karar=karar, gerekce=gerekce, kontrol=kontrol,
                 metrik={k: m.get(k) for k in ("kazanma_orani", "kar_faktoru", "ort_getiri", "kapanan", "gerceklesen_usd",
-                                              "medyan_tutma_sn", "max_dusus_usd", "dusus_kazanc_orani", "swap", "token_sayisi")},
+                                              "medyan_tutma_sn", "max_dusus_usd", "dusus_kazanc_orani", "swap", "token_sayisi",
+                                              "kalite_puani", "medyan_getiri", "son_yari_getiri", "en_iyi_haric_usd", "max_kayip_serisi")},
                 yorum=f"Karar: {karar}. " + (gerekce or ""))
 
 
