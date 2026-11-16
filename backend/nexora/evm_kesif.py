@@ -13,10 +13,38 @@ from nexora.evm import TRANSFER, ZINCIRLER, EvmHatasi, _adr, _konu
 
 DS = "https://api.dexscreener.com"
 DS_ZINCIR = {"bnb": "bsc", "base": "base"}
+GT = "https://api.geckoterminal.com/api/v2/networks/{}/{}"
+GT_ZINCIR = {"bnb": "bsc", "base": "base"}
+
+
+def _iso(v):
+    import datetime
+    try: return datetime.datetime.fromisoformat(str(v).replace("Z", "+00:00")).timestamp()
+    except (ValueError, TypeError): return 0.0
+
+
+def gt_havuzlari(s, zincir, timeout=15, uyku=time.sleep):
+    """GeckoTerminal (anahtarsız): zincirin yükselen ve yeni havuzları -> {token: dict(lik, cift, ts, hacim)}."""
+    out = {}
+    for i, yol in enumerate(("trending_pools", "new_pools", "pools")):
+        if i: uyku(2.1)                                          # herkese açık hız sınırı (dakikada ~30)
+        try:
+            d = s.get(GT.format(GT_ZINCIR[zincir], yol), timeout=timeout).json()
+        except (requests.RequestException, ValueError):
+            continue
+        for p in (d or {}).get("data") or [] if isinstance(d, dict) else []:
+            a = p.get("attributes") or {}
+            tid = ((((p.get("relationships") or {}).get("base_token") or {}).get("data") or {}).get("id") or "")
+            tok = tid.split("_", 1)[-1].lower()
+            try: lik = float(a.get("reserve_in_usd") or 0); hacim = float((a.get("volume_usd") or {}).get("h24") or 0)
+            except (TypeError, ValueError): continue
+            if tok.startswith("0x") and lik > out.get(tok, {}).get("lik", -1):
+                out[tok] = dict(lik=lik, cift=(a.get("address") or "").lower(), ts=_iso(a.get("pool_created_at")), hacim=hacim)
+    return out
 SIFIR = "0x" + "0" * 40
 
 
-def sicak_tokenler(s, zincir, en_fazla=15, min_likidite=50_000, min_hacim=100_000, maks_yas_gun=7, now=None, timeout=15):
+def sicak_tokenler(s, zincir, en_fazla=15, min_likidite=50_000, min_hacim=100_000, maks_yas_gun=14, now=None, timeout=15, uyku=time.sleep):
     """[(token, çift, çift_oluşturma_ts, likidite, hacim24)] — likiditeli, hacimli ve son günlerde açılmış çiftler."""
     now = now or time.time(); hedef = DS_ZINCIR[zincir]
     adresler = []
@@ -28,7 +56,9 @@ def sicak_tokenler(s, zincir, en_fazla=15, min_likidite=50_000, min_hacim=100_00
                     if a not in adresler: adresler.append(a)
         except (requests.RequestException, ValueError, TypeError):
             continue
-    out = []
+    out, toplam = [], {}
+    def hepsi_ekle(tok, v):                                     # aynı token iki kaynaktan gelirse en likit çift kalır
+        if tok not in toplam or v["lik"] > toplam[tok]["lik"]: toplam[tok] = v
     for i in range(0, len(adresler), 30):
         try:
             ciftler = s.get(f"{DS}/tokens/v1/{hedef}/{','.join(adresler[i:i + 30])}", timeout=timeout).json() or []
@@ -41,9 +71,11 @@ def sicak_tokenler(s, zincir, en_fazla=15, min_likidite=50_000, min_hacim=100_00
             if tok in adresler and lik > en_iyi.get(tok, {}).get("lik", -1):
                 en_iyi[tok] = dict(lik=lik, cift=(p.get("pairAddress") or "").lower(), ts=(p.get("pairCreatedAt") or 0) / 1000,
                                   hacim=float((p.get("volume") or {}).get("h24") or 0))
-        for tok, v in en_iyi.items():
-            if v["lik"] >= min_likidite and v["hacim"] >= min_hacim and v["cift"] and 0 < now - v["ts"] <= maks_yas_gun * 86400:
-                out.append((tok, v["cift"], v["ts"], v["lik"], v["hacim"]))
+        for tok, v in en_iyi.items(): hepsi_ekle(tok, v)
+    for tok, v in gt_havuzlari(s, zincir, timeout, uyku).items(): hepsi_ekle(tok, v)
+    for tok, v in toplam.items():
+        if v["lik"] >= min_likidite and v["hacim"] >= min_hacim and v["cift"] and 0 < now - v["ts"] <= maks_yas_gun * 86400:
+            out.append((tok, v["cift"], v["ts"], v["lik"], v["hacim"]))
     return sorted(out, key=lambda x: -x[4])[:en_fazla]
 
 
@@ -58,12 +90,22 @@ def blok_bul(rpc, ts):
     return lo
 
 
+def _loglar(rpc, filtre, bas, son, en_az=25):
+    """eth_getLogs; düğüm aralık/sonuç sınırı derse aralığı ikiye bölerek yeniden dener."""
+    try:
+        return rpc.call("eth_getLogs", [dict(filtre, fromBlock=hex(bas), toBlock=hex(son))]) or []
+    except EvmHatasi as e:
+        m = str(e).lower()
+        if son - bas < en_az or not any(k in m for k in ("limit", "range", "too many", "exceed", "large")): raise
+        orta = (bas + son) // 2
+        return _loglar(rpc, filtre, bas, orta, en_az) + _loglar(rpc, filtre, orta + 1, son, en_az)
+
+
 def erken_alicilar(rpc, token, cift, bas_blok, pencere_blok=2400, parca=800):
     """Çiftten token'ı ilk `pencere_blok` blokta alan adresler (çiftin kendisi ve sıfır adres hariç)."""
     alicilar = set()
     for b in range(bas_blok, bas_blok + pencere_blok, parca):
-        for l in rpc.call("eth_getLogs", [{"address": token, "fromBlock": hex(b), "toBlock": hex(min(b + parca - 1, bas_blok + pencere_blok)),
-                                           "topics": [TRANSFER, _konu(cift)]}]) or []:
+        for l in _loglar(rpc, {"address": token, "topics": [TRANSFER, _konu(cift)]}, b, min(b + parca - 1, bas_blok + pencere_blok)):
             t = l.get("topics") or []
             if len(t) == 3: alicilar.add(_adr(t[2]))
     return alicilar - {cift, SIFIR}
