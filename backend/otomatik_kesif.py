@@ -1,4 +1,5 @@
-"""Günlük otomatik cüzdan keşfi (N3). Takip listesine DOKUNMAZ; yalnızca öneri üretir ve uygulamaya bildirir.
+"""Günlük otomatik cüzdan keşfi (N3). Solana takip listesine DOKUNMAZ; yalnızca öneri üretir ve uygulamaya bildirir.
+EVM ekosistemleri (BNB, Base; paper): yalnızca kârlılık analizinden "kopyalanabilir" çıkanlar, günde en fazla 2, toplam 15 sınırıyla eklenir.
 
 Sıra: keşif (KESIF_TOKEN=40, KESIF_SAYFA=5) -> hesap türü + kârlılık analizi -> ekleme ön izlemesi -> kesif_son.json.
 Son 14 günde analiz edilmiş adaylar yeniden analiz edilmez (kesif_gorulen.json), böylece kredi boşa gitmez.
@@ -47,7 +48,7 @@ def takip_denetimi(analiz=None, gecmis_db=None):
     return dict(denetlenen=len(rows), bozulan=bozulan, iyi=sum(1 for r in rows.values() if r.get("karar") == "kopyalanabilir"))
 
 
-def calistir(kesif=None, analiz=None, now=None, denetim=None, liste=None):
+def calistir(kesif=None, analiz=None, now=None, denetim=None, liste=None, evm=None):
     now = now if now is not None else time.time()
     kesif = kesif or cuzdan_kesif.main
     analiz = analiz or (lambda: cuzdan_analiz.main(list_path=cuzdan_kesif.OUT_TXT))
@@ -85,6 +86,21 @@ def calistir(kesif=None, analiz=None, now=None, denetim=None, liste=None):
         sonuc["takip"] = dict(denetlenen=0, bozulan=[], hata=str(e.code)[:160] if e.code else None)
     except Exception as e:
         sonuc["takip"] = dict(denetlenen=0, bozulan=[], hata=f"{type(e).__name__}: {str(e)[:120]}")
+    sonuc["evm"] = {}                           # N24/N25: EVM ekosistemleri (paper) — yalnızca "kopyalanabilir" çıkanlar,
+    from nexora import ekosistem as _eko        # günde en fazla 2, listede toplam en fazla 15 cüzdan
+    for e in _eko.EKOSISTEMLER:
+        if e["tur"] != "evm" or not e["aktif"]: continue
+        try:
+            if evm is not None: r = evm(e["id"])
+            else:
+                os.environ.setdefault("EVM_ANALIZ_ADAY", "10")
+                import evm_kesif
+                r = evm_kesif.main([e["id"], "--ekle"], ekle_en_fazla=2, liste_siniri=15)
+            sonuc["evm"][e["id"]] = dict(kopyalanabilir=len(r["iyi"]), eklenen=r["eklenen"], kararlar=r.get("kararlar", {}))
+        except SystemExit as x:
+            sonuc["evm"][e["id"]] = dict(eklenen=[], hata=str(x.code)[:160] if x.code else None)
+        except Exception as x:
+            sonuc["evm"][e["id"]] = dict(eklenen=[], hata=f"{type(x).__name__}: {str(x)[:120]}")
     try:                                        # Platform 2: borsa token listesi günde bir yenilenir
         from nexora import borsa_liste
         if not os.path.exists(borsa_liste.DOSYA) or now - os.path.getmtime(borsa_liste.DOSYA) > 20 * 3600:

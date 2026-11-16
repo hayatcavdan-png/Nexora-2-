@@ -23,6 +23,7 @@ class Test(unittest.TestCase):
     def calis(self, **kw):
         kw.setdefault("denetim", lambda: dict(denetlenen=0, bozulan=[]))      # testte ağa çıkılmaz
         kw.setdefault("liste", lambda: {})
+        kw.setdefault("evm", lambda z: dict(iyi=[], eklenen=[]))
         with redirect_stdout(io.StringIO()): return O.calistir(**kw)
 
     def test_oneri_ve_gorulen(self):
@@ -74,6 +75,16 @@ class Test(unittest.TestCase):
         e = panel.kesif_olayi("kesif_son.json", 0)
         self.assertEqual(e["tur"], "risk"); self.assertIn("eşik altına", e["baslik"])
         self.assertEqual(open("wallets.txt").read().strip(), W)                 # listeden kimse çıkarılmaz
+
+    def test_evm_kesfi_ve_bildirim(self):
+        X = "0x" + "ab" * 20
+        s = self.calis(kesif=lambda: [], now=5000.0, evm=lambda z: dict(iyi=[{"wallet": X}], eklenen=[X], kararlar={"kopyalanabilir": 1}))
+        self.assertEqual(s["evm"]["bnb"]["eklenen"], [X])
+        e = panel.kesif_olayi("kesif_son.json", 0)
+        self.assertEqual(e["tur"], "kesif"); self.assertIn("EVM", e["baslik"]); self.assertIn("BNB Chain", e["metin"])
+        def patla(z): raise SystemExit("Aktif aday kalmadı.")
+        s = self.calis(kesif=lambda: [], now=6000.0, evm=patla)
+        self.assertEqual(s["durum"], "tamam"); self.assertIn("Aktif aday", s["evm"]["bnb"]["hata"])
 
     def test_denetim_hatasi_kesfi_bozmaz(self):
         def patla(): raise RuntimeError("ağ yok")

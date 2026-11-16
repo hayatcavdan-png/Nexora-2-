@@ -16,7 +16,7 @@ ANALIZ = int(os.getenv("EVM_ANALIZ_ADAY", "20")); GUN = int(os.getenv("EVM_ANALI
 AKTIF_MIN, AKTIF_MAKS = 3, 300
 
 
-def main(argv, rpc=None, s=None):
+def main(argv, rpc=None, s=None, ekle_en_fazla=EKLE, liste_siniri=None):
     z = argv[0] if argv else "bnb"
     if z not in ZINCIRLER: sys.exit("zincir: bnb ya da base")
     c = ZINCIRLER[z]; rpc = rpc or EvmRpc(os.getenv(c["rpc_env"]) or c["rpc"]); s = s or requests.Session()
@@ -65,13 +65,18 @@ def main(argv, rpc=None, s=None):
     with open(f"evm_analiz_{z}.json", "w") as f: json.dump(sonuc, f, ensure_ascii=False, indent=1, default=str)
     kararlar = Counter(m["karar"] for m in sonuc)
     print("Sonuç: " + ", ".join(f"{k}: {v}" for k, v in kararlar.most_common()) + f" -> wallets_{z}_onerilen.txt")
+    yeni = []
     if "--ekle" in argv and iyi:
         hedef = ekosistem.bul(z)["cuzdan_dosyasi"]
-        if os.path.exists(hedef): shutil.copy(hedef, hedef + ".yedek")
-        yeni = [m["wallet"] for m in iyi if m["wallet"] not in mevcut][:EKLE]
-        with open(hedef, "a") as f: f.writelines(w + "\n" for w in yeni)
-        print(f"{hedef} dosyasına {len(yeni)} kopyalanabilir cüzdan eklendi; {c['ad']} takibi bir dakika içinde başlar (paper).")
-    return iyi
+        yer = ekle_en_fazla if liste_siniri is None else max(0, min(ekle_en_fazla, liste_siniri - len(mevcut)))
+        yeni = [m["wallet"] for m in iyi if m["wallet"] not in mevcut][:yer]
+        if yeni:
+            if os.path.exists(hedef): shutil.copy(hedef, hedef + ".yedek")
+            with open(hedef, "a") as f: f.writelines(w + "\n" for w in yeni)
+            print(f"{hedef} dosyasına {len(yeni)} kopyalanabilir cüzdan eklendi; {c['ad']} takibi bir dakika içinde başlar (paper).")
+        elif liste_siniri is not None and len(mevcut) >= liste_siniri:
+            print(f"{hedef} sınırda ({len(mevcut)}/{liste_siniri} cüzdan): ekleme yapılmadı.")
+    return dict(iyi=iyi, eklenen=yeni, kararlar=dict(kararlar))
 
 
 if __name__ == "__main__":

@@ -149,6 +149,12 @@ def kesif_olayi(path, son):
     if k.get("durum") == "hata":
         return dict(id=f"x{int(ts)}", ts=ts, tur="risk", baslik="Otomatik keşif başarısız", metin=k.get("hata") or "bilinmeyen hata")
     yeni = k.get("kopyalanabilir") or []
+    evm_yeni = {z: v.get("eklenen") or [] for z, v in (k.get("evm") or {}).items() if v.get("eklenen")}
+    if not yeni and evm_yeni:                    # yalnız EVM ekosistemlerine paper cüzdan eklendi
+        adlar = {"bnb": "BNB Chain", "base": "Base"}
+        satir = "; ".join(f"{adlar.get(z, z)}: {len(w)} cüzdan ({', '.join(x[:6] + '…' + x[-4:] for x in w)})" for z, w in evm_yeni.items())
+        return dict(id=f"x{int(ts)}", ts=ts, tur="kesif", baslik=f"Keşif: {sum(len(w) for w in evm_yeni.values())} yeni EVM cüzdanı paper takipte",
+                    metin=satir + ". Yalnızca kârlılık analizinden 'kopyalanabilir' çıkanlar eklenir.")
     bozuk = [b for b in (k.get("takip") or {}).get("bozulan") or [] if b.get("yeni")]
     if not yeni and bozuk:                       # takipteki bir cüzdan yeni eşik altına düştü
         satir = "; ".join(f"{b['wallet'][:4]}…{b['wallet'][-4:]} {b.get('karar')}: {b.get('gerekce')}" for b in bozuk[:3])

@@ -222,17 +222,17 @@
    "grup": "Faz 2 · Çoklu platform",
    "durum": "devam",
    "yuzde": 75,
-   "yapilan": "EVM bağdaştırıcısı (BNB Chain ve Base ortak): salt okunur JSON-RPC (gönderim yöntemi yok), blok aralığında cüzdan transferlerini tarama, makbuzdan swap çözücü (ERC-20, yerel coin ile alım, sarılı coin açılarak satım), KyberSwap alış ve geri satış teklifi, GoPlus güvenlik kontrolü (honeypot, %5 üstü vergi, satılamama, kara liste, likidite); platform 1 ile aynı risk kurallarıyla ayrı paper portföy (nexora_bnb.db); nexora-bnb servisi (cüzdan yoksa bekler); evm_dene.py canlı doğrulama aracı. Sunucuda doğrulandı (16.11): düğüm (zincir 56), KyberSwap teklifi, GoPlus güvenliği, DexScreener likidite yedeği çalışıyor; nexora-bnb servisi aktif. Cüzdan keşfi 1. yarı (evm_kesif.py): DexScreener yükselen token'ları, çiftten ilk ~30 dakikada token alan gerçek kullanıcı cüzdanları (sözleşmeler ayıklanır), birden çok token'ı erken alanlar aday. Keşif 2. yarı: cüzdan kârlılık analizi (zincirden swaplar, FIFO, Solana ile aynı karar ve sağlamlık kuralları), aktiflik ön taraması, bot tipi adres eleme; PancakeSwap v4'te olay kaydı bırakmayan BNB ödemeleri bakiye farkından çözülür (canlı takip ve analiz). 16.11: ilk 2 kopyalanabilir BNB cüzdanı bulundu ve paper takibe alındı (0x6da8…: 12 kapanan, %92 kazanma, kalite 60; 0xd7d8…: 9 kapanan, %100, kalite 45).",
-   "eksik": "1 hafta paper ölçüm (≥%95 doğru çözüm, satılamayan token'a giriş yok); 'yetersiz veri' çıkan aktif cüzdanların nedeninin teşhisi (çözülemeyen işlem sayısı artık gösteriliyor); daha fazla BNB cüzdanı; günlük otomatik BNB keşfi"
+   "yapilan": "EVM bağdaştırıcısı (BNB Chain ve Base ortak): salt okunur JSON-RPC (gönderim yöntemi yok), blok aralığında cüzdan transferlerini tarama, makbuzdan swap çözücü (ERC-20, yerel coin ile alım, sarılı coin açılarak satım), KyberSwap alış ve geri satış teklifi, GoPlus güvenlik kontrolü (honeypot, %5 üstü vergi, satılamama, kara liste, likidite); platform 1 ile aynı risk kurallarıyla ayrı paper portföy (nexora_bnb.db); nexora-bnb servisi (cüzdan yoksa bekler); evm_dene.py canlı doğrulama aracı. Sunucuda doğrulandı (16.11): düğüm (zincir 56), KyberSwap teklifi, GoPlus güvenliği, DexScreener likidite yedeği çalışıyor; nexora-bnb servisi aktif. Cüzdan keşfi 1. yarı (evm_kesif.py): DexScreener yükselen token'ları, çiftten ilk ~30 dakikada token alan gerçek kullanıcı cüzdanları (sözleşmeler ayıklanır), birden çok token'ı erken alanlar aday. Keşif 2. yarı: cüzdan kârlılık analizi (zincirden swaplar, FIFO, Solana ile aynı karar ve sağlamlık kuralları), aktiflik ön taraması, bot tipi adres eleme; PancakeSwap v4'te olay kaydı bırakmayan BNB ödemeleri bakiye farkından çözülür (canlı takip ve analiz). 16.11: ilk 2 kopyalanabilir BNB cüzdanı bulundu ve paper takibe alındı (0x6da8…: 12 kapanan, %92 kazanma, kalite 60; 0xd7d8…: 9 kapanan, %100, kalite 45). Günlük otomatik BNB keşfi (her gece, Solana keşfinden sonra): yalnızca 'kopyalanabilir' çıkanlar paper takibe eklenir (günde en fazla 2, toplam 15), eklenince uygulamaya bildirim.",
+   "eksik": "1 hafta paper ölçüm (≥%95 doğru çözüm, satılamayan token'a giriş yok); 'yetersiz veri' çıkan aktif cüzdanların nedeninin teşhisi (çözülemeyen işlem sayısı artık gösteriliyor); daha fazla BNB cüzdanı"
   },
   {
    "kod": "N25",
    "ad": "Base ekosistemi",
    "grup": "Faz 2 · Çoklu platform",
-   "durum": "baslamadi",
-   "yuzde": 0,
-   "yapilan": "",
-   "eksik": "N24 bağdaştırıcısıyla Base ağı ve Base cüzdan keşfi; paper. Kabul: N24 ile aynı. Önkoşul: N24."
+   "durum": "devam",
+   "yuzde": 50,
+   "yapilan": "N24 EVM bağdaştırıcısıyla Base: zincir ayarı (zincir 8453, USDC 6 ondalık, WETH/USDC/USDT/DAI/USDbC karşı varlıklar, KyberSwap 'base', GoPlus 8453, DexScreener/GeckoTerminal 'base'), ayrı paper portföy (nexora_base.db), nexora-base servisi, günlük otomatik keşif, uygulamada aktif (paper).",
+   "eksik": "Sunucuda evm_dene.py base doğrulaması; Base herkese açık düğümünün geçmiş sorgu sınırları (gerekirse ücretsiz bir Base düğüm anahtarı); ilk Base cüzdanları; 1 hafta paper ölçüm"
   },
   {
    "kod": "N26",

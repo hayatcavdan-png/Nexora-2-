@@ -24,8 +24,8 @@ data class Ekosistem(val id: String, val ad: String, val acik: Boolean, val asam
 val EKOSISTEMLER = listOf(
     Ekosistem("tumu", "Tümü", true, ""),
     Ekosistem("solana", "Solana", true, ""),
-    Ekosistem("bnb", "BNB", false, "N24"),
-    Ekosistem("base", "Base", false, "N25"),
+    Ekosistem("bnb", "BNB", true, ""),
+    Ekosistem("base", "Base", true, ""),
     Ekosistem("ton", "TON", false, "N27"),
     Ekosistem("defi", "DeFi", false, "N26"),
 )

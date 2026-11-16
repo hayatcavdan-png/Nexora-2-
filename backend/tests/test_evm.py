@@ -88,6 +88,13 @@ class Test(unittest.TestCase):
         g3 = E.GoPlus("bnb", session=S({"result": {}}, {}))
         self.assertFalse(g3.kontrol(TOK)["uygun"])                                      # bilgi yoksa alınmaz
 
+    def test_base_ayni_bagdastirici(self):
+        zb = E.ZINCIRLER["base"]
+        self.assertEqual((zb["zincir_id"], zb["kyber"], zb["goplus"], zb["usd_ondalik"]), (8453, "base", "8453", 6))
+        al = E.coz({"from": W, "value": "0x0"}, dict(status="0x1", logs=[tr(zb["usd"], W, ROUTER, 5 * 10**6), tr(TOK, ROUTER, W, 9)]), W, "base")
+        self.assertEqual((al["yon"], al["karsi"], al["karsi_raw"]), ("buy", zb["usd"], 5 * 10**6))
+        self.assertIsNone(E.coz({"from": W, "value": "0x0"}, dict(status="0x1", logs=[tr(USDT, W, ROUTER, 5), tr(TOK, ROUTER, W, 9)]), W, "base"))  # BNB'nin USDT'si Base'de karşı varlık değil
+
     def test_rpc_salt_okunur(self):
         with self.assertRaises(ValueError): E.EvmRpc("http://x").call("eth_sendRawTransaction", ["0x00"])
         self.assertNotIn("eth_sendRawTransaction", E.EvmRpc.YONTEMLER); self.assertNotIn("eth_sendTransaction", E.EvmRpc.YONTEMLER)

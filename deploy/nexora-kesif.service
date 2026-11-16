@@ -1,5 +1,5 @@
 [Unit]
-Description=NEXORA gunluk otomatik cuzdan kesfi (yalniz oneri; takip listesine dokunmaz)
+Description=NEXORA gunluk otomatik cuzdan kesfi (Solana: oneri; EVM paper: yalniz kopyalanabilirler eklenir)
 After=network-online.target
 
 [Service]
@@ -8,5 +8,5 @@ User=nexora
 WorkingDirectory=/opt/nexora/backend
 EnvironmentFile=/etc/nexora.env
 ExecStart=/usr/bin/python3 -u otomatik_kesif.py
-TimeoutStartSec=1800
+TimeoutStartSec=3600
 Nice=10

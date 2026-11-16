@@ -23,7 +23,8 @@ ZINCIRLER = {
     "base": dict(ad="Base", zincir_id=8453, rpc_env="BASE_RPC_URL", rpc="https://mainnet.base.org", kyber="base", goplus="8453",
                  sarili="0x4200000000000000000000000000000000000006", usd="0x833589fcd6edb6e08f4c7c32d4f71b54bda02913", usd_ondalik=6,
                  karsi={"0x4200000000000000000000000000000000000006", "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
-                        "0xfde4c96c8593536e31f229ea8f37b2ada2699bb2", "0x50c5725949a6f0c72e6c4a641f24049a917db0cb"}),
+                        "0xfde4c96c8593536e31f229ea8f37b2ada2699bb2", "0x50c5725949a6f0c72e6c4a641f24049a917db0cb",
+                        "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca"}),
 }
 
 
