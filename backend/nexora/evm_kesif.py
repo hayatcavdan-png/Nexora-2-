@@ -97,11 +97,19 @@ def blok_bul(rpc, ts):
 
 
 def _loglar(rpc, filtre, bas, son, en_az=25):
-    """eth_getLogs; düğüm aralık/sonuç sınırı derse aralığı ikiye bölerek yeniden dener."""
+    """eth_getLogs; düğüm aralık/sonuç sınırı derse aralığı ikiye bölerek yeniden dener. Mesaj izin verilen blok sayısını
+    söylüyorsa (ör. Alchemy ücretsiz: "up to a 10 block range") doğrudan o boyutta parçalara böler."""
+    import re
     try:
         return rpc.call("eth_getLogs", [dict(filtre, fromBlock=hex(bas), toBlock=hex(son))]) or []
     except EvmHatasi as e:
         m = str(e).lower()
+        izin = re.search(r"(\d+)\s*block range", m)
+        if izin and "hız sınırı" not in m and son - bas + 1 > int(izin.group(1)) >= 1:
+            n = int(izin.group(1)); out = []
+            for b in range(bas, son + 1, n):
+                out += rpc.call("eth_getLogs", [dict(filtre, fromBlock=hex(b), toBlock=hex(min(b + n - 1, son)))]) or []
+            return out
         if "hız sınırı" in m or son - bas < en_az or not any(k in m for k in ("limit", "range", "too many", "exceed", "large")): raise
         orta = (bas + son) // 2
         return _loglar(rpc, filtre, bas, orta, en_az) + _loglar(rpc, filtre, orta + 1, son, en_az)

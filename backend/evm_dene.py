@@ -4,6 +4,7 @@ Hiçbir işlem gönderilmez, anahtar kullanılmaz."""
 import os, sys
 from nexora.evm import ZINCIRLER, EvmRpc, KyberTeklif, GoPlus, EvmHatasi
 
+ORNEK_CUZDAN = {"base": "0x3304e22ddaa22bcdc5fca2269b418046ae7b566a"}   # Base üzerinde bilinen etkin bir adres (yalnızca okuma denemesi)
 ORNEK = {"bnb": "0x0e09fabb73bd3ade0a17ecc321fd13a19e81ce82", "base": "0x940181a94a35a4569e4529a3cdfb74e38fd98631"}   # CAKE / AERO
 
 
@@ -33,6 +34,14 @@ def main(argv):
     ds = dexscreener_likidite(requests.Session(), z, ORNEK[z])
     print(f"4) DexScreener likidite: {'HATA' if ds is None else f'≈ {ds:,.0f} $'}")
     tamam &= g["likidite_usd"] > 0
+    if c.get("gezgin"):
+        from nexora.evm import gezgin_islemleri
+        try:
+            son = rpc.blok()
+            gi = gezgin_islemleri(requests.Session(), z, ORNEK_CUZDAN[z], son - 200_000, en_cok_sayfa=2)
+            print(f"5) Gezgin (Blockscout): {'HATA (yanıt yok)' if gi is None else f'{len(gi)} işlem okundu'}")
+        except Exception as ex:
+            print(f"5) Gezgin (Blockscout): HATA ({type(ex).__name__})")
     tamam &= g["gerekceler"] != ["güvenlik bilgisi alınamadı"]
     print("SONUÇ: " + ("tüm parçalar çalışıyor" if tamam else "eksik parça var (yukarıdaki HATA satırları)"))
     return tamam

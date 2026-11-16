@@ -20,7 +20,7 @@ ZINCIRLER = {
                 karsi={"0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c", "0x55d398326f99059ff775485246999027b3197955",
                        "0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d", "0xe9e7cea3dedca5984780bafc599bd69add087d56",
                        "0xc5f0f7b66764f6ec8c8dff7ba683102295e16409"}),
-    "base": dict(ad="Base", zincir_id=8453, rpc_env="BASE_RPC_URL", rpc="https://mainnet.base.org", kyber="base", goplus="8453",
+    "base": dict(ad="Base", zincir_id=8453, gezgin="https://base.blockscout.com", rpc_env="BASE_RPC_URL", rpc="https://mainnet.base.org", kyber="base", goplus="8453",
                  sarili="0x4200000000000000000000000000000000000006", usd="0x833589fcd6edb6e08f4c7c32d4f71b54bda02913", usd_ondalik=6,
                  karsi={"0x4200000000000000000000000000000000000006", "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
                         "0xfde4c96c8593536e31f229ea8f37b2ada2699bb2", "0x50c5725949a6f0c72e6c4a641f24049a917db0cb",
@@ -65,7 +65,7 @@ class EvmRpc:
             if hata and any(h in mesaj.lower() for h in self.HIZ):
                 if deneme < 3: self.uyku(1.5 * 2 ** deneme); continue
                 raise EvmHatasi("RPC hız sınırı (düğüm anahtarı gerekebilir)")
-            if hata: raise EvmHatasi(f"RPC: {mesaj[:120]}")
+            if hata: raise EvmHatasi(f"RPC: {mesaj[:300]}")
             if not isinstance(d, dict) or "result" not in d: raise EvmHatasi("RPC yanıtı boş")
             return d["result"]
 
@@ -221,3 +221,30 @@ def coz_tam(rpc, tx, makbuz, cuzdan, zincir, blok):
     if len(hareket - karsi) != 1 or hareket & karsi: return None  # tek token, karşı varlık olayı yok: bakiye denemeye değer
     f = yerel_fark(rpc, cuzdan, blok, tx, makbuz)
     return coz(tx, makbuz, cuzdan, zincir, yerel=f) if f else None
+
+
+def gezgin_islemleri(s, zincir, cuzdan, bas_blok, en_cok_sayfa=20, timeout=20):
+    """Blockscout (herkese açık gezgin) üzerinden cüzdanın ERC-20 transferlerinin işlem karmaları: {karma: blok}.
+    `bas_blok`tan eskiye inince durur. Gezgin yoksa ya da yanıt vermezse None (çağıran düğüm sorgusuna döner).
+    Blockscout sürümleri alan adlarını değiştirdi (tx_hash/transaction_hash, address/address_hash): ikisi de okunur."""
+    taban = ZINCIRLER[zincir].get("gezgin")
+    if not taban: return None
+    out, params = {}, {"type": "ERC-20"}
+    for _ in range(en_cok_sayfa):
+        try:
+            r = s.get(f"{taban}/api/v2/addresses/{cuzdan}/token-transfers", params=params, timeout=timeout)
+            d = r.json() if r.status_code == 200 else None
+        except (requests.RequestException, ValueError):
+            d = None
+        if not isinstance(d, dict): return out or None
+        eski = False
+        for x in d.get("items") or []:
+            try: blok = int(x.get("block_number") or x.get("block") or 0)
+            except (TypeError, ValueError): continue
+            karma = x.get("transaction_hash") or x.get("tx_hash")
+            if blok < bas_blok: eski = True; continue
+            if karma: out.setdefault(karma, blok)
+        sonraki = d.get("next_page_params")
+        if eski or not sonraki: break
+        params = dict({"type": "ERC-20"}, **{k: v for k, v in sonraki.items() if v is not None})
+    return out

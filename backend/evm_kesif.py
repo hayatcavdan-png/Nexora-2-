@@ -7,7 +7,7 @@ import json, os, shutil, sys
 from collections import Counter
 import requests
 from nexora import ekosistem
-from nexora.evm import ZINCIRLER, EvmRpc, KyberTeklif
+from nexora.evm import ZINCIRLER, EvmRpc, KyberTeklif, gezgin_islemleri
 from nexora import evm_analiz as A
 from nexora import evm_kesif as K
 
@@ -51,7 +51,8 @@ def main(argv, rpc=None, s=None, ekle_en_fazla=EKLE, liste_siniri=None):
     for i, w in enumerate(secilen, 1):
         try:
             sy = {}
-            m = A.analiz(A.swaplar(rpc, w, z, son - blok, son, sayac=sy), rpc, z, yerel, w)
+            gz = (lambda w_, b_: gezgin_islemleri(s, z, w_, b_)) if c.get("gezgin") else None
+            m = A.analiz(A.swaplar(rpc, w, z, son - blok, son, sayac=sy, gezgin=gz), rpc, z, yerel, w)
             m.update(islem=sy.get("islem", 0), cozulemeyen=sy.get("cozulemeyen", 0))
         except Exception as ex:
             m = dict(wallet=w, karar="hata", gerekce=f"{type(ex).__name__}: {str(ex)[:60]}", kapanan=0, gerceklesen_usd=0.0)
