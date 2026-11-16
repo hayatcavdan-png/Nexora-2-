@@ -8,7 +8,8 @@ Maliyet: token başına TEK istek (Helius getTransactionsForAddress, en fazla KE
 Varsayılan 10 token x 100 işlem = yaklaşık 100 kredi. Başlamadan önce tahmini maliyet yazılır.
 
 Çalıştır (backend klasöründe, HELIUS_API_KEY tanımlıyken):  python cuzdan_kesif.py
-Ayarlar: KESIF_TOKEN=10  KESIF_LIMIT=100  KESIF_PENCERE_SN=3600  KESIF_EN_AZ=2
+Ayarlar: KESIF_TOKEN=10  KESIF_LIMIT=100  KESIF_SAYFA=1  KESIF_PENCERE_SN=3600  KESIF_EN_AZ=2
+Hızlı al-satçılar (aynı token'ı KESIF_MIN_TUTMA_SN içinde satanlar; çoğu sniper bot) aday sayılmaz: kopyalanamazlar.
 Çıktılar: kesif_adaylar.csv (tüm erken alıcılar), wallets_kesif.txt (en az KESIF_EN_AZ token'da görünenler)"""
 import csv, os, sqlite3, sys
 from collections import defaultdict
@@ -20,6 +21,8 @@ TOKEN_SAYI = int(os.getenv("KESIF_TOKEN", "10"))
 LIMIT = int(os.getenv("KESIF_LIMIT", "100"))
 PENCERE = int(os.getenv("KESIF_PENCERE_SN", "3600"))
 EN_AZ = int(os.getenv("KESIF_EN_AZ", "2"))
+SAYFA = max(1, int(os.getenv("KESIF_SAYFA", "1")))
+MIN_TUTMA = int(os.getenv("KESIF_MIN_TUTMA_SN", "60"))
 OUT_CSV, OUT_TXT = "kesif_adaylar.csv", "wallets_kesif.txt"
 
 
@@ -52,20 +55,27 @@ def odeyici(tx):
     return k.get("pubkey") if isinstance(k, dict) else k
 
 
-def erken_alicilar(client, token, bt, pencere=PENCERE, limit=LIMIT):
-    """Token'ı [bt-pencere, bt) aralığında alan cüzdanlar. Helius zaman filtresini desteklemezse istemci tarafında süzülür."""
+def erken_alicilar(client, token, bt, pencere=PENCERE, limit=LIMIT, sayfa=SAYFA, min_tutma=MIN_TUTMA):
+    """Token'ı [bt-pencere, bt) aralığında alan cüzdanlar, hızlı al-satçılar hariç.
+    Dönüş: (alıcılar, işlem sayısı, elenen hızlı al-satçı sayısı). Helius zaman filtresini desteklemezse istemci tarafında süzülür."""
     opts = {"transactionDetails": "full", "limit": limit, "sortOrder": "desc", "commitment": "confirmed",
             "encoding": "jsonParsed", "maxSupportedTransactionVersion": 1,
             "filters": {"status": "succeeded", "blockTime": {"gte": bt - pencere, "lt": bt}}}
-    try:
-        res = client.call("getTransactionsForAddress", [token, opts])
-    except HeliusRPCError as e:
-        if getattr(e, "rpc_code", None) != -32602: raise
-        opts["filters"] = {"status": "succeeded"}                   # filtre desteklenmiyorsa: son işlemler
-        res = client.call("getTransactionsForAddress", [token, opts])
-    txs = res.get("data") if isinstance(res, dict) else None
-    if not isinstance(txs, list): raise ValueError("geçersiz yanıt")
-    alicilar = set()
+    txs = []
+    for _ in range(sayfa):
+        try:
+            res = client.call("getTransactionsForAddress", [token, dict(opts)])
+        except HeliusRPCError as e:
+            if getattr(e, "rpc_code", None) != -32602: raise
+            opts["filters"] = {"status": "succeeded"}               # filtre desteklenmiyorsa: son işlemler
+            res = client.call("getTransactionsForAddress", [token, dict(opts)])
+        veri = res.get("data") if isinstance(res, dict) else None
+        if not isinstance(veri, list): raise ValueError("geçersiz yanıt")
+        txs += veri
+        sonraki = res.get("paginationToken") if isinstance(res, dict) else None
+        if not sonraki or not veri: break
+        opts["paginationToken"] = sonraki
+    alis, satis = defaultdict(list), defaultdict(list)
     for tx in txs:
         if not isinstance(tx, dict): continue
         t = tx.get("blockTime") or 0
@@ -76,9 +86,11 @@ def erken_alicilar(client, token, bt, pencere=PENCERE, limit=LIMIT):
             r = decode_swap(tx, w)
         except (TypeError, ValueError):
             continue
-        if r.get("event_type") == "BUY" and r.get("token_mint") == token:
-            alicilar.add(w)
-    return alicilar, len(txs)
+        if r.get("token_mint") != token: continue
+        if r.get("event_type") == "BUY": alis[w].append(t)
+        elif r.get("event_type") == "SELL": satis[w].append(t)
+    hizli = {w for w, ts in alis.items() if any(0 <= s - min(ts) < min_tutma for s in satis.get(w, ()))}
+    return set(alis) - hizli, len(txs), len(hizli)
 
 
 def main(client=None, tracker_db=None, out_dir="."):
@@ -87,7 +99,7 @@ def main(client=None, tracker_db=None, out_dir="."):
     alimlar = kaynak_alimlar(tracker_db or os.getenv("TRACKER_DB", "nexora_tracker.db"), TOKEN_SAYI)
     if not alimlar: sys.exit("Takip veritabanında henüz kaynak alımı yok: takip bir süre çalışmalı.")
     print(f"{len(alimlar)} token incelenecek, token başına en fazla {LIMIT} işlem "
-          f"(tahmini en fazla {len(alimlar) * ((LIMIT + 99) // 100) * 10} Helius kredisi).", flush=True)
+          f"x {SAYFA} sayfa (tahmini en fazla {len(alimlar) * SAYFA * ((LIMIT + 99) // 100) * 10} Helius kredisi).", flush=True)
     client = client or HeliusClient(max_retries=2)
     bilinen = set(read_list("wallets.txt")) | set(read_list("kara_liste.txt"))
     for f in ("cuzdan_analiz.csv",):
@@ -95,11 +107,12 @@ def main(client=None, tracker_db=None, out_dir="."):
     gorulme = defaultdict(set)
     for token, kaynak, bt in alimlar:
         try:
-            alicilar, n = erken_alicilar(client, token, bt)
+            alicilar, n, elenen = erken_alicilar(client, token, bt)
         except (HeliusRPCError, ValueError) as e:
             print(f"  {token[:4]}…{token[-4:]}: atlandı ({e})", flush=True); continue
         alicilar -= {kaynak}
-        print(f"  {token[:4]}…{token[-4:]}: {n} işlem, {len(alicilar)} erken alıcı", flush=True)
+        print(f"  {token[:4]}…{token[-4:]}: {n} işlem, {len(alicilar)} erken alıcı"
+              + (f" ({elenen} hızlı al-satçı elendi)" if elenen else ""), flush=True)
         for w in alicilar: gorulme[w].add(token)
     satir = sorted(((w, len(t), ";".join(sorted(t))) for w, t in gorulme.items()), key=lambda x: -x[1])
     with open(os.path.join(out_dir, OUT_CSV), "w", newline="") as f:

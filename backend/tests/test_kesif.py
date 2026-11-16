@@ -23,6 +23,13 @@ def swap_tx(payer, token, t):
                   postBalances=[10**10 - 5000, 0, 0], preTokenBalances=pre, postTokenBalances=post))
 
 
+def sell_tx(payer, token, t):
+    tx = swap_tx(payer, token, t)
+    m = tx["meta"]; m["preTokenBalances"], m["postTokenBalances"] = m["postTokenBalances"], m["preTokenBalances"]
+    tx["transaction"]["signatures"] = [f"sat{payer}{t}"]
+    return tx
+
+
 class FakeClient:
     def __init__(self, by_token, filtre_hata=False): self.by_token, self.filtre_hata, self.calls = by_token, filtre_hata, []
     def call(self, method, params):
@@ -30,7 +37,11 @@ class FakeClient:
         token, opts = params
         if self.filtre_hata and "blockTime" in opts["filters"]:
             e = HeliusRPCError("filtre yok"); e.rpc_code = -32602; raise e
-        return {"data": self.by_token.get(token, [])}
+        v = self.by_token.get(token, [])
+        if isinstance(v, dict):                                     # sayfalı: {"p1": [...], "p2": [...]}
+            sayfa = opts.get("paginationToken") or "p1"
+            return {"data": v[sayfa], "paginationToken": v.get("sonraki_" + sayfa)}
+        return {"data": v}
 
 
 class KesifTests(unittest.TestCase):
@@ -64,7 +75,7 @@ class KesifTests(unittest.TestCase):
 
     def test_filter_fallback(self):
         cl = FakeClient({"TOKA": [swap_tx("X", "TOKA", 29_000)]}, filtre_hata=True)
-        al, n = K.erken_alicilar(cl, "TOKA", 30_000)
+        al, n, _ = K.erken_alicilar(cl, "TOKA", 30_000)
         self.assertEqual((al, n), ({"X"}, 1)); self.assertNotIn("blockTime", cl.calls[-1][1]["filters"])
 
 
@@ -75,6 +86,22 @@ class DususTests(unittest.TestCase):
         m = analyze(txs, W, 150.0)
         self.assertAlmostEqual(m["max_dusus_usd"], 10.0, places=1)
         self.assertAlmostEqual(m["dusus_kazanc_orani"], round(10 / 15, 3), places=2)
+
+
+class HizliElemeTests(unittest.TestCase):
+    def test_hizli_al_satci_elenir(self):
+        cl = FakeClient({"T": [swap_tx("BOT", "T", 900), sell_tx("BOT", "T", 911), swap_tx("TUTAN", "T", 800),
+                               sell_tx("TUTAN", "T", 950)]})
+        alicilar, n, elenen = K.erken_alicilar(cl, "T", 1000, pencere=3600, sayfa=1, min_tutma=60)
+        self.assertEqual((alicilar, n, elenen), ({"TUTAN"}, 4, 1))
+
+    def test_sayfalama(self):
+        cl = FakeClient({"T": {"p1": [swap_tx("A", "T", 900)], "sonraki_p1": "p2", "p2": [swap_tx("B", "T", 800)]}})
+        alicilar, n, _ = K.erken_alicilar(cl, "T", 1000, pencere=3600, sayfa=3, min_tutma=60)
+        self.assertEqual((alicilar, n, len(cl.calls)), ({"A", "B"}, 2, 2))
+        self.assertEqual(cl.calls[1][1]["paginationToken"], "p2")
+        cl = FakeClient({"T": {"p1": [swap_tx("A", "T", 900)], "sonraki_p1": "p2", "p2": [swap_tx("B", "T", 800)]}})
+        self.assertEqual(K.erken_alicilar(cl, "T", 1000, pencere=3600, sayfa=1)[0], {"A"})
 
 
 if __name__ == "__main__":
