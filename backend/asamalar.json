@@ -33,7 +33,7 @@
    "grup": "Seçim",
    "durum": "devam",
    "yuzde": 62,
-   "yapilan": "413 cüzdan tarandı; 190 aday kârlılık analizinden geçti; bot, pasif, şüpheli ayrımı; hacim botu kalıbı otomatik tespit ediliyor; 3 cüzdan kara listede; zincirden yeni cüzdan keşfi aracı: kaynakların aldığı token'ları onlardan önce alan cüzdanlar (sınırlı kredi, elle çalışır)",
+   "yapilan": "413 cüzdan tarandı; 190 aday kârlılık analizinden geçti; bot, pasif, şüpheli ayrımı; hacim botu kalıbı otomatik tespit ediliyor; 3 cüzdan kara listede; zincirden yeni cüzdan keşfi aracı: kaynakların aldığı token'ları onlardan önce alan cüzdanlar (sınırlı kredi, elle çalışır); uygulamadan tek cüzdan analizi (Wallet DNA, günlük sınırlı)",
    "eksik": "Keşif sonuçlarının analizi; borsa/LP/protokol hesaplarını ayırma"
   },
   {
@@ -131,9 +131,9 @@
    "ad": "Android uygulaması",
    "grup": "Ürün",
    "durum": "devam",
-   "yuzde": 85,
-   "yapilan": "Uygulama 3.13: neon arayüz; Ana Panel (bakiye, K/Z, başarı oranı, bot anahtarı, performans grafiği), Bot, Cüzdanlar, İşlemler, Rapor, Yol Haritası, Ayarlar; otomatik APK derleme; arka plan bildirimleri (alım, kapanış, risk, bot); Rapor'da zarar kesme ölçümü; token özellikleri kartı; risk sınırlarını değiştirme; PIN kilidi; bağlantı kopma uyarısı; yedeği telefona indirme; zincir kesinliği kartı; sakin tema; sistem sağlığı ve yürütme gecikmesi kartları; pozisyon durumu etiketi; cüzdan düşüşü ve büyüklük yöntemleri kartları; yapay zekâ verisi kartı",
-   "eksik": "HTTPS (sunucuda Tailscale ile şifreli); biyometrik giriş"
+   "yuzde": 90,
+   "yapilan": "Uygulama 4.0 (COMMAND X tasarımı): ateş kızılı X'li NEXORA logosu ve N amblemi simgesi; Ana Sayfa (bakiye, 24s değişim, aralıklı grafik, AutoPilot, Shield), Keşfet (gerçek Token Radar, Wallet DNA analizi, takip edilen cüzdanlar), AutoPilot X (risk seviyesi ve sınırlar), Portföy (elle paper işlem, pozisyonlar, geçmiş), Profil; aşağı çekip yenileme; optimize (R8) derleme; bildirimler, PIN kilidi, yedek indirme, rapor kartları",
+   "eksik": "Biyometrik giriş; gerçek kullanımda akıcılık geri bildirimi"
   },
   {
    "kod": "N15",
@@ -202,7 +202,7 @@
  "meta": [
   {
    "label": "Kaynak",
-   "value": "Claude'un proje değerlendirmesi, 16.11.2026 04:35. Yüzdeler tahmini; hiçbir aşama kabul kriterleri karşılanmadan tamamlandı sayılmaz. N16–N21: yapay zekâ seçim hattı (ana yol haritasından bağımsız)."
+   "value": "Claude'un proje değerlendirmesi, 16.11.2026 05:30. Yüzdeler tahmini; hiçbir aşama kabul kriterleri karşılanmadan tamamlandı sayılmaz. N16–N21: yapay zekâ seçim hattı (ana yol haritasından bağımsız)."
   }
  ]
 }

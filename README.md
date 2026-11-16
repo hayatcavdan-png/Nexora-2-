@@ -40,3 +40,6 @@ Telefon kapalıyken de çalışması için: [deploy/TASIMA.md](deploy/TASIMA.md)
 
 ## Yapay zekâ seçim hattı (N16–N21)
 Ana yol haritasından bağımsız: [docs/YZ_yol_haritasi.md](docs/YZ_yol_haritasi.md)
+
+## Yazı tipi
+Logo yazısı: Orbitron (Matt McInerney), SIL Open Font License 1.1. Derleme sırasında Google Fonts deposundan indirilir.
