@@ -123,7 +123,7 @@
    "grup": "Ürün",
    "durum": "devam",
    "yuzde": 82,
-   "yapilan": "Oracle Always Free sunucuda (Ubuntu 24.04) çalışıyor: systemd ile otomatik başlatma ve yeniden başlatma, Tailscale özel ağ (internete port açık değil), rastgele sunucu anahtarı, gece yedeği (14 gün), telefondaki veri taşındı (16.11.2026); 'takip durdu' ve 'sunucuya ulaşılamıyor' uyarıları; yedek her gün telefona da kopyalanıyor (İndirilenler/NEXORA); testli tek komut güncelleme; sunucuda araç çalıştırıcı (calistir.sh)",
+   "yapilan": "Oracle Always Free sunucuda (Ubuntu 24.04) çalışıyor: systemd ile otomatik başlatma ve yeniden başlatma, Tailscale özel ağ (internete port açık değil), rastgele sunucu anahtarı, gece yedeği (14 gün), telefondaki veri taşındı (16.11.2026); 'takip durdu' ve 'sunucuya ulaşılamıyor' uyarıları; yedek her gün telefona da kopyalanıyor (İndirilenler/NEXORA); testli tek komut güncelleme; sunucuda araç çalıştırıcı (calistir.sh); Jupiter ücretsiz sunucu anahtarı eklendi (teklif hızı 0,5 → 1 istek/sn, 16.11.2026)",
    "eksik": "Uzun süreli kesintisiz çalışma kanıtı"
   },
   {
