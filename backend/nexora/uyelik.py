@@ -129,8 +129,13 @@ class Uyelik:
         now = now or time.time()
         if not isinstance(yeni, str) or not 8 <= len(yeni) <= 128: raise UyelikHatasi("yeni parola 8-128 karakter olmalı")
         if yeni == (eski or ""): raise UyelikHatasi("yeni parola eskisiyle aynı olamaz")
+        sayac = f"parola:{uye_id}"                                   # ele geçirilmiş oturumla sınırsız deneme olmasın
+        self.db.execute("DELETE FROM giris_deneme WHERE ts<?", (now - GIRIS_PENCERE_SN,))
+        if self.db.execute("SELECT COUNT(*) FROM giris_deneme WHERE anahtar=?", (sayac,)).fetchone()[0] >= GIRIS_DENEME:
+            raise PermissionError("çok fazla deneme: 10 dakika sonra tekrar deneyin")
         r = self.db.execute("SELECT * FROM uye WHERE id=?", (uye_id,)).fetchone()
         if r is None or not hmac.compare_digest(_ozet(eski if isinstance(eski, str) else "", r["tuz"]), r["ozet"]):
+            self.db.execute("INSERT INTO giris_deneme VALUES(?,?)", (sayac, now)); self.db.commit()
             raise UyelikHatasi("mevcut parola hatalı")
         tuz = secrets.token_bytes(16)
         self.db.execute("UPDATE uye SET tuz=?, ozet=? WHERE id=?", (tuz, _ozet(yeni, tuz), uye_id))

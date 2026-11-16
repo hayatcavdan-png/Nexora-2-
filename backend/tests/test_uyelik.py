@@ -70,6 +70,13 @@ class Test(unittest.TestCase):
         with self.assertRaises(UyelikHatasi): u.giris("g@b.co", "eski-parola-1")
         self.assertIsNotNone(u.giris("g@b.co", "yeni-parola-2"))
 
+    def test_parola_degistirme_deneme_siniri(self):
+        u = Uyelik(); tok = u.kayit("k@b.co", "dogru-parola-1"); me = u.uye(tok)
+        for _ in range(5):
+            with self.assertRaises(UyelikHatasi): u.parola_degistir(me["id"], "yanlis-deneme", "yeni-parola-2")
+        with self.assertRaises(PermissionError): u.parola_degistir(me["id"], "dogru-parola-1", "yeni-parola-2")
+        self.assertIsNotNone(u.uye(tok))                                       # sınır aşılınca parola değişmedi, oturum açık
+
     def test_tum_oturumlari_kapat_borsa_anahtarina_dokunmaz(self):
         u = Uyelik(); tok = u.kayit("h@b.co", "parola-1234"); me = u.uye(tok)
         u.db.execute("INSERT INTO borsa_anahtar VALUES(?,?,?,?,?,?)", (me["id"], "okx", "v1:x", "••1", "{}", 0)); u.db.commit()
