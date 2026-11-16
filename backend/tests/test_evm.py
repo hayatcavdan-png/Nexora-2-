@@ -1,0 +1,99 @@
+import unittest
+from nexora import evm as E
+from nexora.evm_motor import EvmKarar, EvmTakip
+from nexora.core import Paper
+
+W = "0x" + "11" * 20; ROUTER = "0x" + "22" * 20; TOK = "0x" + "33" * 20
+Z = E.ZINCIRLER["bnb"]; USDT, WBNB = Z["usd"], Z["sarili"]
+
+
+def tr(token, frm, to, v):
+    return dict(address=token, topics=[E.TRANSFER, E._konu(frm), E._konu(to)], data=hex(v))
+
+
+class Rpc:
+    def __init__(self, blok=100, zaman=1000.0, txler=None):
+        self.b, self.zaman, self.txler = blok, zaman, txler or {}
+    def blok(self): return self.b
+    def blok_zamani(self, n): return self.zaman
+    def ondalik(self, t): return 18
+    def cuzdan_islemleri(self, w, bas, son):
+        self.aralik = (bas, son)
+        return {k: (v[2], W) for k, v in self.txler.items() if bas <= v[2] <= son}
+    def call(self, y, p):
+        tx, mk, _ = self.txler[p[0]]
+        return tx if y == "eth_getTransactionByHash" else mk
+
+
+class Teklif:
+    def __init__(self, oran=1.0, geri=0.98, hata=False): self.oran, self.geri, self.hata, self.n = oran, geri, hata, 0
+    def teklif(self, giris, cikis, miktar):
+        self.n += 1
+        if self.hata: raise E.EvmHatasi("rota yok")
+        if giris == USDT: return dict(cikis_raw=int(miktar * self.oran), giris_usd=0, cikis_usd=0)
+        return dict(cikis_raw=int(miktar / self.oran * self.geri), giris_usd=0, cikis_usd=0)
+
+
+class Guv:
+    def __init__(self, uygun=True, lik=1e6): self.uygun, self.lik = uygun, lik
+    def kontrol(self, t): return dict(uygun=self.uygun, gerekceler=["geçti"] if self.uygun else ["honeypot (satılamaz)"], likidite_usd=self.lik)
+
+
+class Test(unittest.TestCase):
+    def test_coz_alim_satim(self):
+        ok = dict(status="0x1")
+        al = E.coz(dict(**{"from": W}, value="0x0"), dict(ok, logs=[tr(USDT, W, ROUTER, 5 * 10**18), tr(TOK, ROUTER, W, 1000)]), W, "bnb")
+        self.assertEqual((al["yon"], al["token"], al["miktar_raw"], al["karsi"]), ("buy", TOK, 1000, USDT))
+        yerel = E.coz(dict(**{"from": W}, value=hex(10**17)), dict(ok, logs=[tr(TOK, ROUTER, W, 7)]), W, "bnb")
+        self.assertEqual((yerel["yon"], yerel["karsi"], yerel["karsi_raw"]), ("buy", E.YEREL, 10**17))          # BNB ile alım
+        sat = E.coz(dict(**{"from": W}, value="0x0"), dict(ok, logs=[tr(TOK, W, ROUTER, 7),
+                    dict(address=WBNB, topics=[E.WITHDRAWAL, E._konu(ROUTER)], data=hex(3 * 10**16))]), W, "bnb")
+        self.assertEqual((sat["yon"], sat["karsi"]), ("sell", E.YEREL))                                         # BNB'ye satım
+        self.assertIsNone(E.coz({}, dict(ok, logs=[tr(TOK, ROUTER, W, 5)]), W, "bnb"))                          # düz transfer: swap değil
+        self.assertIsNone(E.coz({}, dict(status="0x0", logs=[]), W, "bnb"))                                     # başarısız işlem
+        iki = dict(ok, logs=[tr(USDT, W, ROUTER, 5), tr(TOK, ROUTER, W, 1), tr("0x" + "44" * 20, ROUTER, W, 1)])
+        self.assertIsNone(E.coz({}, iki, W, "bnb"))                                                               # belirsiz (iki token)
+
+    def test_rpc_salt_okunur(self):
+        with self.assertRaises(ValueError): E.EvmRpc("http://x").call("eth_sendRawTransaction", ["0x00"])
+        self.assertNotIn("eth_sendRawTransaction", E.EvmRpc.YONTEMLER); self.assertNotIn("eth_sendTransaction", E.EvmRpc.YONTEMLER)
+
+    def k(self, **kw):
+        g = kw.pop("guv", Guv()); t = kw.pop("t", Teklif())
+        return EvmKarar(Paper(kayma=0.0, ekosistem="bnb"), Rpc(), t, g, "bnb")
+
+    def test_karar_al_sat(self):
+        k = self.k()
+        r = k.karar("e1", W, TOK, "buy", 2)
+        self.assertEqual(r["decision"], "KOPYALANDI"); self.assertEqual(k.p.trades()[0]["ekosistem"], "bnb")
+        k.t.oran = 0.8                                                                 # token değerlendi
+        r = k.karar("e2", W, TOK, "sell", 2)
+        self.assertEqual(r["decision"], "KOPYALANDI"); self.assertGreater(r["pnl"], 0)
+        self.assertEqual(k.karar("e2", W, TOK, "sell", 2)["decision"], "ATLANDI")
+
+    def test_reddler(self):
+        self.assertIn("honeypot", self.k(guv=Guv(False)).karar("e", W, TOK, "buy", 1)["reason"])
+        self.assertIn("al-sat kaybı", self.k(t=Teklif(geri=0.9)).karar("e", W, TOK, "buy", 1)["reason"])
+        self.assertIn("teklif yok", self.k(t=Teklif(hata=True)).karar("e", W, TOK, "buy", 1)["reason"])
+        self.assertEqual(self.k().karar("e", W, TOK, "buy", 60)["reason"], "sinyal bayat")
+        self.assertIn("likidite", self.k(guv=Guv(lik=1000)).karar("e", W, TOK, "buy", 1)["reason"])
+        self.assertEqual(self.k().karar("e", W, TOK, "sell", 1)["reason"], "sahip olunmayan pozisyon satılamaz")
+        k = self.k(guv=Guv(False)); k.karar("e", W, TOK, "buy", 1)
+        self.assertEqual(k.p.portfolio()["positions"], [])
+
+    def test_takip_turu(self):
+        ok = dict(status="0x1")
+        txler = {"0xa": (dict(**{"from": W}, value="0x0"), dict(ok, logs=[tr(USDT, W, ROUTER, 5 * 10**18), tr(TOK, ROUTER, W, 1000)]), 101),
+                 "0xb": (dict(**{"from": W}, value="0x0"), dict(ok, logs=[tr(TOK, ROUTER, W, 3)]), 102)}
+        rpc = Rpc(blok=100, zaman=1000.0, txler=txler)
+        k = EvmKarar(Paper(kayma=0.0, ekosistem="bnb"), rpc, Teklif(), Guv(), "bnb")
+        t = EvmTakip(rpc, k, [W.upper().replace("0X", "0x")], "bnb", clock=lambda: 1002.0)
+        self.assertEqual(t.tur(), []); self.assertEqual(rpc.aralik, (100, 100))                 # ilk tur: geçmişe dönmez
+        rpc.b = 105
+        o = t.tur()
+        self.assertEqual([(x["karma"], x["yon"], x["karar"]) for x in o], [("0xa", "buy", "KOPYALANDI")])   # düz transfer atlandı
+        self.assertEqual(rpc.aralik, (101, 105)); self.assertEqual(t.tur(), [])                    # aynı işlem iki kez işlenmez
+
+
+if __name__ == "__main__":
+    unittest.main()

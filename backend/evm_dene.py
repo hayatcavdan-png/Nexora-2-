@@ -1,0 +1,33 @@
+"""EVM bağdaştırıcısı canlı denemesi (salt okunur): düğüm, KyberSwap teklifi ve GoPlus güvenlik yanıtlarının biçimini doğrular.
+  python evm_dene.py bnb
+Hiçbir işlem gönderilmez, anahtar kullanılmaz."""
+import os, sys
+from nexora.evm import ZINCIRLER, EvmRpc, KyberTeklif, GoPlus, EvmHatasi
+
+ORNEK = {"bnb": "0x0e09fabb73bd3ade0a17ecc321fd13a19e81ce82", "base": "0x940181a94a35a4569e4529a3cdfb74e38fd98631"}   # CAKE / AERO
+
+
+def main(argv):
+    z = argv[0] if argv else "bnb"; c = ZINCIRLER[z]; tamam = True
+    rpc = EvmRpc(os.getenv(c["rpc_env"]) or c["rpc"])
+    try:
+        zid = int(rpc.call("eth_chainId", []), 16); n = rpc.blok()
+        print(f"1) Düğüm: zincir {zid} ({'doğru' if zid == c['zincir_id'] else 'YANLIŞ'}), son blok {n}")
+        tamam &= zid == c["zincir_id"]
+        print(f"   Örnek token ondalığı: {rpc.ondalik(ORNEK[z])}")
+    except EvmHatasi as e:
+        print(f"1) Düğüm: HATA ({e})"); tamam = False
+    try:
+        q = KyberTeklif(z).teklif(c["usd"], ORNEK[z], 10 * 10 ** c["usd_ondalik"])
+        print(f"2) KyberSwap: 10 USD -> {q['cikis_raw']} birim (girdi ≈ {q['giris_usd']:.2f} $, çıktı ≈ {q['cikis_usd']:.2f} $)")
+    except EvmHatasi as e:
+        print(f"2) KyberSwap: HATA ({e})"); tamam = False
+    g = GoPlus(z).kontrol(ORNEK[z])
+    print(f"3) GoPlus: {'uygun' if g['uygun'] else 'uygun değil'} · {', '.join(g['gerekceler'])} · likidite ≈ {g['likidite_usd']:,.0f} $")
+    tamam &= g["gerekceler"] != ["güvenlik bilgisi alınamadı"]
+    print("SONUÇ: " + ("tüm parçalar çalışıyor" if tamam else "eksik parça var (yukarıdaki HATA satırları)"))
+    return tamam
+
+
+if __name__ == "__main__":
+    sys.exit(0 if main(sys.argv[1:]) else 1)

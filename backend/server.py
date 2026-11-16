@@ -149,7 +149,7 @@ class H(BaseHTTPRequestHandler):
         if parts.path == "/ekosistemler":                  # N23: ekosistem başına özet
             from nexora import ekosistem, piyasa
             dbs = [os.getenv("NEXORA_DB", "nexora_paper.db"), os.getenv("BORSA_DB", "nexora_borsa.db")] + \
-                  [f"nexora_strateji_{st.ad}.db" for st in piyasa.STRATEJILER]
+                  [f"nexora_strateji_{st.ad}.db" for st in piyasa.STRATEJILER] + ["nexora_bnb.db", "nexora_base.db"]
             self._send(200, dict(ekosistemler=ekosistem.ozet(dbs))); return
         if parts.path == "/strateji":                       # Platform 2 · piyasa stratejileri karnesi
             from nexora import piyasa
