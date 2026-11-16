@@ -45,19 +45,29 @@ class EvmRpc:
     YONTEMLER = {"eth_chainId", "eth_blockNumber", "eth_getLogs", "eth_getTransactionByHash", "eth_getTransactionReceipt",
                  "eth_getBlockByNumber", "eth_call", "eth_getCode", "eth_getBalance"}
 
-    def __init__(self, url, session=None, timeout=15):
-        self.url, self.s, self.timeout, self._id = url, session or requests.Session(), timeout, 0
+    HIZ = ("request limit", "rate limit", "too many requests", "exceeded the rate", "capacity")
+
+    def __init__(self, url, session=None, timeout=15, uyku=time.sleep):
+        self.url, self.s, self.timeout, self._id, self.uyku = url, session or requests.Session(), timeout, 0, uyku
 
     def call(self, yontem, params):
+        """Hız sınırında (HTTP 429 ya da 'request limit' vb.) bekleyip 3 kez yeniden dener; aşılamazsa 'RPC hız sınırı'."""
         if yontem not in self.YONTEMLER: raise ValueError("bu RPC yöntemi izinli salt okunur listede değil")
-        self._id += 1
-        try:
-            r = self.s.post(self.url, json=dict(jsonrpc="2.0", id=self._id, method=yontem, params=params), timeout=self.timeout)
-            d = r.json()
-        except (requests.RequestException, ValueError) as e:
-            raise EvmHatasi(f"RPC bağlantı hatası: {type(e).__name__}") from None
-        if isinstance(d, dict) and d.get("error"): raise EvmHatasi(f"RPC: {str(d['error'].get('message', d['error']))[:120]}")
-        return d.get("result") if isinstance(d, dict) else None
+        for deneme in range(4):
+            self._id += 1
+            try:
+                r = self.s.post(self.url, json=dict(jsonrpc="2.0", id=self._id, method=yontem, params=params), timeout=self.timeout)
+                d = r.json() if r.status_code != 429 else {"error": {"message": "too many requests"}}
+            except (requests.RequestException, ValueError) as e:
+                raise EvmHatasi(f"RPC bağlantı hatası: {type(e).__name__}") from None
+            hata = d.get("error") if isinstance(d, dict) else None
+            mesaj = str(hata.get("message", hata) if isinstance(hata, dict) else hata or "")
+            if hata and any(h in mesaj.lower() for h in self.HIZ):
+                if deneme < 3: self.uyku(1.5 * 2 ** deneme); continue
+                raise EvmHatasi("RPC hız sınırı (düğüm anahtarı gerekebilir)")
+            if hata: raise EvmHatasi(f"RPC: {mesaj[:120]}")
+            if not isinstance(d, dict) or "result" not in d: raise EvmHatasi("RPC yanıtı boş")
+            return d["result"]
 
     def blok(self):
         return int(self.call("eth_blockNumber", []), 16)

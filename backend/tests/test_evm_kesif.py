@@ -49,6 +49,7 @@ class Test(unittest.TestCase):
         t = K.sicak_tokenler(DS(), "bnb", now=NOW, uyku=lambda x: None, istatistik=ist)
         self.assertEqual((ist["dexscreener"], ist["geckoterminal"]), (3, 1))
         self.assertEqual([(x[0], x[1]) for x in t], [(TOK1, P1), (GTT, GTP), (TOK2, P2)])   # GeckoTerminal de kaynak; eski çift elenir
+        self.assertNotIn("0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c", [x[0] for x in t])           # karşı varlık (WBNB) aday kaynağı değil
         self.assertEqual(K.sicak_tokenler(DS(), "bnb", min_likidite=80000, now=NOW, uyku=lambda x: None)[0][0], TOK1)
 
     def test_kasa_yedek_yolu(self):

@@ -77,7 +77,9 @@ def sicak_tokenler(s, zincir, en_fazla=25, min_likidite=50_000, min_hacim=50_000
     gt = gt_havuzlari(s, zincir, timeout, uyku)
     for tok, v in gt.items(): hepsi_ekle(tok, v)
     if istatistik is not None: istatistik.update(dexscreener=n_ds, geckoterminal=len(gt), toplam=len(toplam))
+    karsi = ZINCIRLER[zincir]["karsi"]                         # WETH/USDC gibi karşı varlıklar aday kaynağı değil
     for tok, v in toplam.items():
+        if tok in karsi: continue
         if v["lik"] >= min_likidite and v["hacim"] >= min_hacim and v["cift"] and 0 < now - v["ts"] <= maks_yas_gun * 86400:
             out.append((tok, v["cift"], v["ts"], v["lik"], v["hacim"]))
     return sorted(out, key=lambda x: -x[4])[:en_fazla]
@@ -100,7 +102,7 @@ def _loglar(rpc, filtre, bas, son, en_az=25):
         return rpc.call("eth_getLogs", [dict(filtre, fromBlock=hex(bas), toBlock=hex(son))]) or []
     except EvmHatasi as e:
         m = str(e).lower()
-        if son - bas < en_az or not any(k in m for k in ("limit", "range", "too many", "exceed", "large")): raise
+        if "hız sınırı" in m or son - bas < en_az or not any(k in m for k in ("limit", "range", "too many", "exceed", "large")): raise
         orta = (bas + son) // 2
         return _loglar(rpc, filtre, bas, orta, en_az) + _loglar(rpc, filtre, orta + 1, son, en_az)
 

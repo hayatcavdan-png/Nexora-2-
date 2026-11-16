@@ -95,6 +95,28 @@ class Test(unittest.TestCase):
         self.assertEqual((al["yon"], al["karsi"], al["karsi_raw"]), ("buy", zb["usd"], 5 * 10**6))
         self.assertIsNone(E.coz({"from": W, "value": "0x0"}, dict(status="0x1", logs=[tr(USDT, W, ROUTER, 5), tr(TOK, ROUTER, W, 9)]), W, "base"))  # BNB'nin USDT'si Base'de karşı varlık değil
 
+    def test_rpc_hiz_siniri_ve_bos_yanit(self):
+        class R:
+            def __init__(self, code, b): self.status_code, self.b = code, b
+            def json(self): return self.b
+        class S:
+            def __init__(self, yanitlar): self.y = list(yanitlar); self.n = 0
+            def post(self, url, json=None, timeout=None): self.n += 1; return self.y.pop(0)
+        bekle = []
+        s = S([R(200, {"error": {"message": "request limit reached"}}), R(429, None), R(200, {"result": "0x10"})])
+        rpc = E.EvmRpc("http://x", session=s, uyku=bekle.append)
+        self.assertEqual(rpc.blok(), 16); self.assertEqual(len(bekle), 2)                    # iki kez bekleyip başardı
+        rpc = E.EvmRpc("http://x", session=S([R(200, {"error": {"message": "request limit reached"}})] * 4), uyku=lambda x: None)
+        with self.assertRaises(E.EvmHatasi) as h: rpc.blok()
+        self.assertIn("hız sınırı", str(h.exception))
+        with self.assertRaises(E.EvmHatasi): E.EvmRpc("http://x", session=S([R(200, {"jsonrpc": "2.0"})])).blok()   # boş yanıt: çökmez
+        from nexora.evm_kesif import _loglar
+        class H:
+            n = 0
+            def call(self, y, p): H.n += 1; raise E.EvmHatasi("RPC hız sınırı (düğüm anahtarı gerekebilir)")
+        with self.assertRaises(E.EvmHatasi): _loglar(H(), {}, 0, 10000)
+        self.assertEqual(H.n, 1)                                                              # hız sınırında aralık bölünmez
+
     def test_rpc_salt_okunur(self):
         with self.assertRaises(ValueError): E.EvmRpc("http://x").call("eth_sendRawTransaction", ["0x00"])
         self.assertNotIn("eth_sendRawTransaction", E.EvmRpc.YONTEMLER); self.assertNotIn("eth_sendTransaction", E.EvmRpc.YONTEMLER)
