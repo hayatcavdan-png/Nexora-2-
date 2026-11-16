@@ -96,6 +96,9 @@ def blok_bul(rpc, ts):
     return lo
 
 
+EN_COK_PARCA = 400          # düğüm blok sınırı çok darsa (ör. 10 blok) bundan fazla parçalı sorgu yapılmaz: kota koruması
+
+
 def _loglar(rpc, filtre, bas, son, en_az=25):
     """eth_getLogs; düğüm aralık/sonuç sınırı derse aralığı ikiye bölerek yeniden dener. Mesaj izin verilen blok sayısını
     söylüyorsa (ör. Alchemy ücretsiz: "up to a 10 block range") doğrudan o boyutta parçalara böler."""
@@ -107,6 +110,8 @@ def _loglar(rpc, filtre, bas, son, en_az=25):
         izin = re.search(r"(\d+)\s*block range", m)
         if izin and "hız sınırı" not in m and son - bas + 1 > int(izin.group(1)) >= 1:
             n = int(izin.group(1)); out = []
+            if (son - bas + 1) / n > EN_COK_PARCA:
+                raise EvmHatasi(f"düğüm yalnızca {n} blokluk geçmiş sorgusuna izin veriyor; {son - bas + 1} blok için gezgin gerekir")
             for b in range(bas, son + 1, n):
                 out += rpc.call("eth_getLogs", [dict(filtre, fromBlock=hex(b), toBlock=hex(min(b + n - 1, son)))]) or []
             return out
@@ -183,8 +188,13 @@ def analiz_adaylari(rpc, gruplar, say, bilinen=(), en_fazla=20):
     return secilen
 
 
-def aktiflik(rpc, w, son, blok_sayisi):
-    """Son `blok_sayisi` blokta cüzdanın token hareketi olan farklı işlem sayısı (ucuz ön tarama)."""
+def aktiflik(rpc, w, son, blok_sayisi, gezgin=None):
+    """Son `blok_sayisi` blokta cüzdanın token hareketi olan farklı işlem sayısı (ucuz ön tarama).
+    `gezgin` verilirse geçmiş oradan okunur (düğüm sorgusu yapılmaz); gezgin yanıt vermezse hata."""
+    if gezgin:
+        g = gezgin(w, son - blok_sayisi)
+        if g is None: raise EvmHatasi("gezgin yanıt vermedi")
+        return len(g)
     ks = set()
     for konular in ([TRANSFER, None, _konu(w)], [TRANSFER, _konu(w)]):
         for l in _loglar(rpc, {"topics": konular}, son - blok_sayisi, son): ks.add(l.get("transactionHash"))

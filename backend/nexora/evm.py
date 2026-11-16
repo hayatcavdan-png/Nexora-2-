@@ -20,7 +20,7 @@ ZINCIRLER = {
                 karsi={"0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c", "0x55d398326f99059ff775485246999027b3197955",
                        "0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d", "0xe9e7cea3dedca5984780bafc599bd69add087d56",
                        "0xc5f0f7b66764f6ec8c8dff7ba683102295e16409"}),
-    "base": dict(ad="Base", zincir_id=8453, gezgin="https://base.blockscout.com", rpc_env="BASE_RPC_URL", rpc="https://mainnet.base.org", kyber="base", goplus="8453",
+    "base": dict(ad="Base", zincir_id=8453, gezgin="https://base.blockscout.com", gezgin2="https://api.routescan.io/v2/network/mainnet/evm/8453/etherscan/api", rpc_env="BASE_RPC_URL", rpc="https://mainnet.base.org", kyber="base", goplus="8453",
                  sarili="0x4200000000000000000000000000000000000006", usd="0x833589fcd6edb6e08f4c7c32d4f71b54bda02913", usd_ondalik=6,
                  karsi={"0x4200000000000000000000000000000000000006", "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
                         "0xfde4c96c8593536e31f229ea8f37b2ada2699bb2", "0x50c5725949a6f0c72e6c4a641f24049a917db0cb",
@@ -223,20 +223,33 @@ def coz_tam(rpc, tx, makbuz, cuzdan, zincir, blok):
     return coz(tx, makbuz, cuzdan, zincir, yerel=f) if f else None
 
 
-def gezgin_islemleri(s, zincir, cuzdan, bas_blok, en_cok_sayfa=20, timeout=20):
-    """Blockscout (herkese açık gezgin) üzerinden cüzdanın ERC-20 transferlerinin işlem karmaları: {karma: blok}.
-    `bas_blok`tan eskiye inince durur. Gezgin yoksa ya da yanıt vermezse None (çağıran düğüm sorgusuna döner).
-    Blockscout sürümleri alan adlarını değiştirdi (tx_hash/transaction_hash, address/address_hash): ikisi de okunur."""
-    taban = ZINCIRLER[zincir].get("gezgin")
-    if not taban: return None
+def gezgin_islemleri(s, zincir, cuzdan, bas_blok, en_cok_sayfa=20, timeout=20, tani=None):
+    """Herkese açık ücretsiz gezginlerden cüzdanın ERC-20 transferlerinin işlem karmaları: {karma: blok}.
+    Sıra: Blockscout, olmazsa Routescan (Etherscan uyumlu). İkisi de yanıt vermezse None.
+    `tani` (dict) verilirse her gezginin sonucu yazılır (deneme aracı için: HTTP kodu ya da hata türü)."""
+    z = ZINCIRLER[zincir]
+    for ad, taban, oku in (("blockscout", z.get("gezgin"), _blockscout), ("routescan", z.get("gezgin2"), _routescan)):
+        if not taban: continue
+        try:
+            out = oku(s, taban, cuzdan.lower(), bas_blok, en_cok_sayfa, timeout)
+            if tani is not None: tani[ad] = "tamam"
+            return out
+        except (requests.RequestException, ValueError, EvmHatasi) as e:
+            if tani is not None: tani[ad] = str(e)[:120] or type(e).__name__
+    return None
+
+
+_BASLIK = {"User-Agent": "Mozilla/5.0 (NEXORA salt-okunur analiz)", "Accept": "application/json"}
+
+
+def _blockscout(s, taban, w, bas_blok, en_cok_sayfa, timeout):
     out, params = {}, {"type": "ERC-20"}
     for _ in range(en_cok_sayfa):
-        try:
-            r = s.get(f"{taban}/api/v2/addresses/{cuzdan}/token-transfers", params=params, timeout=timeout)
-            d = r.json() if r.status_code == 200 else None
-        except (requests.RequestException, ValueError):
-            d = None
-        if not isinstance(d, dict): return out or None
+        r = s.get(f"{taban}/api/v2/addresses/{w}/token-transfers", params=params, timeout=timeout, headers=_BASLIK)
+        if r.status_code == 404: return out                 # gezgin adresi hiç görmemiş: geçmiş boş
+        if r.status_code != 200: raise EvmHatasi(f"HTTP {r.status_code}")
+        d = r.json()
+        if not isinstance(d, dict): raise EvmHatasi("beklenmeyen yanıt")
         eski = False
         for x in d.get("items") or []:
             try: blok = int(x.get("block_number") or x.get("block") or 0)
@@ -247,4 +260,22 @@ def gezgin_islemleri(s, zincir, cuzdan, bas_blok, en_cok_sayfa=20, timeout=20):
         sonraki = d.get("next_page_params")
         if eski or not sonraki: break
         params = dict({"type": "ERC-20"}, **{k: v for k, v in sonraki.items() if v is not None})
+    return out
+
+
+def _routescan(s, taban, w, bas_blok, en_cok_sayfa, timeout):
+    out = {}
+    for sayfa in range(1, en_cok_sayfa + 1):
+        r = s.get(taban, params=dict(module="account", action="tokentx", address=w, startblock=bas_blok, endblock=99999999,
+                                     page=sayfa, offset=1000, sort="desc"), timeout=timeout, headers=_BASLIK)
+        if r.status_code != 200: raise EvmHatasi(f"HTTP {r.status_code}")
+        d = r.json(); sonuc = d.get("result") if isinstance(d, dict) else None
+        if not isinstance(sonuc, list):
+            if "no transactions" in str(d.get("message", "") if isinstance(d, dict) else "").lower(): return out
+            raise EvmHatasi(f"yanıt: {str(sonuc or d)[:80]}")
+        for x in sonuc:
+            try: blok = int(x.get("blockNumber") or 0)
+            except (TypeError, ValueError): continue
+            if blok >= bas_blok and x.get("hash"): out.setdefault(x["hash"], blok)
+        if len(sonuc) < 1000: break
     return out

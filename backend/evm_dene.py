@@ -37,11 +37,13 @@ def main(argv):
     if c.get("gezgin"):
         from nexora.evm import gezgin_islemleri
         try:
-            son = rpc.blok()
-            gi = gezgin_islemleri(requests.Session(), z, ORNEK_CUZDAN[z], son - 200_000, en_cok_sayfa=2)
-            print(f"5) Gezgin (Blockscout): {'HATA (yanıt yok)' if gi is None else f'{len(gi)} işlem okundu'}")
+            son = rpc.blok(); tani = {}
+            gi = gezgin_islemleri(requests.Session(), z, ORNEK_CUZDAN[z], son - 200_000, en_cok_sayfa=2, tani=tani)
+            print(f"5) Gezgin: {'HATA (hiçbiri yanıt vermedi)' if gi is None else f'{len(gi)} işlem okundu'}")
+            for ad, durum in tani.items(): print(f"   {ad}: {durum}")
+            tamam &= gi is not None
         except Exception as ex:
-            print(f"5) Gezgin (Blockscout): HATA ({type(ex).__name__})")
+            print(f"5) Gezgin: HATA ({type(ex).__name__})"); tamam = False
     tamam &= g["gerekceler"] != ["güvenlik bilgisi alınamadı"]
     print("SONUÇ: " + ("tüm parçalar çalışıyor" if tamam else "eksik parça var (yukarıdaki HATA satırları)"))
     return tamam

@@ -14,7 +14,8 @@ class R:
 class Gezgin:
     """İki sayfa: yeni sürüm alan adları (transaction_hash) ve eski sürüm (tx_hash, block)."""
     def __init__(self, sayfalar): self.sayfalar, self.istekler = sayfalar, []
-    def get(self, url, params=None, timeout=None):
+    def get(self, url, params=None, timeout=None, headers=None):
+        if 'routescan' in url: return R(None, 503)
         self.istekler.append(dict(params or {}))
         i = 1 if (params or {}).get("block_number") else 0
         return R(self.sayfalar[i]) if i < len(self.sayfalar) else R(None, 500)
@@ -38,6 +39,25 @@ class GezginTest(unittest.TestCase):
         self.assertIsNone(gezgin_islemleri(Gezgin([]), "bnb", W, 0))
 
 
+class Routescan:
+    def get(self, url, params=None, timeout=None, headers=None):
+        if "blockscout" in url: return R({"message": "Forbidden"}, 403)
+        return R({"status": "1", "message": "OK", "result": [
+            {"blockNumber": "130", "hash": "0xr1"}, {"blockNumber": "120", "hash": "0xr1"}, {"blockNumber": "50", "hash": "0xeski"}]})
+
+
+class YedekGezginTest(unittest.TestCase):
+    def test_blockscout_reddederse_routescan(self):
+        tani = {}
+        self.assertEqual(gezgin_islemleri(Routescan(), "base", W, 100, tani=tani), {"0xr1": 130})
+        self.assertEqual(tani, {"blockscout": "HTTP 403", "routescan": "tamam"})
+
+    def test_bilinmeyen_adres_bos_gecmis(self):
+        class G:
+            def get(self, url, params=None, timeout=None, headers=None): return R({"message": "Not found"}, 404)
+        self.assertEqual(gezgin_islemleri(G(), "base", W, 0), {})
+
+
 class Rpc:
     def __init__(self, sinir): self.sinir, self.cagri = sinir, []
     def call(self, m, p):
@@ -54,6 +74,18 @@ class BlokAraligiTest(unittest.TestCase):
         out = _loglar(r, {}, 100, 134)
         self.assertEqual([x["b"] for x in out], list(range(100, 135)))
         self.assertEqual(r.cagri[1:], [(100, 109), (110, 119), (120, 129), (130, 134)])
+
+    def test_cok_dar_sinirda_kota_korunur(self):
+        r = Rpc(10)
+        with self.assertRaises(EvmHatasi): _loglar(r, {}, 0, 43_200)        # 24 saat Base = 4320 parça: yapılmaz
+        self.assertEqual(len(r.cagri), 1)
+
+    def test_aktiflik_gezginle(self):
+        from nexora.evm_kesif import aktiflik
+        class Rp:
+            def call(self, m, p): raise AssertionError("düğüm sorgusu yapılmamalı")
+        self.assertEqual(aktiflik(Rp(), W, 1000, 100, gezgin=lambda w, b: {"0x1": 950, "0x2": 960}), 2)
+        with self.assertRaises(EvmHatasi): aktiflik(Rp(), W, 1000, 100, gezgin=lambda w, b: None)
 
     def test_hiz_siniri_bolunmez(self):
         class H:

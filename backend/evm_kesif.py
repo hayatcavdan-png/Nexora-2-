@@ -34,8 +34,15 @@ def main(argv, rpc=None, s=None, ekle_en_fazla=EKLE, liste_siniri=None):
     blok = int(GUN * 86400 / A.BLOK_SURESI[z]); son = rpc.blok(); gun1 = int(86400 / A.BLOK_SURESI[z])
     print(f"Ön tarama: {len(havuz)} adayın son 24 saatteki hareketi ölçülüyor…", flush=True)
     akt = {}
+    gz = None
+    if c.get("gezgin"):                                  # düğüm geçmiş sorgusunu kısıtlıyorsa (Alchemy ücretsiz: 10 blok) gezgin şart
+        gz = lambda w_, b_: gezgin_islemleri(s, z, w_, b_)
+        tani = {}
+        if havuz and gezgin_islemleri(s, z, havuz[0], son - gun1, en_cok_sayfa=1, tani=tani) is None:
+            sys.exit("Cüzdan geçmişi okunamadı: ücretsiz gezginler yanıt vermedi (" +
+                     ", ".join(f"{k}: {v}" for k, v in tani.items()) + "). Düğüm kotasını korumak için analiz yapılmadı.")
     for w in havuz:
-        try: akt[w] = K.aktiflik(rpc, w, son, gun1)
+        try: akt[w] = K.aktiflik(rpc, w, son, gun1, gezgin=gz)
         except Exception: akt[w] = 0
         if sum(1 for v in akt.values() if AKTIF_MIN <= v <= AKTIF_MAKS) >= ANALIZ: break
     secilen = [w for w in havuz if AKTIF_MIN <= akt.get(w, 0) <= AKTIF_MAKS][:ANALIZ]
@@ -51,7 +58,6 @@ def main(argv, rpc=None, s=None, ekle_en_fazla=EKLE, liste_siniri=None):
     for i, w in enumerate(secilen, 1):
         try:
             sy = {}
-            gz = (lambda w_, b_: gezgin_islemleri(s, z, w_, b_)) if c.get("gezgin") else None
             m = A.analiz(A.swaplar(rpc, w, z, son - blok, son, sayac=sy, gezgin=gz), rpc, z, yerel, w)
             m.update(islem=sy.get("islem", 0), cozulemeyen=sy.get("cozulemeyen", 0))
         except Exception as ex:
