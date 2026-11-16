@@ -129,7 +129,7 @@ def kullanici_mi(rpc, adres, _onbellek={}):
     return _onbellek[adres]
 
 
-def kesfet(rpc, tokenler, en_az=2, bilinen=(), pencere_blok=2400, log=print):
+def kesfet(rpc, tokenler, en_az=2, bilinen=(), pencere_blok=2400, log=print, gruplar=None):
     say = Counter()
     for tok, cift, ts, lik, hacim in tokenler:
         try:
@@ -138,7 +138,25 @@ def kesfet(rpc, tokenler, en_az=2, bilinen=(), pencere_blok=2400, log=print):
         except EvmHatasi as e:
             log(f"  {tok[:6]}…{tok[-4:]}: okunamadı ({str(e)[:60]})"); continue
         for w in a: say[w] += 1
+        if gruplar is not None: gruplar.append(sorted(a))
         log(f"  {tok[:6]}…{tok[-4:]}  likidite {lik:,.0f} $  hacim {hacim:,.0f} $  erken alıcı {len(a)}")
     bilinen = {b.lower() for b in bilinen}
     adaylar = [w for w, c in say.most_common() if c >= en_az and w not in bilinen and kullanici_mi(rpc, w)]
     return adaylar, say
+
+
+def analiz_adaylari(rpc, gruplar, say, bilinen=(), en_fazla=20):
+    """Analiz edilecek adaylar: önce birden çok token'ı erken alanlar, sonra token'lar arasında sırayla tek token'ı erken
+    alanlar (her token'dan eşit pay). Sözleşmeler ve bilinen cüzdanlar atlanır."""
+    bilinen = {b.lower() for b in bilinen}; secilen = []
+    def ekle(w):
+        if w not in bilinen and w not in secilen and kullanici_mi(rpc, w): secilen.append(w)
+    for w, c in say.most_common():
+        if c < 2 or len(secilen) >= en_fazla: break
+        ekle(w)
+    i = 0
+    while len(secilen) < en_fazla and any(i < len(g) for g in gruplar):
+        for g in gruplar:
+            if i < len(g) and len(secilen) < en_fazla: ekle(g[i])
+        i += 1
+    return secilen

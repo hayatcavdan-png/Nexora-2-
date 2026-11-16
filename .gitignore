@@ -38,3 +38,7 @@ backend/wallets_ton.txt
 backend/wallets_bnb_kesif.txt
 backend/wallets_base_kesif.txt
 backend/wallets_bnb.txt.yedek
+backend/evm_analiz_bnb.json
+backend/evm_analiz_base.json
+backend/wallets_bnb_onerilen.txt
+backend/wallets_base_onerilen.txt
