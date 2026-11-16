@@ -104,9 +104,9 @@
    "ad": "Gerçek emir altyapısı",
    "grup": "Gerçek işlem",
    "durum": "devam",
-   "yuzde": 35,
-   "yapilan": "İmzasız hat: pilot cüzdan anahtarı sunucuda üretiliyor (saf Python Ed25519, RFC 8032 test vektörleriyle doğrulandı; dosya 600, üzerine yazmaz); Jupiter /order ile pilot cüzdana işlem oluşturma (JupiterZ dışlanır, sürüm 0); imzalamadan önce yapı denetimi (tek imzacı, ücret ödeyen bizim cüzdan, imza alanı boş); Helius ile zincirde simülasyon. Gönderim kodu yok (/execute ve sendTransaction bulunmuyor, testle korunuyor)",
-   "eksik": "Bakiyeli simülasyon (cüzdana küçük bakiye); imzalama ve gönderim, uzlaştırma (N12 onayıyla)"
+   "yuzde": 45,
+   "yapilan": "İmzasız hat: pilot cüzdan anahtarı sunucuda üretiliyor (saf Python Ed25519, RFC 8032 test vektörleriyle doğrulandı; dosya 600, üzerine yazmaz); Jupiter /order ile pilot cüzdana işlem oluşturma (JupiterZ dışlanır, sürüm 0); imzalamadan önce yapı denetimi (tek imzacı, ücret ödeyen bizim cüzdan, imza alanı boş); Helius ile zincirde simülasyon. Gönderim kodu yok (/execute ve sendTransaction bulunmuyor, testle korunuyor). pilot_olcum.py: pilot bakiyesi (SOL/USDC) ve son sinyal token'ları için gerçek cüzdan bakiyesiyle alım işlemi oluşturma + denetim + zincir simülasyonu; başarı oranı ve başarısızlık nedenleri pilot_sim tablosunda (gönderim yok, anahtar okunmaz).",
+   "eksik": "Bakiyeli ölçüm sonuçları (cüzdana para gelince); imzalama ve gönderim, uzlaştırma yalnızca N12 açık onayıyla"
   },
   {
    "kod": "N12",

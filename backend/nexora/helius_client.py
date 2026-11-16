@@ -16,6 +16,7 @@ class HeliusClient:
         "getVersion",
         "getSlot",
         "getBalance",
+        "getTokenAccountsByOwner",
         "getAccountInfo",
         "getMultipleAccounts",
         "getSignaturesForAddress",
