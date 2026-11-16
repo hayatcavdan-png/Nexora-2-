@@ -95,8 +95,8 @@
    "ad": "Strateji optimizasyonu ve ileri test",
    "grup": "İşlem",
    "durum": "baslamadi",
-   "yuzde": 20,
-   "yapilan": "Gölge işlem kaydı (reddedilen alımlar) ve zarar kesme ölçümü (%10/20/30/50 eşiklerinde satsaydık ne olurdu) veri topluyor; takipçi kaybı ayrıştırması; token özelliklerine göre sonuç ayrıştırması",
+   "yuzde": 30,
+   "yapilan": "Gölge işlem kaydı (reddedilen alımlar) ve zarar kesme ölçümü (%10/20/30/50 eşiklerinde satsaydık ne olurdu) veri topluyor; takipçi kaybı ayrıştırması; token özelliklerine göre sonuç ayrıştırması. Gerçek Para Hazırlık Karnesi: 8 ölçülebilir ölçüt (işlem sayısı, süre, ortalama K/Z ve %95 güven alt sınırı, profit factor, düşüş, çalışma oranı, etiket); küçük örneklemde \"bekliyor\", asla otomatik geçiş yok.",
    "eksik": "En az 30 günlük ileri paper testi; eşik kararı için en az 20 kapanmış gölge işlem ve 20 kapanmış pozisyon"
   },
   {
@@ -132,17 +132,17 @@
    "grup": "Ürün",
    "durum": "devam",
    "yuzde": 90,
-   "yapilan": "Uygulama 4.0 (COMMAND X tasarımı): ateş kızılı X'li NEXORA logosu ve N amblemi simgesi; Ana Sayfa (bakiye, 24s değişim, aralıklı grafik, AutoPilot, Shield), Keşfet (gerçek Token Radar, Wallet DNA analizi, takip edilen cüzdanlar), AutoPilot X (risk seviyesi ve sınırlar), Portföy (elle paper işlem, pozisyonlar, geçmiş), Profil; aşağı çekip yenileme; optimize (R8) derleme; bildirimler, PIN kilidi, yedek indirme, rapor kartları; 5.0.0 yeni tasarım: NEXORA AI paleti, Nexo maskotu (10 ifade), yeni logo ve simge, açılış animasyonu, canlı arka plan, Yapay Zekâ Çekirdeği kartı",
+   "yapilan": "Uygulama 4.0 (COMMAND X tasarımı): ateş kızılı X'li NEXORA logosu ve N amblemi simgesi; Ana Sayfa (bakiye, 24s değişim, aralıklı grafik, AutoPilot, Shield), Keşfet (gerçek Token Radar, Wallet DNA analizi, takip edilen cüzdanlar), AutoPilot X (risk seviyesi ve sınırlar), Portföy (elle paper işlem, pozisyonlar, geçmiş), Profil; aşağı çekip yenileme; optimize (R8) derleme; bildirimler, PIN kilidi, yedek indirme, rapor kartları; 5.0.0 yeni tasarım: NEXORA AI paleti, Nexo maskotu (10 ifade), yeni logo ve simge, açılış animasyonu, canlı arka plan, Yapay Zekâ Çekirdeği kartı. 5.1–5.3: Hesabım (giriş, davet, bağlantılar, kişisel sanal hesap) ve Hazırlık Karnesi ekranları.",
    "eksik": "Gerçek kullanımda akıcılık geri bildirimi"
   },
   {
    "kod": "N15",
    "ad": "Çok kullanıcılı ürün",
    "grup": "Ürün",
-   "durum": "baslamadi",
-   "yuzde": 0,
-   "yapilan": "Pilottan sonra",
-   "eksik": "Kayıt, tenant izolasyonu, custody, hukuk"
+   "durum": "devam",
+   "yuzde": 25,
+   "yapilan": "Paper modda üyelik: e-posta/parola (scrypt), 30 günlük oturum, giriş deneme kilidi; davet kodu ve davetli listesi; üye başına kişisel sanal hesap (katılım anından itibaren, zirve/düşüş, %20 kâr payı gösterimi); bağlantı kayıtları (yalnızca herkese açık adres, Binance kilitli). Hiçbir gizli anahtar saklanmaz.",
+   "eksik": "Emanetsiz yetki devri (sınırlı işlem cüzdanı/akıllı hesap), üye başına ayrı risk ayarı ve gerçek emir izolasyonu, hukuki görüş; gerçek para yalnızca açık onayla"
   },
   {
    "kod": "N16",
@@ -202,7 +202,7 @@
  "meta": [
   {
    "label": "Kaynak",
-   "value": "Claude'un proje değerlendirmesi, 16.11.2026 04:15. Yüzdeler tahmini; hiçbir aşama kabul kriterleri karşılanmadan tamamlandı sayılmaz. N16–N21: yapay zekâ seçim hattı (ana yol haritasından bağımsız)."
+   "value": "Claude'un proje değerlendirmesi, 16.11.2026 15:10. Yüzdeler tahmini; hiçbir aşama kabul kriterleri karşılanmadan tamamlandı sayılmaz. N16–N21: yapay zekâ seçim hattı (ana yol haritasından bağımsız)."
   }
  ]
 }
