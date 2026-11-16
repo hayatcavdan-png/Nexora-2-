@@ -94,7 +94,7 @@
    "kod": "N10",
    "ad": "Strateji optimizasyonu ve ileri test",
    "grup": "İşlem",
-   "durum": "baslamadi",
+   "durum": "devam",
    "yuzde": 30,
    "yapilan": "Gölge işlem kaydı (reddedilen alımlar) ve zarar kesme ölçümü (%10/20/30/50 eşiklerinde satsaydık ne olurdu) veri topluyor; takipçi kaybı ayrıştırması; token özelliklerine göre sonuç ayrıştırması. Gerçek Para Hazırlık Karnesi: 8 ölçülebilir ölçüt (işlem sayısı, süre, ortalama K/Z ve %95 güven alt sınırı, profit factor, düşüş, çalışma oranı, etiket); küçük örneklemde \"bekliyor\", asla otomatik geçiş yok. Kural gölgesi: pozisyon/cüzdan/token sınırı yüzünden reddedilen alımlar (saatte en fazla 8) aynı süzgeçlerden geçirilip gölgede ölçülür; \"sınır olmasaydı ne kazanırdık\" raporda ayrı grup.",
    "eksik": "En az 30 günlük ileri paper testi; eşik kararı için en az 20 kapanmış gölge işlem ve 20 kapanmış pozisyon"
@@ -142,7 +142,7 @@
    "durum": "devam",
    "yuzde": 25,
    "yapilan": "Paper modda üyelik: e-posta/parola (scrypt), 30 günlük oturum, giriş deneme kilidi; davet kodu ve davetli listesi; üye başına kişisel sanal hesap (katılım anından itibaren, zirve/düşüş, %20 kâr payı gösterimi); bağlantı kayıtları (yalnızca herkese açık adres, Binance kilitli). Hiçbir gizli anahtar saklanmaz.",
-   "eksik": "Emanetsiz yetki devri (sınırlı işlem cüzdanı/akıllı hesap), üye başına ayrı risk ayarı ve gerçek emir izolasyonu, hukuki görüş; gerçek para yalnızca açık onayla"
+   "eksik": "Devredildi: kullanıcı başına borsa bağlantısı N29, kişisel portföy ve risk N30, hukuk N36. Para hiçbir zaman uygulamada tutulmaz (emanetsiz model)."
   },
   {
    "kod": "N16",
@@ -206,12 +206,156 @@
    "yuzde": 45,
    "yapilan": "Ölçüm: mevcut cüzdan sinyallerinin %0'ı Binance/OKX/KuCoin'de, %9'u MEXC'de alınabilir (7 gün, 288 sinyal). Borsada listeli Solana token listesi (CoinGecko, adres eşleşmeli, günlük yenileme); borsa cüzdanı keşfi (listeli token'ları son saatlerde alanlar + kârlılık analizi); borsanın gerçek en iyi alış/satış fiyatıyla ayrı paper portföy (nexora_borsa.db), aynı risk kuralları, geniş makas reddi; takip akışına bağlı, platform 1'i etkilemez; uygulamada Platform 2 kartı. Tüm coinler: dört borsadaki tüm USDT çiftleri (her coin en hacimli borsasından, 1M$+ hacim) dakikalık izlenir; iki strateji (momentum, trend) ayrı sanal portföylerde, gerçek alış/satış fiyatı + %0.1 ücret + kayma ile ölçülür; BTC tutma kıyası; nexora-piyasa servisi; uygulamada strateji karnesi.",
    "eksik": "Stratejilerin haftalarca paper ölçümü ve BTC tutmaya karşı üstünlük kanıtı; borsa cüzdanlarının bulunması; kullanıcı API anahtarıyla gerçek emir (yalnızca işlem yetkili, çekim kapalı) ayrıca açık onay ve hukuki görüş gerektirir"
+  },
+  {
+   "kod": "N23",
+   "ad": "Ekosistem çekirdeği",
+   "grup": "Faz 2 · Çoklu platform",
+   "durum": "baslamadi",
+   "yuzde": 0,
+   "yapilan": "",
+   "eksik": "Tüm kayıtlara (sinyal, işlem, cüzdan, token) ekosistem ve kaynak alanı; Solana mevcut haliyle ilk bağdaştırıcı. Kabul: tüm testler geçer, Solana sonuçları değişmez. Önkoşul: yok."
+  },
+  {
+   "kod": "N24",
+   "ad": "EVM bağdaştırıcısı + BNB Chain",
+   "grup": "Faz 2 · Çoklu platform",
+   "durum": "baslamadi",
+   "yuzde": 0,
+   "yapilan": "",
+   "eksik": "Cüzdan takibi (WebSocket, ücretsiz düğüm planı), EVM swap çözücü, KyberSwap alış/geri satış teklifi, honeypot ve alım-satım vergisi kontrolü, BNB cüzdan keşfi; paper. Kabul: 1 hafta boyunca sinyallerin ≥%95'i doğru çözülür, satılamayan token'a giriş olmaz. Önkoşul: N23."
+  },
+  {
+   "kod": "N25",
+   "ad": "Base ekosistemi",
+   "grup": "Faz 2 · Çoklu platform",
+   "durum": "baslamadi",
+   "yuzde": 0,
+   "yapilan": "",
+   "eksik": "N24 bağdaştırıcısıyla Base ağı ve Base cüzdan keşfi; paper. Kabul: N24 ile aynı. Önkoşul: N24."
+  },
+  {
+   "kod": "N26",
+   "ad": "DeFi etiketi ve filtresi",
+   "grup": "Faz 2 · Çoklu platform",
+   "durum": "baslamadi",
+   "yuzde": 0,
+   "yapilan": "",
+   "eksik": "Tüm ekosistemlerde DeFi token'larını işaretleyen etiket; uygulamada filtre. Kabul: etiket listesi elle kontrol edilmiş örneklerle uyumlu. Önkoşul: N23."
+  },
+  {
+   "kod": "N27",
+   "ad": "TON ekosistemi (isteğe bağlı)",
+   "grup": "Faz 2 · Çoklu platform",
+   "durum": "baslamadi",
+   "yuzde": 0,
+   "yapilan": "",
+   "eksik": "Ayrı veri sağlayıcı, TON swap çözücü, STON.fi/DeDust teklifi; güvenlik kontrolü belirsiz. Yalnızca N24–N25 paper'da başarılıysa başlanır. Önkoşul: N24, N25."
+  },
+  {
+   "kod": "N28",
+   "ad": "Yapay zekâ yönlendirici (sinyal birleştirici)",
+   "grup": "Faz 2 · Çoklu platform",
+   "durum": "devam",
+   "yuzde": 20,
+   "yapilan": "Altyapı var: borsada listeli Solana sinyallerini borsa fiyatıyla işleyen motor (N22) ve tüm coinler için momentum/trend stratejileri, ayrı paper portföyler, BTC kıyası.",
+   "eksik": "Cüzdan sinyalleri ve piyasa stratejilerini tek kararda birleştirmek: hangi sinyal, hangi borsa, hangi büyüklük; sinyal kaynaklarının karneye göre ağırlıklandırılması; borsada olmayan token sinyallerinin bildirim olarak ayrılması. Kabul: 3 hafta paper'da her kaynaktan iyi ya da eşit sonuç. Önkoşul: N22 verisi."
+  },
+  {
+   "kod": "N29",
+   "ad": "Kullanıcı başına borsa bağlantısı",
+   "grup": "Faz 2 · Çoklu platform",
+   "durum": "devam",
+   "yuzde": 10,
+   "yapilan": "Hesabım ekranında bağlantı listesi var; Binance alanı kilitli; gizli anahtar saklanmıyor.",
+   "eksik": "Dört borsa için API anahtarı girişi; anahtarın sunucuda şifreli saklanması; anahtar yetkisinin borsadan sorgulanıp para çekme yetkisi açıksa REDDEDİLMESİ; IP kısıtı rehberi; tek dokunuşla bağlantıyı silme. Yalnızca okuma/doğrulama, emir yok. Önkoşul: N35 (şifreleme)."
+  },
+  {
+   "kod": "N30",
+   "ad": "Kişisel portföy ve risk",
+   "grup": "Faz 2 · Çoklu platform",
+   "durum": "devam",
+   "yuzde": 15,
+   "yapilan": "Üye başına sanal hesap (katılımdan itibaren sistem getirisi, zirve, düşüş, kâr payı gösterimi).",
+   "eksik": "Her kullanıcının kendi borsa bakiyesine göre ayrı paper portföyü ve kendi risk ayarı (yalnızca sıkılaştırılabilir); kullanıcılar arası tam izolasyon. Önkoşul: N29."
+  },
+  {
+   "kod": "N31",
+   "ad": "Borsa emir katmanı (gerçek emir)",
+   "grup": "Faz 2 · Çoklu platform",
+   "durum": "baslamadi",
+   "yuzde": 0,
+   "yapilan": "",
+   "eksik": "Dört borsa için emir gönderme, emir durumu ve uzlaştırma, hata ve kısmi dolum yönetimi, acil durdurma. YALNIZCA ayrı açık onay ve hukuki görüşten sonra; önce geliştiricinin kendi küçük hesabıyla. Önkoşul: N28 kanıtı, N29, N30, N35, N36."
+  },
+  {
+   "kod": "N32",
+   "ad": "Bildirim sinyalleri",
+   "grup": "Faz 2 · Çoklu platform",
+   "durum": "baslamadi",
+   "yuzde": 0,
+   "yapilan": "",
+   "eksik": "Borsada olmayan zincir token'ları için kullanıcıya bildirim (elle işlem için); işlem açıldı/kapandı, günlük zarar sınırı ve sunucu durumu bildirimleri. Önkoşul: N23."
+  },
+  {
+   "kod": "N33",
+   "ad": "Arayüz yenileme",
+   "grup": "Faz 2 · Çoklu platform",
+   "durum": "devam",
+   "yuzde": 10,
+   "yapilan": "5.5–5.7: Bugün kartı, pozisyon yaşı ve kapatma, animasyonları azalt, Platform 2 kartları.",
+   "eksik": "Ana sayfa üstüne ekosistem seçici (Tümü · Solana · BNB · Base · TON, DeFi filtre); alt menü: Ana Sayfa · Keşfet · Portföy · Karne · Profil (Bot ayarları Profil'e); ana sayfa üç kart; borsa bağlantı ekranı (N29). Önkoşul: yok (ekosistemler 'yakında' olarak görünür)."
+  },
+  {
+   "kod": "N34",
+   "ad": "Karne ve şeffaflık",
+   "grup": "Faz 2 · Çoklu platform",
+   "durum": "devam",
+   "yuzde": 30,
+   "yapilan": "Hazırlık Karnesi, strateji karnesi ve BTC kıyası, cüzdan kalite puanı.",
+   "eksik": "Ekosistem ve sinyal kaynağı karnesi tek sekmede; zararlar dahil gerçek paper sonuçları; kullanıcıya gösterilecek risk bildirimi. Önkoşul: N33."
+  },
+  {
+   "kod": "N35",
+   "ad": "Güvenlik sertleştirme",
+   "grup": "Faz 2 · Çoklu platform",
+   "durum": "devam",
+   "yuzde": 20,
+   "yapilan": "Anahtarlar loglarda maskeleniyor; karar izi değiştirilemez; pilot anahtarı sunucudan çıkmıyor.",
+   "eksik": "Telefonda şifreli anahtar saklama; sunucuda kullanıcı API anahtarları için şifreleme; NEXORA anahtarı döndürme; hesap ve oturum güvenliği gözden geçirme; dış bir göz tarafından güvenlik denetimi. Önkoşul: yok."
+  },
+  {
+   "kod": "N36",
+   "ad": "Hukuk ve uyum",
+   "grup": "Faz 2 · Çoklu platform",
+   "durum": "devam",
+   "yuzde": 10,
+   "yapilan": "Hukuki Değerlendirme Özeti belgesi (avukata sorular) hazır.",
+   "eksik": "Avukat görüşü (lisans, kâr payı, yurt dışı borsalar, KVKK); kullanıcı sözleşmesi ve risk bildirimi; şirket yapısı. Önkoşul: yok; N31 ve N38 için zorunlu."
+  },
+  {
+   "kod": "N37",
+   "ad": "Ölçeklenme",
+   "grup": "Faz 2 · Çoklu platform",
+   "durum": "baslamadi",
+   "yuzde": 0,
+   "yapilan": "",
+   "eksik": "Kullanıcı ve cüzdan sayısı arttıkça ücretli veri planları, ikinci sunucu, izleme ve uyarılar; maliyet/kullanıcı hesabı. Önkoşul: N38 öncesi yük testi."
+  },
+  {
+   "kod": "N38",
+   "ad": "Kapalı beta ve lansman",
+   "grup": "Faz 2 · Çoklu platform",
+   "durum": "baslamadi",
+   "yuzde": 0,
+   "yapilan": "",
+   "eksik": "Önce az sayıda tanıdık kullanıcıyla paper modda kapalı beta; geri bildirim; sonra hukuki görüş ve kanıtla sınırlı gerçek kullanım. Önkoşul: N33, N34, N35, N36; gerçek para için N31."
   }
  ],
  "meta": [
   {
    "label": "Kaynak",
-   "value": "Claude'un proje değerlendirmesi, 16.11.2026 15:10. Yüzdeler tahmini; hiçbir aşama kabul kriterleri karşılanmadan tamamlandı sayılmaz. N16–N21: yapay zekâ seçim hattı (ana yol haritasından bağımsız)."
+   "value": "Claude'un proje değerlendirmesi, 16.11.2026 19:30. Yüzdeler tahmini; hiçbir aşama kabul kriterleri karşılanmadan tamamlandı sayılmaz. N16–N21: yapay zekâ seçim hattı. N23–N38: Faz 2 · çoklu platform (emanetsiz: para her zaman kullanıcının kendi borsa hesabında)."
   }
  ]
 }
