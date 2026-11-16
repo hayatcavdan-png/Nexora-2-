@@ -49,7 +49,7 @@ class Test(unittest.TestCase):
         self.assertEqual((m["kapanan"], m["satis"], m["eslesmeyen_satis"]), (3, 4, 1))
         self.assertAlmostEqual(m["gerceklesen_usd"], 12.0, places=2)
         self.assertEqual(m["kazanma_orani"], 1.0); self.assertEqual(m["kar_faktoru"], 99.0)
-        self.assertEqual(m["medyan_tutma_sn"], 75)                                          # 100 blok × 0.75 sn
+        self.assertEqual(m["medyan_tutma_sn"], 450)                                         # tutmalar 75, 450, 487 sn (blok × 0.75)
         self.assertEqual(m["karar"], "yetersiz veri")                                       # 5'ten az kapanan: Solana ile aynı kural
 
     def test_kopyalanabilir_ve_yerel(self):
