@@ -129,7 +129,25 @@ def asamalar(path="asamalar.json"):
 
 NABIZ_SURE = 300      # takip bu kadar saniye kalp atışı yazmazsa "durdu" sayılır
 
-def olaylar(paper_path, tracker_path, son=0.0, limit=20, now=None):
+def kesif_olayi(path, son):
+    """Günlük otomatik keşfin sonucu (kesif_son.json): yeni kopyalanabilir cüzdan ya da hata varsa bir olay."""
+    try:
+        with open(path) as f: k = json.load(f)
+    except (OSError, ValueError):
+        return None
+    ts = float(k.get("ts") or 0)
+    if ts <= son: return None
+    if k.get("durum") == "hata":
+        return dict(id=f"x{int(ts)}", ts=ts, tur="risk", baslik="Otomatik keşif başarısız", metin=k.get("hata") or "bilinmeyen hata")
+    yeni = k.get("kopyalanabilir") or []
+    if not yeni: return None
+    satir = "; ".join(f"{c['wallet'][:4]}…{c['wallet'][-4:]} K/Z {c['gerceklesen_usd']:+.0f}$ kazanma %{100 * c['kazanma_orani']:.0f}"
+                      for c in yeni[:3])
+    return dict(id=f"x{int(ts)}", ts=ts, tur="kesif", baslik=f"Keşif: {len(yeni)} yeni kopyalanabilir cüzdan",
+                metin=f"{satir}. Eklemek için sunucuda: sudo bash /opt/nexora/deploy/calistir.sh cuzdan_ekle.py --uygula")
+
+
+def olaylar(paper_path, tracker_path, son=0.0, limit=20, now=None, kesif_path="kesif_son.json"):
     """Bildirim olayları (ts > son): kopyalanan alım, kapanan pozisyon, günlük zarar sınırı, bot işareti.
     Uygulama son gördüğü ts'yi saklar ve yalnızca yenileri ister."""
     now = now if now is not None else time.time()
@@ -185,6 +203,8 @@ def olaylar(paper_path, tracker_path, son=0.0, limit=20, now=None):
                                 metin=r["last_error"] or "yüksek frekans (bot olabilir)"))
         finally:
             tc.close()
+    ke = kesif_olayi(kesif_path, son)
+    if ke: out.append(ke)
     out.sort(key=lambda e: e["ts"])
     return dict(olaylar=out[:limit], simdi=now)
 

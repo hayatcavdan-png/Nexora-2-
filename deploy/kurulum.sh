@@ -33,9 +33,9 @@ if [ ! -f /etc/nexora.env ]; then
   echo "Uygulama için yeni sunucu anahtarı üretildi; görmek için: sudo grep NEXORA_API_KEY /etc/nexora.env"
 fi
 
-install -m 644 "$HEDEF"/deploy/nexora-*.service "$HEDEF"/deploy/nexora-yedek.timer /etc/systemd/system/
+install -m 644 "$HEDEF"/deploy/nexora-*.service "$HEDEF"/deploy/nexora-*.timer /etc/systemd/system/
 systemctl daemon-reload
-systemctl enable --now nexora-sunucu nexora-takip nexora-yedek.timer
+systemctl enable --now nexora-sunucu nexora-takip nexora-yedek.timer nexora-kesif.timer
 sleep 3
 systemctl --no-pager --lines=0 status nexora-sunucu nexora-takip 2>/dev/null | grep -E "●|Active" || true
 [ -f "$HEDEF/backend/wallets.txt" ] || echo "Not: wallets.txt yok; takip, telefondaki yedek geri yüklenene kadar yeniden denemeye devam eder (normal)."

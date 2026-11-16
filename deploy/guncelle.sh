@@ -13,8 +13,9 @@ if ! (cd backend && sudo -u nexora python3 -m unittest discover -s tests -q 2>&1
   echo "Testler GEÇMEDİ: eski sürüme dönülüyor, servisler değişmedi."
   sudo -u nexora git reset -q --hard "$ONCE"; exit 1
 fi
-install -m 644 deploy/nexora-*.service deploy/nexora-yedek.timer /etc/systemd/system/
+install -m 644 deploy/nexora-*.service deploy/nexora-*.timer /etc/systemd/system/
 systemctl daemon-reload
+for T in deploy/nexora-*.timer; do systemctl enable --now -q "$(basename "$T")"; done
 systemctl restart nexora-sunucu nexora-takip
 sleep 5
 systemctl --no-pager --lines=0 status nexora-sunucu nexora-takip 2>/dev/null | grep -E "●|Active" || true

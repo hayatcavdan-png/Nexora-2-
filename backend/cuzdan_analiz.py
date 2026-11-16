@@ -7,7 +7,7 @@ Maliyet: 100 işlem başına 10 kredi (varsayılan 200 işlem = cüzdan başına
   python cuzdan_analiz.py              # cuzdan_tarama.csv'deki ölçülü adaylar + wallets.txt
   python cuzdan_analiz.py liste.txt    # belirli bir liste
   ANALIZ_HEPSI=1 python cuzdan_analiz.py   # tüm adaylar (daha fazla kredi)
-Çıktılar: cuzdan_analiz.csv (tüm sonuçlar), wallets_onerilen.txt (kopyalanabilirler, en iyisi önce)"""
+Çıktılar: cuzdan_analiz.csv (tüm sonuçlar; önceki analizlerle birleştirilir, aynı cüzdanın satırı güncellenir), wallets_onerilen.txt (kopyalanabilirler, en iyisi önce)"""
 import csv, os, re, sys, time
 from nexora.helius_client import HeliusClient, HeliusRPCError
 from nexora.market import JupiterQuoter, QuoteError
@@ -87,8 +87,14 @@ def main(client=None, quoter=None, sleep=time.sleep, list_path=None):
         if i % 5 == 0 or i == len(wallets): print(f"  {i}/{len(wallets)} analiz edildi", flush=True)
         sleep(0.2)
 
+    birlesik = {}                                                    # önceki sonuçlar korunur (takip ve etiketleme bu dosyayı okur)
+    if os.path.exists(OUT_CSV):
+        with open(OUT_CSV, newline="") as f:
+            for r in csv.DictReader(f):
+                if r.get("wallet"): birlesik[r["wallet"]] = r
+    for r in rows: birlesik[r["wallet"]] = r
     with open(OUT_CSV, "w", newline="") as f:
-        wr = csv.DictWriter(f, fieldnames=FIELDS, extrasaction="ignore"); wr.writeheader(); wr.writerows(rows)
+        wr = csv.DictWriter(f, fieldnames=FIELDS, extrasaction="ignore"); wr.writeheader(); wr.writerows(birlesik.values())
     good = sorted((r for r in rows if r["karar"] == "kopyalanabilir"), key=lambda r: -r["skor"])
     with open(OUT_TXT, "w") as f:
         f.write("# Kârlılık analizinden geçen cüzdanlar (en iyisi önce). wallets.txt'e kopyalamadan önce gözden geçirin.\n")

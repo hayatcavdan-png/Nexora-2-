@@ -113,4 +113,26 @@ class CliTests(unittest.TestCase):
         self.assertIn("program hesabı", out.getvalue())
         self.assertEqual([l.strip() for l in open("wallets_onerilen.txt") if not l.startswith("#")], ["A" * 32])
         self.assertIn("SOL ≈ 150.00", out.getvalue()); self.assertTrue(os.path.exists("cuzdan_analiz.csv"))
+
+    def test_onceki_sonuclar_korunur(self):
+        with open("cuzdan_analiz.csv", "w", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=["wallet", "karar", "skor"]); w.writeheader()
+            w.writerow(dict(wallet="E" * 32, karar="kopyalanabilir", skor=0.3)); w.writerow(dict(wallet="B" * 32, karar="eski", skor=0))
+        bad = sum((round_trip(i, f"T{i}", 10, 7, 1000 + i * 5000) for i in range(8)), [])
+        class C:
+            def call(self, m, p):
+                if m == "getMultipleAccounts": return {"value": [dict(owner="11111111111111111111111111111111") for _ in p[0]]}
+                return {"data": [dict(t, meta=dict(t["meta"])) for t in bad]}
+        class Q:
+            def quote(self, i, o, a): return dict(in_amount=a, out_amount=150 * 10**6, price_impact_pct=0)
+        open("liste.txt", "w").write("B" * 32 + "\n")
+        import cuzdan_analiz as mod
+        orig, egri = mod.analyze, mod.hesap_turu.egri_ustunde
+        mod.analyze = lambda txs, w, p: dict(orig(txs, W, p), wallet=w); mod.hesap_turu.egri_ustunde = lambda a: True
+        try:
+            with contextlib.redirect_stdout(io.StringIO()): mod.main(client=C(), quoter=Q(), sleep=lambda s: None, list_path="liste.txt")
+        finally:
+            mod.analyze, mod.hesap_turu.egri_ustunde = orig, egri
+        r = {x["wallet"][0]: x["karar"] for x in csv.DictReader(open("cuzdan_analiz.csv"))}
+        self.assertEqual(r, {"E": "kopyalanabilir", "B": "zararda"})
 if __name__ == "__main__": unittest.main()

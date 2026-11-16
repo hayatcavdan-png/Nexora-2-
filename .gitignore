@@ -15,3 +15,8 @@ backend/yz_veri.csv
 backend/yz_model.json
 backend/nexora_etiket.db
 android/app/src/main/res/font/
+backend/kesif_son.json
+backend/kesif_gorulen.json
+backend/kesif_gorulen.txt
+backend/bilinen_hesaplar.txt
+backend/wallets.txt.yedek

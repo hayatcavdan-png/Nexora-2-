@@ -1,0 +1,9 @@
+[Unit]
+Description=NEXORA otomatik kesif her gun 02:40 UTC (05:40 Istanbul)
+
+[Timer]
+OnCalendar=*-*-* 02:40:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

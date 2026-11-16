@@ -102,7 +102,7 @@ def main(client=None, tracker_db=None, out_dir="."):
     print(f"{len(alimlar)} token incelenecek, token başına en fazla {LIMIT} işlem "
           f"x {SAYFA} sayfa (tahmini en fazla {len(alimlar) * SAYFA * ((LIMIT + 99) // 100) * 10} Helius kredisi).", flush=True)
     client = client or HeliusClient(max_retries=2)
-    bilinen = set(read_list("wallets.txt")) | set(read_list("kara_liste.txt"))
+    bilinen = set(read_list("wallets.txt")) | set(read_list("kara_liste.txt")) | set(read_list("kesif_gorulen.txt"))
     for f in ("cuzdan_analiz.csv",):
         if os.path.exists(f): bilinen |= {r["wallet"] for r in csv.DictReader(open(f, newline=""))}
     gorulme = defaultdict(set)
