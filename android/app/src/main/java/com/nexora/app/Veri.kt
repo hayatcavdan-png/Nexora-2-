@@ -86,6 +86,7 @@ class Veri {
     var defter by mutableStateOf<JSONObject?>(null)
     var hazirlik by mutableStateOf<JSONObject?>(null)
     var borsa by mutableStateOf<JSONObject?>(null)
+    var strateji by mutableStateOf<JSONObject?>(null)
     var radarOzet by mutableStateOf("")
     var eksikUclar by mutableStateOf(listOf<String>())
 
@@ -172,6 +173,7 @@ class Veri {
         try { defter = JSONObject(api(url, key, "/defter")) } catch (e: Exception) { eksik += "defter" }
         try { hazirlik = JSONObject(api(url, key, "/hazirlik")) } catch (e: Exception) { eksik += "hazırlık" }
         try { borsa = JSONObject(api(url, key, "/borsa")) } catch (e: Exception) { eksik += "borsa" }
+        try { strateji = JSONObject(api(url, key, "/strateji")) } catch (e: Exception) { eksik += "strateji" }
         try {
             val r = JSONObject(api(url, key, "/radar", zamanAsimi = 15000))
             radarOzet = r.str("ozet")

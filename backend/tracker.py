@@ -91,7 +91,7 @@ def main():
         from nexora.borsa_motor import BorsaMotoru
         bl = borsa_liste.yukle()
         if bl:
-            borsa = BorsaMotoru(Paper(os.getenv("BORSA_DB", "nexora_borsa.db")), bl).baslat()
+            borsa = BorsaMotoru(Paper(os.getenv("BORSA_DB", "nexora_borsa.db"), kayma=0.0005, ucret_orani=0.001), bl).baslat()
             print(f"  Platform 2 (borsa): {len(bl)} listeli token, {len(borsa_cuz)} borsa cüzdanı (paper)", flush=True)
     tr = LiveTracker(client, paper, os.getenv("TRACKER_DB", "nexora_tracker.db"), wallets, decider=decider, etiketci=etiketci,
                      borsa=borsa)

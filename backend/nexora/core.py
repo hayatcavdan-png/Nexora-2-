@@ -100,8 +100,11 @@ class SemaHatasi(RuntimeError):
     pass
 
 class Paper:
-    def __init__(self, path=":memory:"):
+    def __init__(self, path=":memory:", kayma=None, ucret_orani=0.0):
         self.path = path
+        # Borsa (platform 2): gerçek alış/satış fiyatı kullanıldığı için kayma küçük, ücret yüzdelik (ör. %0.1 = 0.001)
+        self.kayma = CFG["base_slippage"] if kayma is None else kayma
+        self.ucret_orani = ucret_orani
         self.db = sqlite3.connect(path, check_same_thread=False, timeout=10)
         self.db.row_factory = sqlite3.Row
         self.lock = threading.Lock()
@@ -283,23 +286,25 @@ class Paper:
                 has = self.db.execute("SELECT 1 FROM positions WHERE token=?", (token,)).fetchone()
                 if n >= self.limit("max_positions") and not has: return rej("maks. eşzamanlı pozisyon")
                 size = eq * self.limit("max_pos_pct")
-                if size + CFG["net_fee_usd"] > self.cash(): return rej("yetersiz nakit")
-                slip = CFG["base_slippage"] + size / liquidity_usd
+                ucret = CFG["net_fee_usd"] + size * self.ucret_orani
+                if size + ucret > self.cash(): return rej("yetersiz nakit")
+                slip = self.kayma + size / liquidity_usd
                 fill = price * (1 + slip); qty = size / fill
-                self._set("cash", self.cash() - size - CFG["net_fee_usd"])
+                self._set("cash", self.cash() - size - ucret)
                 self.db.execute("""INSERT INTO positions(token,qty,cost,last_price,wallet) VALUES(?,?,?,?,?) ON CONFLICT(token) DO UPDATE SET
                   qty=qty+excluded.qty, cost=cost+excluded.cost, last_price=excluded.last_price""",
                   (token, qty, size, price, wallet))
-                return self._log(event_id, wallet, token, side, qty, fill, CFG["net_fee_usd"], 0, "KOPYALANDI", "ok")
+                return self._log(event_id, wallet, token, side, qty, fill, ucret, 0, "KOPYALANDI", "ok")
 
             pos = self.db.execute("SELECT * FROM positions WHERE token=?", (token,)).fetchone()
             if not pos: return rej("sahip olunmayan pozisyon satılamaz")
-            slip = CFG["base_slippage"] + pos["qty"] * price / liquidity_usd
-            fill = price * (1 - slip); proceeds = pos["qty"] * fill - CFG["net_fee_usd"]
+            slip = self.kayma + pos["qty"] * price / liquidity_usd
+            fill = price * (1 - slip); ucret = CFG["net_fee_usd"] + pos["qty"] * fill * self.ucret_orani
+            proceeds = pos["qty"] * fill - ucret
             pnl = proceeds - pos["cost"]
             self._set("cash", self.cash() + proceeds)
             self.db.execute("DELETE FROM positions WHERE token=?", (token,))
-            return self._log(event_id, wallet, token, side, pos["qty"], fill, CFG["net_fee_usd"], pnl, "KOPYALANDI", "ok")
+            return self._log(event_id, wallet, token, side, pos["qty"], fill, ucret, pnl, "KOPYALANDI", "ok")
 
     # --- Gerçek teklif (Jupiter) ile çalışan yol -------------------------------------------
     def seen(self, event_id):

@@ -106,3 +106,41 @@ fun BorsaKarti(v: Veri) {
         Text("Borsanın gerçek alış/satış fiyatıyla sanal işlem; gerçek emir yok.", color = Nx.Soluk, fontSize = 11.sp)
     }
 }
+
+
+/** Platform 2 · piyasa stratejileri: dört borsadaki tüm coinler; her strateji ayrı sanal portföy, BTC'yi tutmakla kıyaslı. */
+@Composable
+fun StratejiKarti(v: Veri) {
+    val j = v.strateji ?: return
+    val d = j.optJSONObject("durum")
+    NeonKart(Modifier.fillMaxWidth(), kenar = Nx.KenarParlak) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("PLATFORM 2 · TÜM COİNLER", color = Nx.Soluk, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+            Etiket("paper", Nx.Gok)
+        }
+        if (d != null) {
+            val k = if (d.isNull("kiyas_btc_pct")) null else d.optDouble("kiyas_btc_pct")
+            Text("${d.optInt("evren")} coin izleniyor (Binance, OKX, KuCoin, MEXC)" + (k?.let { " · BTC'yi tutmak: " + (if (it >= 0) "+" else "") + yuzde(it, 2) } ?: ""),
+                 color = Nx.Soluk, fontSize = 12.sp)
+        } else Text("Motor henüz çalışmadı. Sunucuda güncelleme gerekiyor.", color = Nx.Soluk, fontSize = 12.sp)
+        val a = j.optJSONArray("stratejiler") ?: return@NeonKart
+        for (i in 0 until a.length()) {
+            val s = a.getJSONObject(i)
+            Spacer(Modifier.height(6.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(s.optString("ad").replaceFirstChar { it.uppercase() }, color = Nx.Metin, fontSize = 15.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                if (!s.optBoolean("bos")) {
+                    val kz = s.optDouble("kz", 0.0)
+                    val pct = kz / 100.0 * 100
+                    Text("${isaretli(kz)} USDC (" + (if (pct >= 0) "+" else "") + yuzde(pct, 2) + ")", color = kzRenk(kz), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                }
+            }
+            if (s.optBoolean("bos")) { Text("Henüz işlem yok.", color = Nx.Soluk, fontSize = 12.sp); continue }
+            val kaz = if (s.isNull("kazanma_pct")) "—" else yuzde(s.optDouble("kazanma_pct"), 0)
+            val pf = if (s.isNull("profit_factor")) "—" else String.format(java.util.Locale.US, "%.2f", s.optDouble("profit_factor"))
+            Text("${s.optInt("kapanan")} kapanan · kazanma $kaz · kâr faktörü $pf · ${s.optInt("acik")} açık", color = Nx.Soluk, fontSize = 12.sp)
+            Text(s.optString("aciklama"), color = Nx.Soluk, fontSize = 11.sp, lineHeight = 14.sp)
+        }
+        Text("Borsanın gerçek alış/satış fiyatı, %0.1 işlem ücreti ve kaymayla sanal işlem; gerçek emir yok.", color = Nx.Soluk, fontSize = 11.sp)
+    }
+}

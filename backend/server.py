@@ -146,6 +146,16 @@ class H(BaseHTTPRequestHandler):
             bp = Paper(yol); p = bp.portfolio()
             self._send(200, dict(acik=True, liste=len(borsa_liste.yukle()), nakit=p["cash"], toplam=p["equity"], kz=p["pnl"],
                                  pozisyonlar=p["positions"], islemler=bp.trades(30))); return
+        if parts.path == "/strateji":                       # Platform 2 · piyasa stratejileri karnesi
+            from nexora import piyasa
+            out = []
+            for st in piyasa.STRATEJILER:
+                yol = f"nexora_strateji_{st.ad}.db"
+                if os.path.exists(yol): out.append(piyasa.ozet(Paper(yol), st))
+                else: out.append(dict(ad=st.ad, aciklama=st.aciklama, bos=True))
+            try: durum = json.load(open("piyasa_durum.json"))
+            except (OSError, ValueError): durum = None
+            self._send(200, dict(stratejiler=out, durum=durum)); return
         if parts.path == "/hazirlik":
             from nexora import hazirlik as _hz
             from nexora.etiket import ozet as _et

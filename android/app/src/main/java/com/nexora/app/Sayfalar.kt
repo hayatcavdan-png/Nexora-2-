@@ -131,6 +131,7 @@ fun LazyListScope.anaSayfa(v: Veri, gizle: Boolean, gizleDegis: () -> Unit, aral
     }
     item(key = "demo") { DemoHap() }
     item(key = "bugun") { BugunKarti(v) { git("portfoy") } }
+    item(key = "strateji") { StratejiKarti(v) }
     item(key = "borsa") { BorsaKarti(v) }
     item(key = "bakiye") {
         val simdi = System.currentTimeMillis() / 1000.0
