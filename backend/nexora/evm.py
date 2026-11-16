@@ -129,12 +129,24 @@ class KyberTeklif:
         return dict(cikis_raw=int(rs["amountOut"]), giris_usd=float(rs.get("amountInUsd") or 0), cikis_usd=float(rs.get("amountOutUsd") or 0))
 
 
+def dexscreener_likidite(s, zincir, token, timeout=12):
+    """DexScreener (herkese açık, anahtarsız): token'ın bu zincirdeki çiftlerinin toplam USD likiditesi. Hata: None."""
+    hedef = {"bnb": "bsc", "base": "base"}[zincir]
+    try:
+        d = s.get(f"https://api.dexscreener.com/latest/dex/tokens/{token}", timeout=timeout).json()
+        ciftler = d.get("pairs") or [] if isinstance(d, dict) else []
+        return round(sum(float((p.get("liquidity") or {}).get("usd") or 0) for p in ciftler if p.get("chainId") == hedef), 2)
+    except (requests.RequestException, ValueError, AttributeError, TypeError):
+        return None
+
+
 class GoPlus:
     URL = "https://api.gopluslabs.io/api/v1/token_security/{}"
     MAKS_VERGI = 0.05
 
     def __init__(self, zincir, session=None, timeout=12):
         self.z, self.s, self.timeout, self._onbellek = ZINCIRLER[zincir], session or requests.Session(), timeout, {}
+        self.zincir, self.son_ham = zincir, None
 
     def kontrol(self, token, now=None):
         """dict(uygun, gerekceler, likidite_usd). Servis yanıt vermezse UYGUN DEĞİL sayılır (bilinmeyen = alınmaz)."""
@@ -147,6 +159,7 @@ class GoPlus:
         except (requests.RequestException, ValueError, AttributeError):
             x = None
         if not x: return dict(uygun=False, gerekceler=["güvenlik bilgisi alınamadı"], likidite_usd=0.0)
+        self.son_ham = x
         g = []
         bir = lambda k: str(x.get(k) or "0") == "1"
         if bir("is_honeypot"): g.append("honeypot (satılamaz)")
@@ -161,7 +174,9 @@ class GoPlus:
         lik = 0.0
         for dex in x.get("dex") or []:
             try: lik += float(dex.get("liquidity") or 0)
-            except (TypeError, ValueError): pass
+            except (TypeError, ValueError, AttributeError): pass
+        if lik <= 0:                                             # GoPlus likidite vermezse ikinci kaynak
+            lik = dexscreener_likidite(self.s, self.zincir, token) or 0.0
         sonuc = dict(uygun=not g, gerekceler=g or ["geçti"], likidite_usd=round(lik, 2))
         self._onbellek[token] = (now, sonuc)
         return sonuc

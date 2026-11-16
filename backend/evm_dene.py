@@ -22,8 +22,17 @@ def main(argv):
         print(f"2) KyberSwap: 10 USD -> {q['cikis_raw']} birim (girdi ≈ {q['giris_usd']:.2f} $, çıktı ≈ {q['cikis_usd']:.2f} $)")
     except EvmHatasi as e:
         print(f"2) KyberSwap: HATA ({e})"); tamam = False
-    g = GoPlus(z).kontrol(ORNEK[z])
+    gp = GoPlus(z); g = gp.kontrol(ORNEK[z])
     print(f"3) GoPlus: {'uygun' if g['uygun'] else 'uygun değil'} · {', '.join(g['gerekceler'])} · likidite ≈ {g['likidite_usd']:,.0f} $")
+    ham = gp.son_ham or {}
+    dex = ham.get("dex")
+    print(f"   GoPlus dex alanı: {type(dex).__name__}, {len(dex) if isinstance(dex, list) else '-'} öğe"
+          + (f", ilk öğe anahtarları: {sorted(dex[0].keys())}" if isinstance(dex, list) and dex and isinstance(dex[0], dict) else ""))
+    from nexora.evm import dexscreener_likidite
+    import requests
+    ds = dexscreener_likidite(requests.Session(), z, ORNEK[z])
+    print(f"4) DexScreener likidite: {'HATA' if ds is None else f'≈ {ds:,.0f} $'}")
+    tamam &= g["likidite_usd"] > 0
     tamam &= g["gerekceler"] != ["güvenlik bilgisi alınamadı"]
     print("SONUÇ: " + ("tüm parçalar çalışıyor" if tamam else "eksik parça var (yukarıdaki HATA satırları)"))
     return tamam

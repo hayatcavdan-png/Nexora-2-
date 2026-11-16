@@ -54,6 +54,23 @@ class Test(unittest.TestCase):
         iki = dict(ok, logs=[tr(USDT, W, ROUTER, 5), tr(TOK, ROUTER, W, 1), tr("0x" + "44" * 20, ROUTER, W, 1)])
         self.assertIsNone(E.coz({}, iki, W, "bnb"))                                                               # belirsiz (iki token)
 
+    def test_goplus_ve_likidite_yedegi(self):
+        class R:
+            def __init__(self, b): self.b = b
+            def json(self): return self.b
+        class S:
+            def __init__(self, gp, ds): self.gp, self.ds = gp, ds
+            def get(self, url, params=None, timeout=None): return R(self.gp if "gopluslabs" in url else self.ds)
+        tok = TOK.lower()
+        g = E.GoPlus("bnb", session=S({"result": {tok: {"is_honeypot": "0", "buy_tax": "0", "sell_tax": "0.12", "dex": []}}},
+                                      {"pairs": [{"chainId": "bsc", "liquidity": {"usd": 80000}}, {"chainId": "ethereum", "liquidity": {"usd": 1e9}}]}))
+        r = g.kontrol(TOK)
+        self.assertFalse(r["uygun"]); self.assertIn("satım vergisi %12", r["gerekceler"]); self.assertEqual(r["likidite_usd"], 80000.0)
+        g2 = E.GoPlus("bnb", session=S({"result": {tok: {"dex": [{"liquidity": "150000.5"}]}}}, {}))
+        self.assertEqual(g2.kontrol(TOK), dict(uygun=True, gerekceler=["geçti"], likidite_usd=150000.5))
+        g3 = E.GoPlus("bnb", session=S({"result": {}}, {}))
+        self.assertFalse(g3.kontrol(TOK)["uygun"])                                      # bilgi yoksa alınmaz
+
     def test_rpc_salt_okunur(self):
         with self.assertRaises(ValueError): E.EvmRpc("http://x").call("eth_sendRawTransaction", ["0x00"])
         self.assertNotIn("eth_sendRawTransaction", E.EvmRpc.YONTEMLER); self.assertNotIn("eth_sendTransaction", E.EvmRpc.YONTEMLER)
