@@ -115,7 +115,8 @@ class H(BaseHTTPRequestHandler):
         if parts.path == "/olaylar":
             try: son = float(parse_qs(parts.query).get("son", ["0"])[0])
             except ValueError: son = 0.0
-            self._send(200, panel.olaylar(os.getenv("NEXORA_DB", "nexora_paper.db"), os.getenv("TRACKER_DB", "nexora_tracker.db"), son))
+            self._send(200, panel.olaylar(os.getenv("NEXORA_DB", "nexora_paper.db"), os.getenv("TRACKER_DB", "nexora_tracker.db"), son,
+                                          kesif_path="kesif_son.json"))
             return
         if self.path == "/durum":
             self._send(200, dict(mod="PAPER", gercek_islem="KAPALI", acil_durdurma=paper.killed(), ayarlar=paper.ayarlar()["gecerli"],

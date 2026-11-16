@@ -53,7 +53,7 @@ class Test(unittest.TestCase):
     def test_olay_metni(self):
         self.analiz_csv()
         self.calis(kesif=lambda: [A], analiz=lambda: [dict(wallet=A, karar="kopyalanabilir")], now=4000.0)
-        e = panel.olaylar("yok.db", "yok.db", son=0, now=5000.0)["olaylar"]
+        e = panel.olaylar("yok.db", "yok.db", son=0, now=5000.0, kesif_path="kesif_son.json")["olaylar"]
         self.assertEqual(len(e), 1)
         self.assertEqual(e[0]["tur"], "kesif"); self.assertIn("1 yeni kopyalanabilir", e[0]["baslik"])
         self.assertIn("+119$", e[0]["metin"]); self.assertIn("--uygula", e[0]["metin"])

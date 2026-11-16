@@ -147,7 +147,7 @@ def kesif_olayi(path, son):
                 metin=f"{satir}. Eklemek için sunucuda: sudo bash /opt/nexora/deploy/calistir.sh cuzdan_ekle.py --uygula")
 
 
-def olaylar(paper_path, tracker_path, son=0.0, limit=20, now=None, kesif_path="kesif_son.json"):
+def olaylar(paper_path, tracker_path, son=0.0, limit=20, now=None, kesif_path=None):
     """Bildirim olayları (ts > son): kopyalanan alım, kapanan pozisyon, günlük zarar sınırı, bot işareti.
     Uygulama son gördüğü ts'yi saklar ve yalnızca yenileri ister."""
     now = now if now is not None else time.time()
@@ -203,7 +203,7 @@ def olaylar(paper_path, tracker_path, son=0.0, limit=20, now=None, kesif_path="k
                                 metin=r["last_error"] or "yüksek frekans (bot olabilir)"))
         finally:
             tc.close()
-    ke = kesif_olayi(kesif_path, son)
+    ke = kesif_olayi(kesif_path, son) if kesif_path else None
     if ke: out.append(ke)
     out.sort(key=lambda e: e["ts"])
     return dict(olaylar=out[:limit], simdi=now)
