@@ -166,6 +166,7 @@ fun BotEkrani(v: Veri, durdurIste: () -> Unit, devam: () -> Unit) {
         Satir("İşlem başına risk", yuzde(a.optDouble("max_pos_pct", 0.05) * 100))
         Satir("En fazla açık pozisyon", a.optInt("max_positions", 5).toString())
         Satir("Cüzdan başına pozisyon", a.optInt("max_positions_per_wallet", 2).toString())
+        Satir("Token başına günlük giriş", a.optInt("max_token_entries_per_day", 2).toString())
         Satir("Günlük zarar sınırı", yuzde(a.optDouble("daily_loss_pct", 0.03) * 100))
         Satir("Al-sat kaybı sınırı", yuzde(a.optDouble("max_roundtrip_loss_pct", 6.0)))
         Satir("Sinyal tazelik sınırı", "${a.optInt("max_signal_age_s", 10)} sn")
@@ -548,6 +549,7 @@ private val RISK_ALANLARI = listOf(
     RiskAlani("daily_loss_pct", "Günlük zarar sınırı", "% portföy", 100.0, 0.5, 3.0, false),
     RiskAlani("max_positions", "En fazla açık pozisyon", "adet", 1.0, 1.0, 5.0, true),
     RiskAlani("max_positions_per_wallet", "Cüzdan başına pozisyon", "adet", 1.0, 1.0, 2.0, true),
+    RiskAlani("max_token_entries_per_day", "Token başına günlük giriş", "adet", 1.0, 1.0, 2.0, true),
     RiskAlani("max_signal_age_s", "En eski sinyal", "sn", 1.0, 3.0, 10.0, true),
     RiskAlani("max_price_impact_pct", "En yüksek fiyat etkisi", "%", 1.0, 0.5, 3.0, false),
     RiskAlani("max_roundtrip_loss_pct", "En yüksek al-sat kaybı", "%", 1.0, 1.0, 6.0, false),

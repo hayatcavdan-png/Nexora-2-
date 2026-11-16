@@ -21,6 +21,7 @@ CFG = dict(
     max_roundtrip_loss_pct=6.0,   # al-hemen-sat teklif kaybı (spread+etki+ücret) üst sınırı
     fee_reserve_usd=1.0,          # SOL işlem ücretleri için her zaman ayrılan nakit (alımda kullanılmaz)
     max_positions_per_wallet=2,   # tek bir kaynak cüzdan en fazla bu kadar açık pozisyon doldurabilir
+    max_token_entries_per_day=2,  # aynı token'a bir günde en fazla bu kadar giriş (tekrar tekrar aynı token'da zarar etmeyi sınırlar)
     min_roundtrip_loss_pct=-2.0,  # al-sat "kazancı" bundan büyükse teklifler tutarsız: gerçek piyasada olamaz, alım yapılmaz
 )
 
@@ -34,6 +35,7 @@ AYARLANABILIR = dict(
     max_signal_age_s=(3, 10, int),
     max_price_impact_pct=(0.5, 3.0, float),
     max_roundtrip_loss_pct=(1.0, 6.0, float),
+    max_token_entries_per_day=(1, 2, int),
 )
 
 SCHEMA = """
@@ -298,6 +300,10 @@ class Paper:
             if ds > 0 and (ds - eq) / ds >= self.limit("daily_loss_pct"): return "günlük zarar limiti", 0
             n = self.db.execute("SELECT COUNT(*) c FROM positions").fetchone()["c"]
             if n >= self.limit("max_positions"): return "maks. eşzamanlı pozisyon", 0
+            gun_bas = time.mktime(time.strptime(time.strftime("%Y-%m-%d"), "%Y-%m-%d"))
+            ng = self.db.execute("""SELECT COUNT(*) c FROM trades WHERE token=? AND side='buy' AND decision='KOPYALANDI'
+                                    AND ts>=?""", (token, gun_bas)).fetchone()["c"]
+            if ng >= self.limit("max_token_entries_per_day"): return "bu token'a bugünkü giriş sınırı dolu", 0
             if wallet is not None:
                 nw = self.db.execute("SELECT COUNT(*) c FROM positions WHERE wallet=?", (wallet,)).fetchone()["c"]
                 if nw >= self.limit("max_positions_per_wallet"): return "bu cüzdan için pozisyon sınırı dolu", 0

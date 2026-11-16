@@ -32,9 +32,9 @@
    "ad": "Cüzdan keşfi",
    "grup": "Seçim",
    "durum": "devam",
-   "yuzde": 62,
-   "yapilan": "413 cüzdan tarandı; 190 aday kârlılık analizinden geçti; bot, pasif, şüpheli ayrımı; hacim botu kalıbı otomatik tespit ediliyor; 3 cüzdan kara listede; zincirden yeni cüzdan keşfi aracı: kaynakların aldığı token'ları onlardan önce alan cüzdanlar (sınırlı kredi, elle çalışır); uygulamadan tek cüzdan analizi (Wallet DNA, günlük sınırlı)",
-   "eksik": "Keşif sonuçlarının analizi; borsa/LP/protokol hesaplarını ayırma"
+   "yuzde": 70,
+   "yapilan": "413 cüzdan tarandı; 190 aday kârlılık analizinden geçti; bot, pasif, şüpheli ayrımı; hacim botu kalıbı otomatik tespit ediliyor; 3 cüzdan kara listede; zincirden yeni cüzdan keşfi aracı: kaynakların aldığı token'ları onlardan önce alan cüzdanlar (sınırlı kredi, elle çalışır); uygulamadan tek cüzdan analizi (Wallet DNA, günlük sınırlı); sunucuda keşif turu (40 token × 500 işlem): sniper/hızlı al-satçılar otomatik eleniyor; 27 adaydan 1 kopyalanabilir cüzdan (DVi9…TN7N) bulundu; yedekli ekleme aracı (cuzdan_ekle.py: ön izleme, --uygula, --geri)",
+   "eksik": "Keşfi düzenli tekrarlamak; borsa/LP/protokol hesaplarını ayırma; eklenen cüzdanın paper sonucunu izlemek"
   },
   {
    "kod": "N4",
@@ -77,9 +77,9 @@
    "ad": "Sermaye ve risk yönetimi",
    "grup": "İşlem",
    "durum": "devam",
-   "yuzde": 85,
-   "yapilan": "100 USDC, %5 pozisyon, %3 günlük zarar, 5 pozisyon, cüzdan başına 2 pozisyon, 1 USDC ücret rezervi, acil durdurma; limitler uygulamadan değiştirilebilir (yalnızca sıkılaştırma, sunucu denetimi, değişiklik kaydı)",
-   "eksik": "Token yoğunlaşma limiti"
+   "yuzde": 92,
+   "yapilan": "100 USDC, %5 pozisyon, %3 günlük zarar, 5 pozisyon, cüzdan başına 2 pozisyon, 1 USDC ücret rezervi, acil durdurma; limitler uygulamadan değiştirilebilir (yalnızca sıkılaştırma, sunucu denetimi, değişiklik kaydı); token yoğunlaşması: token başına tek pozisyon (%5) ve aynı token'a günde en fazla 2 giriş (uygulamadan 1'e düşürülebilir)",
+   "eksik": "Uzun süreli gerçek kullanımda sınırların gözden geçirilmesi"
   },
   {
    "kod": "N9",
@@ -133,7 +133,7 @@
    "durum": "devam",
    "yuzde": 90,
    "yapilan": "Uygulama 4.0 (COMMAND X tasarımı): ateş kızılı X'li NEXORA logosu ve N amblemi simgesi; Ana Sayfa (bakiye, 24s değişim, aralıklı grafik, AutoPilot, Shield), Keşfet (gerçek Token Radar, Wallet DNA analizi, takip edilen cüzdanlar), AutoPilot X (risk seviyesi ve sınırlar), Portföy (elle paper işlem, pozisyonlar, geçmiş), Profil; aşağı çekip yenileme; optimize (R8) derleme; bildirimler, PIN kilidi, yedek indirme, rapor kartları",
-   "eksik": "Biyometrik giriş; gerçek kullanımda akıcılık geri bildirimi"
+   "eksik": "Gerçek kullanımda akıcılık geri bildirimi"
   },
   {
    "kod": "N15",

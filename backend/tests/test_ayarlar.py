@@ -40,6 +40,20 @@ class AyarTests(unittest.TestCase):
         self.p.ayar_degistir({"max_signal_age_s": 3})
         self.assertEqual(self.p.precheck("sell", "T1", 5, "W1")[0], "sinyal bayat")
 
+    def test_token_daily_entry_limit(self):
+        for i in range(2):
+            r, size = self.p.precheck("buy", "TT", 1, "W1")
+            self.assertIsNone(r)
+            self.p.record_buy(f"b{i}", "W1", "TT", size, 1_000_000, 6)
+            self.p.record_sell(f"s{i}", "W1", "TT", size)
+        self.assertEqual(self.p.precheck("buy", "TT", 1, "W1")[0], "bu token'a bugünkü giriş sınırı dolu")
+        self.assertIsNone(self.p.precheck("buy", "TX", 1, "W1")[0])
+        p2 = Paper(); p2.ayar_degistir({"max_token_entries_per_day": 1})
+        r, size = p2.precheck("buy", "TT", 1, "W1"); p2.record_buy("b", "W1", "TT", size, 1_000_000, 6)
+        p2.record_sell("s", "W1", "TT", size)
+        self.assertEqual(p2.precheck("buy", "TT", 1, "W1")[0], "bu token'a bugünkü giriş sınırı dolu")
+        with self.assertRaises(ValueError): p2.ayar_degistir({"max_token_entries_per_day": 3})
+
     def test_shared_between_processes(self):
         path = os.path.join(tempfile.mkdtemp(), "p.db")
         a, b = Paper(path), Paper(path)                            # sunucu ve takip ayrı bağlantılar

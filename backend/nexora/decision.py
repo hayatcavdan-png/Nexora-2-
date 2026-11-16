@@ -39,7 +39,7 @@ class Decider:
         r = None
         try:
             if side == "sell": self._close_shadows(event_id, wallet, token)
-            limitler = {k: p.limit(k) for k in ("max_pos_pct", "daily_loss_pct", "max_positions", "max_positions_per_wallet",
+            limitler = {k: p.limit(k) for k in ("max_pos_pct", "daily_loss_pct", "max_positions", "max_positions_per_wallet", "max_token_entries_per_day",
                                                 "max_signal_age_s", "max_price_impact_pct", "max_roundtrip_loss_pct")}
             reason, size = p.precheck(side, token, signal_age_s, wallet)
             if boyut_usd is not None and size: size = round(min(size, max(0.0, float(boyut_usd))), 6)   # elle işlem: sınırı aşamaz
