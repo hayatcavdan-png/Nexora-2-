@@ -313,6 +313,10 @@ fun AnaUstBaslik(git: (String) -> Unit) {
 fun BaglanKarti(url: String, key: String, hata: String, kaydet: (String, String) -> Unit) {
     var u by remember(url) { mutableStateOf(if (url.contains("127.0.0.1")) "http://100.105.213.95:8000" else url) }
     var k by remember(key) { mutableStateOf(key) }
+    Column {
+    NexoKonusuyor(if (hata.isEmpty()) "Merhaba! Ben Nexo, NEXORA'nın robotu. Sunucuya bağlanınca işe koyuluyorum."
+                  else "Sunucuya ulaşamadım. Tailscale açık mı? Adresi ve anahtarı bir kontrol edelim.",
+                  if (hata.isEmpty()) NexoHal.MUTLU else NexoHal.DUSUNUYOR, Modifier.fillMaxWidth().padding(bottom = 12.dp), selam = hata.isEmpty())
     NeonKart(Modifier.fillMaxWidth(), kenar = Nx.KenarParlak, dolgu = Nx.DolguMor) {
         Text("Sunucuya bağlan", color = Nx.Metin, fontSize = 20.sp, fontWeight = FontWeight.Bold)
         Text("Bakiye, bot ve işlemler sunucudan gelir. Telefonda Tailscale açık olmalı.", color = Nx.Soluk, fontSize = 13.sp)
@@ -326,5 +330,6 @@ fun BaglanKarti(url: String, key: String, hata: String, kaydet: (String, String)
         }
         if (hata.isNotEmpty()) Text(hata, color = Nx.Kirmizi, fontSize = 13.sp)
         Text("Anahtar sunucuda: sudo grep NEXORA_API_KEY /etc/nexora.env", color = Nx.Soluk, fontSize = 11.sp)
+    }
     }
 }

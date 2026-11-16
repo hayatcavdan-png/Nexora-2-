@@ -3,7 +3,13 @@ package com.nexora.app
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Text
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -30,6 +36,9 @@ fun DegerGrafigi(noktalar: List<Nokta2>, baslangic: Double, modifier: Modifier =
     val t0 = noktalar.first().ts; val t1 = noktalar.last().ts.coerceAtLeast(t0 + 1)
     val sonDeger = noktalar.last().deger
     val renk = if (sonDeger >= baslangic) Nx.Yesil else Nx.Kirmizi
+    // çizgi soldan sağa akarak çizilir (aralık ya da veri değişince yeniden)
+    val ilerleme = remember(t0, noktalar.size) { Animatable(0f) }
+    LaunchedEffect(t0, noktalar.size) { ilerleme.animateTo(1f, tween(1100, easing = FastOutSlowInEasing)) }
 
     Column(modifier) {
         Row(Modifier.fillMaxWidth()) {
@@ -55,11 +64,17 @@ fun DegerGrafigi(noktalar: List<Nokta2>, baslangic: Double, modifier: Modifier =
                     else { cizgi.lineTo(px, py); alan.lineTo(px, py) }
                 }
                 alan.lineTo(x(noktalar.last().ts), h); alan.close()
-                drawPath(alan, Brush.verticalGradient(listOf(renk.copy(alpha = 0.35f), renk.copy(alpha = 0f))))
-                drawPath(cizgi, renk, style = Stroke(width = 4f, cap = StrokeCap.Round))
-                val son = noktalar.last()
-                drawCircle(renk.copy(alpha = 0.3f), radius = 12f, center = Offset(x(son.ts), y(son.deger)))
-                drawCircle(androidx.compose.ui.graphics.Color.White, radius = 6f, center = Offset(x(son.ts), y(son.deger)))
+                val p = ilerleme.value
+                clipRect(right = w * p) {
+                    drawPath(alan, Brush.verticalGradient(listOf(renk.copy(alpha = 0.35f), renk.copy(alpha = 0f))))
+                    drawPath(cizgi, renk.copy(alpha = 0.35f), style = Stroke(width = 12f, cap = StrokeCap.Round))   // neon parıltı
+                    drawPath(cizgi, renk, style = Stroke(width = 4f, cap = StrokeCap.Round))
+                }
+                if (p > 0.98f) {
+                    val son = noktalar.last()
+                    drawCircle(renk.copy(alpha = 0.3f), radius = 12f, center = Offset(x(son.ts), y(son.deger)))
+                    drawCircle(androidx.compose.ui.graphics.Color.White, radius = 6f, center = Offset(x(son.ts), y(son.deger)))
+                }
             }
         }
         Row(Modifier.fillMaxWidth().padding(start = 40.dp, top = 4.dp), horizontalArrangement = Arrangement.SpaceBetween) {

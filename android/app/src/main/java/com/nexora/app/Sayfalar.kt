@@ -106,8 +106,28 @@ private val ARALIKLAR = listOf("1S" to 3600.0, "4S" to 14400.0, "1G" to 86400.0,
 
 // ------------------------------------------------------------------ Ana Sayfa
 
+/** Nexo'nun ruh hali ve söylediği: bot durumu ve son 24 saatin sonucuna göre. */
+fun nexoDurum(v: Veri, d24: Double, kz24: Double): Pair<NexoHal, String> {
+    val saat = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+    val selam = when (saat) { in 5..11 -> "Günaydın!"; in 12..17 -> "İyi günler!"; in 18..22 -> "İyi akşamlar!"; else -> "Gece nöbetindeyim." }
+    val cz = v.takipCuzdanlar.count { it.durum == "aktif" }
+    val poz = v.pozisyonlar.size
+    return when {
+        v.acilDurdurma -> NexoHal.UYKU to "Bot durduruldu, biraz kestiriyorum. Başlatınca hemen nöbete dönerim."
+        d24 > 0.5 -> NexoHal.HEYECAN to "Bugün ${isaretli(kz24)} USDC öndeyiz! $poz pozisyonu yakından izliyorum."
+        d24 < -0.5 -> NexoHal.ENDISE to "Bugün biraz geri düştük (${isaretli(kz24)} USDC). Risk sınırları devrede, sakinim."
+        else -> NexoHal.MUTLU to "$selam Ben Nexo. $cz öncü cüzdanı izliyorum" + (if (poz > 0) ", $poz pozisyon açık." else "; uygun sinyal bekliyorum.")
+    }
+}
+
 fun LazyListScope.anaSayfa(v: Veri, gizle: Boolean, gizleDegis: () -> Unit, aralik: String, aralikSec: (String) -> Unit,
                            git: (String) -> Unit, kesfetSekme: (Int) -> Unit, botAc: () -> Unit, durdurIste: () -> Unit) {
+    item(key = "nexo") {
+        val simdi = System.currentTimeMillis() / 1000.0
+        val ref = degerAni(v.gecmis, simdi - 86400, v.baslangic)
+        val (hal, metin) = nexoDurum(v, if (ref > 0) (v.toplam - ref) / ref * 100 else 0.0, v.toplam - ref)
+        NexoKonusuyor(metin, hal, Modifier.fillMaxWidth())
+    }
     item(key = "demo") { DemoHap() }
     item(key = "bakiye") {
         val simdi = System.currentTimeMillis() / 1000.0
@@ -126,8 +146,10 @@ fun LazyListScope.anaSayfa(v: Veri, gizle: Boolean, gizleDegis: () -> Unit, aral
                 }
             }
             Row(verticalAlignment = Alignment.Bottom) {
-                Text(if (gizle) "•••••• USDC" else "${usd(v.toplam)} USDC", color = Nx.Metin, fontSize = 32.sp, fontWeight = FontWeight.Bold,
-                     modifier = Modifier.weight(1f))
+                Box(Modifier.weight(1f)) {
+                    if (gizle) Text("•••••• USDC", color = Nx.Metin, fontSize = 32.sp, fontWeight = FontWeight.Bold)
+                    else SayanSayi(v.toplam, { "${usd(it)} USDC" }) { Text(it, color = Nx.Metin, fontSize = 32.sp, fontWeight = FontWeight.Bold) }
+                }
                 Column(horizontalAlignment = Alignment.End) {
                     Text(degisimMetni(d24), color = kzRenk(d24), fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
                     Text(if (eskiVar) "son 24 saat" else "başlangıçtan", color = Nx.Soluk, fontSize = 11.sp)
@@ -156,7 +178,7 @@ fun LazyListScope.anaSayfa(v: Veri, gizle: Boolean, gizleDegis: () -> Unit, aral
     item(key = "autopilot") {
         NeonKart(Modifier.fillMaxWidth(), kenar = Nx.KenarParlak, dolgu = Nx.DolguMor) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                RobotAvatar(76.dp)
+                Nexo(70.dp, if (v.acilDurdurma) NexoHal.UYKU else NexoHal.MUTLU)
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text("AutoPilot X", color = Nx.Metin, fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
@@ -380,7 +402,7 @@ fun LazyListScope.autoPilot(v: Veri, geri: () -> Unit, ayarla: (JSONObject) -> U
     item(key = "ap_kahraman") {
         NeonKart(Modifier.fillMaxWidth(), kenar = Nx.KenarParlak, dolgu = Nx.DolguMor) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                RobotAvatar(84.dp)
+                Nexo(92.dp, if (v.acilDurdurma) NexoHal.UYKU else NexoHal.MUTLU)
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text("AutoPilot X", color = Nx.Metin, fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
