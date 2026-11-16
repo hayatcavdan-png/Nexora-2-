@@ -30,9 +30,12 @@ def start_of_local_day(now=None):
     return time.mktime((t.tm_year, t.tm_mon, t.tm_mday, 0, 0, 0, 0, 0, -1))
 
 def shadow_summary(shadows):
-    groups = [(name, [r for r in shadows if r.get("rt_loss_pct") is not None and lo <= r["rt_loss_pct"] < hi])
+    kural = [r for r in shadows if (r.get("reason") or "").startswith("kural: ")]      # yer/sınır kuralı yüzünden alınmayanlar
+    diger = [r for r in shadows if not (r.get("reason") or "").startswith("kural: ")]
+    groups = [(name, [r for r in diger if r.get("rt_loss_pct") is not None and lo <= r["rt_loss_pct"] < hi])
               for name, lo, hi in SHADOW_BUCKETS]
-    groups.append(("fiyat etkisi yüksek", [r for r in shadows if r.get("rt_loss_pct") is None]))
+    groups.append(("fiyat etkisi yüksek", [r for r in diger if r.get("rt_loss_pct") is None]))
+    for ad in sorted({r["reason"] for r in kural}): groups.append((ad, [r for r in kural if r["reason"] == ad]))
     out = []
     for name, rs in groups:
         if not rs: continue

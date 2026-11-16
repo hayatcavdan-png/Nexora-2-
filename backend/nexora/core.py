@@ -520,9 +520,10 @@ class Paper:
     def portfolio(self):
         rows = [dict(r) for r in self.db.execute("SELECT * FROM positions")]
         for r in rows:
-            d = self.db.execute("SELECT durum FROM pos_iz WHERE token=? AND status='open' ORDER BY id DESC LIMIT 1",
+            d = self.db.execute("SELECT durum, opened_ts, min_pct, max_pct FROM pos_iz WHERE token=? AND status='open' ORDER BY id DESC LIMIT 1",
                                 (r["token"],)).fetchone()
             r["durum"] = (d["durum"] if d else None) or D.ACIK
+            r["opened_ts"], r["min_pct"], r["max_pct"] = (d["opened_ts"], d["min_pct"], d["max_pct"]) if d else (None, None, None)
         eq = self.equity()
         return dict(cash=self.cash(), equity=eq, pnl=eq - CFG["start_cash"], positions=rows, killed=self.killed())
 

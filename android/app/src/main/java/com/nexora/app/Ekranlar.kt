@@ -299,7 +299,12 @@ fun PerformansOzeti(v: Veri) {
 }
 
 @Composable
-fun PozisyonKarti(p: Pozisyon) {
+fun PozisyonKarti(p: Pozisyon, kapat: (() -> Unit)? = null) {
+    var onay by remember { mutableStateOf(false) }
+    if (onay) AlertDialog(onDismissRequest = { onay = false }, title = { Text("Pozisyonu kapat (paper)") },
+        text = { Text("${kisa(p.token)} pozisyonu güncel satış teklifiyle sanal olarak kapatılacak. Gerçek işlem yapılmaz.") },
+        confirmButton = { TextButton({ onay = false; kapat?.invoke() }) { Text("Kapat", color = Nx.Kirmizi) } },
+        dismissButton = { TextButton({ onay = false }) { Text("Vazgeç") } }, containerColor = Nx.Yuzey2)
     val kz = p.deger - p.maliyet
     val yz = if (p.maliyet > 0) kz / p.maliyet * 100 else 0.0
     Kart(Modifier.fillMaxWidth()) {
@@ -322,6 +327,17 @@ fun PozisyonKarti(p: Pozisyon) {
             }
         }
         Text("Maliyet ${usd(p.maliyet)} → güncel değer ${usd(p.deger)} USDC", color = Nx.Soluk, fontSize = 12.sp)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                if (p.acilis != null) {
+                    val sn = (System.currentTimeMillis() / 1000.0 - p.acilis).toInt().coerceAtLeast(0)
+                    Text("${sureMetni(sn)} önce açıldı", color = if (sn > 86400) Nx.Sari else Nx.Soluk, fontSize = 12.sp)
+                }
+                if (p.minPct != null && p.maxPct != null)
+                    Text("En düşük ${yuzde(p.minPct, 1)} · en yüksek ${yuzde(p.maxPct, 1)}", color = Nx.Soluk, fontSize = 12.sp)
+            }
+            if (kapat != null) TextButton({ onay = true }) { Text("Kapat (paper)", color = Nx.Kirmizi, fontSize = 13.sp) }
+        }
     }
 }
 

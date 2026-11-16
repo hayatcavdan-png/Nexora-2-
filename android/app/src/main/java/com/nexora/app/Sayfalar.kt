@@ -130,6 +130,7 @@ fun LazyListScope.anaSayfa(v: Veri, gizle: Boolean, gizleDegis: () -> Unit, aral
         NexoKonusuyor(metin, ifade, Modifier.fillMaxWidth(), poz = poz)
     }
     item(key = "demo") { DemoHap() }
+    item(key = "bugun") { BugunKarti(v) { git("portfoy") } }
     item(key = "bakiye") {
         val simdi = System.currentTimeMillis() / 1000.0
         // 24 saatten eski veri yoksa değişim başlangıca göre gösterilir (etiket de buna göre değişir)
@@ -485,7 +486,7 @@ fun LazyListScope.autoPilot(v: Veri, geri: () -> Unit, ayarla: (JSONObject) -> U
 
 // ------------------------------------------------------------------ Portföy
 
-fun LazyListScope.portfoy(v: Veri, geri: () -> Unit, sekme: Int, sekmeSec: (Int) -> Unit, islemFormu: @Composable () -> Unit) {
+fun LazyListScope.portfoy(v: Veri, geri: () -> Unit, sekme: Int, sekmeSec: (Int) -> Unit, kapat: (String) -> Unit = {}, islemFormu: @Composable () -> Unit) {
     item(key = "pf_bas") { SayfaBasligi("Portföy", "Sanal portföyünü yönet", ikon = { NexoYuz(44.dp, NexoIfade.YILDIZ) }, geri = geri) }
     item(key = "pf_deger") {
         val simdi = System.currentTimeMillis() / 1000.0
@@ -531,7 +532,7 @@ fun LazyListScope.portfoy(v: Veri, geri: () -> Unit, sekme: Int, sekmeSec: (Int)
         0 -> item(key = "pf_form") { islemFormu() }
         1 -> {
             if (v.pozisyonlar.isEmpty()) item(key = "pf_bos") { Text("Açık pozisyon yok.", color = Nx.Soluk) }
-            items(v.pozisyonlar, key = { "p_" + it.token }) { PozisyonKarti(it) }
+            items(v.pozisyonlar, key = { "p_" + it.token }) { p -> PozisyonKarti(p) { kapat(p.token) } }
             item(key = "pf_perf") { PerformansOzeti(v) }
         }
         else -> items(v.islemler, key = { "i_" + it.ts + it.token + it.yon }) { IslemSatiri(it) }

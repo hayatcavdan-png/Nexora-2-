@@ -143,6 +143,28 @@ class DecisionTests(unittest.TestCase):
         for i in range(CFG["max_positions_per_wallet"]): self.assertEqual(d.decide(f"e{i}", "W1", f"T{i}", "buy", 1)["decision"], "KOPYALANDI")
         self.assertEqual(d.decide("x", "W1", "T9", "buy", 1)["reason"], "bu cüzdan için pozisyon sınırı dolu")
         self.assertEqual(d.decide("y", "W2", "T9", "buy", 1)["decision"], "KOPYALANDI")    # başka cüzdan etkilenmez
+    def test_kural_golgesi(self):
+        """Sınır yüzünden reddedilen alım gölgede ölçülür; paper defteri değişmez; saatlik kota ve süzgeçler geçerli."""
+        d = self.make()
+        for i in range(CFG["max_positions_per_wallet"]): d.decide(f"e{i}", "W1", f"T{i}", "buy", 1)
+        nakit = self.p.cash()
+        r = d.decide("x", "W1", "T9", "buy", 1)
+        self.assertEqual(r["decision"], "REDDEDİLDİ"); self.assertEqual(self.p.cash(), nakit); self.assertIsNone(self.p.position("T9"))
+        sh = self.p.open_shadows("W1", "T9")
+        self.assertEqual(len(sh), 1); self.assertEqual(sh[0]["reason"], "kural: bu cüzdan için pozisyon sınırı dolu")
+        self.q.sell_price = 1.2                                            # kaynak satınca gölge kapanır, K/Z ölçülür
+        d.decide("s", "W1", "T9", "sell", 1)
+        kapali = [s for s in self.p.shadows() if s["token"] == "T9"][0]
+        self.assertEqual(kapali["status"], "closed"); self.assertGreater(kapali["pnl_usd"], 0)
+        from nexora.rapor import shadow_summary
+        g = shadow_summary(self.p.shadows())
+        self.assertEqual([(x["grup"], x["kapanan"], x["kazanan"]) for x in g], [("kural: bu cüzdan için pozisyon sınırı dolu", 1, 1)])
+        self.q.sell_price = None
+        for i in range(20): d.decide(f"k{i}", "W1", f"K{i}", "buy", 1)       # kota: saatte en fazla KURAL_GOLGE_SAAT
+        self.assertEqual(sum(1 for s in self.p.shadows() if s["status"] == "open"), d.KURAL_GOLGE_SAAT - 1)
+        d2 = Decider(Paper(), FakeQuoter(impact=9.0), Safe())                 # süzgeçten geçmeyen ölçülmez
+        for i in range(CFG["max_positions_per_wallet"]): d2.paper.record_buy(f"b{i}", "W1", f"T{i}", 5.0, 1000, 6)
+        d2.decide("x", "W1", "T9", "buy", 1); self.assertEqual(d2.paper.open_shadows("W1", "T9"), [])
     def test_watch_only_wallet(self):
         p, q = Paper(), FakeQuoter(); d = Decider(p, q, Safe(), izle={"IZ"})
         self.assertEqual(d.decide("e1", "IZ", TOK, "buy", 1)["reason"], "cüzdan yalnızca izleniyor")

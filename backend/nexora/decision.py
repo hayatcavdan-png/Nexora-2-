@@ -32,6 +32,35 @@ class Decider:
         self.bilgi = bilgi            # isteğe bağlı token bilgisi toplayıcı (yalnızca ölçüm; kararı etkilemez)
         self.yurutme = yurutme        # isteğe bağlı yürütme gecikmesi ölçer (yalnızca ölçüm)
 
+    # Yer/sınır kuralı yüzünden reddedilen alımlar gölgede ölçülür: "sınır olmasaydı ne kazanırdık?" (N8/N10 kararı için).
+    KURAL_GOLGE = ("maks. eşzamanlı pozisyon", "bu cüzdan için pozisyon sınırı dolu", "bu token'a bugünkü giriş sınırı dolu")
+    KURAL_GOLGE_SAAT = 8              # saatte en fazla bu kadar ölçüm: Jupiter/Helius kotası gerçek sinyallere kalsın
+
+    def _kural_golgesi(self, event_id, wallet, token, reason, now=None):
+        """Reddedilen alımı, kopyalansaydı geçeceği AYNI süzgeçlerden geçirip gölge pozisyon açar. Paper defterine dokunmaz."""
+        import time as _t
+        now = now if now is not None else _t.time()
+        gecmis = self.__dict__.setdefault("_kg", [])
+        gecmis[:] = [t for t in gecmis if now - t < 3600]
+        if len(gecmis) >= self.KURAL_GOLGE_SAAT: return False
+        gecmis.append(now)
+        p = self.paper
+        try:
+            s = self.safety.check(token)
+            if s["verdict"] != "UYGUN": return False
+            size = round(p.equity() * p.limit("max_pos_pct"), 6)
+            amount = int(round(size * 10 ** USDC_DECIMALS))
+            q = self.quoter.quote(USDC_MINT, token, amount)
+            if q["price_impact_pct"] is not None and q["price_impact_pct"] > p.limit("max_price_impact_pct"): return False
+            back = self.quoter.quote(token, USDC_MINT, q["out_amount"])
+            rt = (1 - back["out_amount"] / amount) * 100
+            if rt < CFG["min_roundtrip_loss_pct"] or rt > p.limit("max_roundtrip_loss_pct"): return False
+            if p.shadow_open(event_id, wallet, token, size, q["out_amount"], s["decimals"], rt, q["price_impact_pct"], "kural: " + reason):
+                self._olc(event_id, token); return True
+        except Exception:
+            pass                          # ölçüm hatası kararı etkilemez
+        return False
+
     def _olc(self, event_id, token):
         if self.bilgi is not None: self.bilgi.enqueue(event_id, token)
 
@@ -53,6 +82,8 @@ class Decider:
                            nakit=round(p.cash(), 6)))
             if reason:
                 r = p.reject(event_id, wallet, token, side, reason)
+                if side == "buy" and reason in self.KURAL_GOLGE and boyut_usd is None:
+                    iz.append(dict(adim="kural_golgesi", sonuc="açıldı" if self._kural_golgesi(event_id, wallet, token, reason) else "açılmadı"))
             else:
                 r = self._buy(event_id, wallet, token, size, iz) if side == "buy" else self._sell(event_id, wallet, token, iz)
             return r

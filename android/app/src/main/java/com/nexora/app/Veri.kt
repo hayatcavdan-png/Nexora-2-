@@ -28,7 +28,8 @@ fun api(base: String, key: String, path: String, post: Boolean = false, govde: S
 fun JSONObject.str(k: String): String = if (isNull(k)) "" else optString(k, "")
 fun JSONObject.dbl(k: String): Double? = if (!has(k) || isNull(k)) null else optDouble(k).takeIf { !it.isNaN() }
 
-data class Pozisyon(val token: String, val cuzdan: String, val maliyet: Double, val deger: Double, val durum: String = "ACIK")
+data class Pozisyon(val token: String, val cuzdan: String, val maliyet: Double, val deger: Double, val durum: String = "ACIK",
+                    val acilis: Double? = null, val minPct: Double? = null, val maxPct: Double? = null)
 data class Islem(val ts: Double, val yon: String, val token: String, val cuzdan: String, val karar: String,
                  val neden: String, val kz: Double)
 data class Sinyal(val ts: Double, val yon: String, val token: String, val cuzdan: String,
@@ -106,7 +107,7 @@ class Veri {
         pozisyonlar = (0 until pos.length()).map {
             val x = pos.getJSONObject(it)
             Pozisyon(x.str("token"), x.str("wallet"), x.optDouble("cost", 0.0), x.optDouble("qty", 0.0) * x.optDouble("last_price", 0.0),
-                     x.str("durum").ifEmpty { "ACIK" })
+                     x.str("durum").ifEmpty { "ACIK" }, x.dbl("opened_ts"), x.dbl("min_pct"), x.dbl("max_pct"))
         }
         val t = JSONArray(api(url, key, "/islemler"))
         islemler = (0 until t.length()).map {

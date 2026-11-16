@@ -23,6 +23,9 @@ import kotlin.math.cos
 import kotlin.math.hypot
 import kotlin.math.sin
 
+/** Görünüm tercihleri (cihazda saklanır). */
+object Gorunum { var sade by mutableStateOf(false) }
+
 private data class Dugum(val x: Float, val y: Float, val ax: Float, val ay: Float, val faz: Float, val renk: Int)
 
 /**
@@ -31,7 +34,9 @@ private data class Dugum(val x: Float, val y: Float, val ax: Float, val ay: Floa
  */
 @Composable
 fun AiArkaplan(modifier: Modifier = Modifier) {
-    val t = rememberInfiniteTransition(label = "ag").animateFloat(0f, 1f, infiniteRepeatable(tween(60_000, easing = LinearEasing)), label = "t")
+    // "Animasyonları azalt" açıkken arka plan sabit çizilir: sürekli yeniden çizim olmaz (pil ve akıcılık).
+    val t: State<Float> = if (Gorunum.sade) remember { mutableFloatStateOf(0.13f) }
+                          else rememberInfiniteTransition(label = "ag").animateFloat(0f, 1f, infiniteRepeatable(tween(60_000, easing = LinearEasing)), label = "t")
     val dugumler = remember {
         val r = java.util.Random(7)
         List(18) { Dugum(r.nextFloat(), r.nextFloat(), 0.03f + r.nextFloat() * 0.05f, 0.02f + r.nextFloat() * 0.04f, r.nextFloat() * 6.28f, it % 4) }

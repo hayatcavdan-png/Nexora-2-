@@ -51,6 +51,7 @@ fun App() {
     var ekran by rememberSaveable { mutableStateOf("ana") }
     var durdurOnay by remember { mutableStateOf(false) }
     var acilis by rememberSaveable { mutableStateOf(true) }
+    LaunchedEffect(Unit) { Gorunum.sade = sp.getBoolean("sade", false) }
     val v = remember { Veri() }
     var yenileniyor by remember { mutableStateOf(false) }
 
@@ -245,7 +246,7 @@ fun App() {
                         item(key = "bot_ayrinti") { Column(verticalArrangement = Arrangement.spacedBy(12.dp)) { BotEkrani(v, { durdurOnay = true }, { komut("/devam") }) } }
                         items(v.sinyaller, key = { "s_" + it.ts + it.token + it.yon }) { SinyalKarti(it) }
                     }
-                    "portfoy" -> portfoy(v, { ekran = "ana" }, portfoySekme, { portfoySekme = it }) {
+                    "portfoy" -> portfoy(v, { ekran = "ana" }, portfoySekme, { portfoySekme = it }, { t -> manuelIslem(t, "sell", null); mesaj("Kapatma isteği gönderildi") }) {
                         IslemFormu(v, seciliToken, { seciliToken = it }, { t, y, u -> manuelIslem(t, y, u) }, islemSonuc, islemMesgul)
                     }
                     "profil" -> profil(v, { ekran = it }) {
@@ -261,6 +262,7 @@ fun App() {
                             yenile()
                         }
                         KilitAyari(sp)
+                        GorunumAyari(sp)
                     }
                     "hazir" -> item(key = "hazir") { HazirlikEkrani(v) }
                     "uye" -> item(key = "uye") { UyeEkrani(url, key, sp) }

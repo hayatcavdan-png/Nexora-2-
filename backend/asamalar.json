@@ -96,7 +96,7 @@
    "grup": "İşlem",
    "durum": "baslamadi",
    "yuzde": 30,
-   "yapilan": "Gölge işlem kaydı (reddedilen alımlar) ve zarar kesme ölçümü (%10/20/30/50 eşiklerinde satsaydık ne olurdu) veri topluyor; takipçi kaybı ayrıştırması; token özelliklerine göre sonuç ayrıştırması. Gerçek Para Hazırlık Karnesi: 8 ölçülebilir ölçüt (işlem sayısı, süre, ortalama K/Z ve %95 güven alt sınırı, profit factor, düşüş, çalışma oranı, etiket); küçük örneklemde \"bekliyor\", asla otomatik geçiş yok.",
+   "yapilan": "Gölge işlem kaydı (reddedilen alımlar) ve zarar kesme ölçümü (%10/20/30/50 eşiklerinde satsaydık ne olurdu) veri topluyor; takipçi kaybı ayrıştırması; token özelliklerine göre sonuç ayrıştırması. Gerçek Para Hazırlık Karnesi: 8 ölçülebilir ölçüt (işlem sayısı, süre, ortalama K/Z ve %95 güven alt sınırı, profit factor, düşüş, çalışma oranı, etiket); küçük örneklemde \"bekliyor\", asla otomatik geçiş yok. Kural gölgesi: pozisyon/cüzdan/token sınırı yüzünden reddedilen alımlar (saatte en fazla 8) aynı süzgeçlerden geçirilip gölgede ölçülür; \"sınır olmasaydı ne kazanırdık\" raporda ayrı grup.",
    "eksik": "En az 30 günlük ileri paper testi; eşik kararı için en az 20 kapanmış gölge işlem ve 20 kapanmış pozisyon"
   },
   {
@@ -132,7 +132,7 @@
    "grup": "Ürün",
    "durum": "devam",
    "yuzde": 90,
-   "yapilan": "Uygulama 4.0 (COMMAND X tasarımı): ateş kızılı X'li NEXORA logosu ve N amblemi simgesi; Ana Sayfa (bakiye, 24s değişim, aralıklı grafik, AutoPilot, Shield), Keşfet (gerçek Token Radar, Wallet DNA analizi, takip edilen cüzdanlar), AutoPilot X (risk seviyesi ve sınırlar), Portföy (elle paper işlem, pozisyonlar, geçmiş), Profil; aşağı çekip yenileme; optimize (R8) derleme; bildirimler, PIN kilidi, yedek indirme, rapor kartları; 5.0.0 yeni tasarım: NEXORA AI paleti, Nexo maskotu (10 ifade), yeni logo ve simge, açılış animasyonu, canlı arka plan, Yapay Zekâ Çekirdeği kartı. 5.1–5.3: Hesabım (giriş, davet, bağlantılar, kişisel sanal hesap) ve Hazırlık Karnesi ekranları.",
+   "yapilan": "Uygulama 4.0 (COMMAND X tasarımı): ateş kızılı X'li NEXORA logosu ve N amblemi simgesi; Ana Sayfa (bakiye, 24s değişim, aralıklı grafik, AutoPilot, Shield), Keşfet (gerçek Token Radar, Wallet DNA analizi, takip edilen cüzdanlar), AutoPilot X (risk seviyesi ve sınırlar), Portföy (elle paper işlem, pozisyonlar, geçmiş), Profil; aşağı çekip yenileme; optimize (R8) derleme; bildirimler, PIN kilidi, yedek indirme, rapor kartları; 5.0.0 yeni tasarım: NEXORA AI paleti, Nexo maskotu (10 ifade), yeni logo ve simge, açılış animasyonu, canlı arka plan, Yapay Zekâ Çekirdeği kartı. 5.1–5.3: Hesabım (giriş, davet, bağlantılar, kişisel sanal hesap) ve Hazırlık Karnesi ekranları. 5.5: ana sayfada Bugün kartı (yer durumu, günlük özet, işlem açılmama nedeni), pozisyon yaşı ve tek dokunuşla paper kapatma, animasyonları azalt ayarı.",
    "eksik": "Gerçek kullanımda akıcılık geri bildirimi"
   },
   {
