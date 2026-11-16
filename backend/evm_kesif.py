@@ -2,7 +2,7 @@
   python evm_kesif.py bnb                 # adaylar -> wallets_bnb_kesif.txt (takip listesine DOKUNMAZ)
   python evm_kesif.py bnb --ekle          # analizden "kopyalanabilir" çıkan ilk 5 cüzdanı wallets_bnb.txt'e ekler (yedekli)
   EVM_KESIF_TOKEN=15 EVM_KESIF_EN_AZ=2 python evm_kesif.py bnb
-Adaylar son EVM_ANALIZ_GUN (2) günlük alım-satımlarıyla Solana ile aynı kurallarla analiz edilir (EVM_ANALIZ_ADAY=20 aday)."""
+Adaylar son EVM_ANALIZ_GUN (5) günlük alım-satımlarıyla Solana ile aynı kurallarla analiz edilir (EVM_ANALIZ_ADAY=20 aday)."""
 import json, os, shutil, sys
 from collections import Counter
 import requests
@@ -12,7 +12,8 @@ from nexora import evm_analiz as A
 from nexora import evm_kesif as K
 
 TOKEN = int(os.getenv("EVM_KESIF_TOKEN", "25")); EN_AZ = int(os.getenv("EVM_KESIF_EN_AZ", "2")); EKLE = 5
-ANALIZ = int(os.getenv("EVM_ANALIZ_ADAY", "20")); GUN = int(os.getenv("EVM_ANALIZ_GUN", "2"))
+ANALIZ = int(os.getenv("EVM_ANALIZ_ADAY", "20")); GUN = int(os.getenv("EVM_ANALIZ_GUN", "5"))
+AKTIF_MIN, AKTIF_MAKS = 3, 300
 
 
 def main(argv, rpc=None, s=None):
@@ -29,8 +30,18 @@ def main(argv, rpc=None, s=None):
     gruplar = []
     adaylar, say = K.kesfet(rpc, tok, EN_AZ, bilinen=mevcut, gruplar=gruplar)
     print(f"{len(say)} farklı erken alıcı; {len(adaylar)} kullanıcı cüzdanı en az {EN_AZ} yükselen token'ı erken aldı", flush=True)
-    secilen = K.analiz_adaylari(rpc, gruplar, say, mevcut, ANALIZ)
-    blok = int(GUN * 86400 / A.BLOK_SURESI[z]); son = rpc.blok()
+    havuz = K.analiz_adaylari(rpc, gruplar, say, mevcut, ANALIZ * 4)
+    blok = int(GUN * 86400 / A.BLOK_SURESI[z]); son = rpc.blok(); gun1 = int(86400 / A.BLOK_SURESI[z])
+    print(f"Ön tarama: {len(havuz)} adayın son 24 saatteki hareketi ölçülüyor…", flush=True)
+    akt = {}
+    for w in havuz:
+        try: akt[w] = K.aktiflik(rpc, w, son, gun1)
+        except Exception: akt[w] = 0
+        if sum(1 for v in akt.values() if AKTIF_MIN <= v <= AKTIF_MAKS) >= ANALIZ: break
+    secilen = [w for w in havuz if AKTIF_MIN <= akt.get(w, 0) <= AKTIF_MAKS][:ANALIZ]
+    pasif = sum(1 for v in akt.values() if v < AKTIF_MIN); asiri = sum(1 for v in akt.values() if v > AKTIF_MAKS)
+    print(f"  {pasif} pasif (24 saatte < {AKTIF_MIN} işlem), {asiri} aşırı aktif (> {AKTIF_MAKS}, bot olabilir) elendi", flush=True)
+    if not secilen: sys.exit("Aktif aday kalmadı. Daha sonra yeniden deneyin (yükselen token'lar değiştikçe adaylar da değişir).")
     print(f"{len(secilen)} aday analiz ediliyor: her birinin son {GUN} günlük alım-satımı zincirden okunuyor (birkaç dakika sürebilir)…", flush=True)
     try:
         yerel = A.yerel_fiyat(KyberTeklif(z), z)

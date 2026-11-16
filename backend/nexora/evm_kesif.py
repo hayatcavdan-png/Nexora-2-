@@ -145,12 +145,23 @@ def kesfet(rpc, tokenler, en_az=2, bilinen=(), pencere_blok=2400, log=print, gru
     return adaylar, say
 
 
+def bot_adresi_mi(w):
+    """Başı sıfırlarla dolu 'vanity' adresler (0x0000…) çoğunlukla ücret tasarrufu yapan botlardır."""
+    return w.lower().startswith("0x0000")
+
+
+def _karisik(g):
+    import hashlib
+    return sorted(g, key=lambda w: hashlib.sha1(w.encode()).hexdigest())     # alfabetik değil: adres biçimine yanlılık yok
+
+
 def analiz_adaylari(rpc, gruplar, say, bilinen=(), en_fazla=20):
     """Analiz edilecek adaylar: önce birden çok token'ı erken alanlar, sonra token'lar arasında sırayla tek token'ı erken
-    alanlar (her token'dan eşit pay). Sözleşmeler ve bilinen cüzdanlar atlanır."""
+    alanlar (her token'dan eşit pay, karışık sırada). Sözleşmeler, bot tipi adresler ve bilinen cüzdanlar atlanır."""
     bilinen = {b.lower() for b in bilinen}; secilen = []
+    gruplar = [_karisik(g) for g in gruplar]
     def ekle(w):
-        if w not in bilinen and w not in secilen and kullanici_mi(rpc, w): secilen.append(w)
+        if w not in bilinen and w not in secilen and not bot_adresi_mi(w) and kullanici_mi(rpc, w): secilen.append(w)
     for w, c in say.most_common():
         if c < 2 or len(secilen) >= en_fazla: break
         ekle(w)
@@ -160,3 +171,11 @@ def analiz_adaylari(rpc, gruplar, say, bilinen=(), en_fazla=20):
             if i < len(g) and len(secilen) < en_fazla: ekle(g[i])
         i += 1
     return secilen
+
+
+def aktiflik(rpc, w, son, blok_sayisi):
+    """Son `blok_sayisi` blokta cüzdanın token hareketi olan farklı işlem sayısı (ucuz ön tarama)."""
+    ks = set()
+    for konular in ([TRANSFER, None, _konu(w)], [TRANSFER, _konu(w)]):
+        for l in _loglar(rpc, {"topics": konular}, son - blok_sayisi, son): ks.add(l.get("transactionHash"))
+    return len(ks)

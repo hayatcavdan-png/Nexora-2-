@@ -63,10 +63,16 @@ class Test(unittest.TestCase):
     def test_aday_secimi(self):
         class C:
             def call(self, y, p): return "0x60" if p[0] == "0xk" else "0x"
-        g = [["0xa", "0xb", "0xk"], ["0xa", "0xc"], ["0xd"]]
+        g = [["0xa", "0xb", "0xk", "0x0000bot"], ["0xa", "0xc"], ["0xd"]]
         from collections import Counter
         say = Counter(w for x in g for w in x)
-        self.assertEqual(K.analiz_adaylari(C(), g, say, bilinen=["0xc"], en_fazla=4), ["0xa", "0xd", "0xb"])   # çoklu önce, sonra token'lar arası sırayla; sözleşme ve bilinen atlanır
+        s = K.analiz_adaylari(C(), g, say, bilinen=["0xc"], en_fazla=4)
+        self.assertEqual(s[0], "0xa"); self.assertEqual(set(s), {"0xa", "0xb", "0xd"})   # çoklu önce; sözleşme, bot adresi, bilinen yok
+        self.assertTrue(K.bot_adresi_mi("0x0000a1b2" + "c" * 32)); self.assertFalse(K.bot_adresi_mi("0x00a1" + "c" * 36))
+
+    def test_aktiflik(self):
+        isl = dict([al("0x1", 900, T1, 10, 1), sat("0x2", 950, T1, 12, 1)])
+        self.assertEqual(K.aktiflik(Rpc(isl), W, 1000, 200), 2); self.assertEqual(K.aktiflik(Rpc(isl), W, 1000, 30), 0)
 
 
 if __name__ == "__main__":
