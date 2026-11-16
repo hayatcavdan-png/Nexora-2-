@@ -1,10 +1,19 @@
 #!/usr/bin/env bash
 # Sunucuda bir NEXORA aracını doğru kullanıcı ve anahtarlarla çalıştırır:
 #   sudo bash /opt/nexora/deploy/calistir.sh cuzdan_kesif.py
-# Yalnızca aşağıdaki salt okunur rapor/analiz araçlarına izin verilir.
+#   sudo bash /opt/nexora/deploy/calistir.sh cuzdan_kesif.py KESIF_TOKEN=40      (sayısal ayar verilebilir)
+# Yalnızca aşağıdaki araçlara izin verilir. cuzdan_ekle.py --uygula dışındakiler salt okunur rapor/analizdir.
 set -euo pipefail
-IZINLI="cuzdan_kesif.py cuzdan_analiz.py cuzdan_tarama.py takip_kaybi.py golge_rapor.py gunluk_rapor.py zarar_kesme.py token_filtre.py yedek.py yz_veri.py yz_model.py portfoy_denetim.py"
+IZINLI="cuzdan_kesif.py cuzdan_analiz.py cuzdan_ekle.py cuzdan_tarama.py takip_kaybi.py golge_rapor.py gunluk_rapor.py zarar_kesme.py token_filtre.py yedek.py yz_veri.py yz_model.py portfoy_denetim.py"
+AYARLAR="KESIF_TOKEN KESIF_LIMIT KESIF_PENCERE_SN KESIF_EN_AZ ANALIZ_LIMIT ANALIZ_HEPSI EKLE_EN_FAZLA"
 ARAC="${1:-}"; shift || true
-case " $IZINLI " in *" $ARAC "*) ;; *) echo "Kullanım: sudo bash /opt/nexora/deploy/calistir.sh ARAÇ [argüman]"; echo "Araçlar: $IZINLI"; exit 1;; esac
+case " $IZINLI " in *" $ARAC "*) ;; *) echo "Kullanım: sudo bash /opt/nexora/deploy/calistir.sh ARAÇ [AYAR=sayı] [argüman]"; echo "Araçlar: $IZINLI"; exit 1;; esac
 [ "$(id -u)" -eq 0 ] || { echo "sudo ile çalıştırın"; exit 1; }
-exec sudo -u nexora bash -c 'set -a; . /etc/nexora.env; set +a; cd /opt/nexora/backend && exec python3 -u "$@"' _ "$ARAC" "$@"
+ENV=()
+while [ $# -gt 0 ] && [[ "$1" == *=* ]]; do
+  AD="${1%%=*}"; DEGER="${1#*=}"
+  case " $AYARLAR " in *" $AD "*) ;; *) echo "İzin verilmeyen ayar: $AD (izinli: $AYARLAR)"; exit 1;; esac
+  [[ "$DEGER" =~ ^[0-9]{1,6}$ ]] || { echo "$AD sayı olmalı"; exit 1; }
+  ENV+=("$AD=$DEGER"); shift
+done
+exec sudo -u nexora env "${ENV[@]}" bash -c 'set -a; . /etc/nexora.env; set +a; cd /opt/nexora/backend && exec python3 -u "$@"' _ "$ARAC" "$@"
