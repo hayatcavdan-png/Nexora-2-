@@ -38,7 +38,7 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {   // BiometricPr
     }
 }
 
-private val ANA_SEKMELER = setOf("ana", "kesfet", "bot", "portfoy", "profil")
+private val ANA_SEKMELER = setOf("ana", "kesfet", "portfoy", "karne", "profil")
 private val ALT_EKRAN = mapOf("rapor" to "Günlük Rapor", "yol" to "Yol Haritası", "takip" to "Takip Edilen Cüzdanlar", "uye" to "Hesabım", "hazir" to "Hazırlık Karnesi")
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -59,6 +59,7 @@ fun App() {
     var gizle by remember { mutableStateOf(sp.getBoolean("gizle", false)) }
     var aralik by rememberSaveable { mutableStateOf("1G") }
     var kesfetSekme by rememberSaveable { mutableIntStateOf(0) }
+    var eko by rememberSaveable { mutableStateOf("tumu") }
     var radarArama by rememberSaveable { mutableStateOf("") }
     var radarSira by rememberSaveable { mutableIntStateOf(0) }
     var favoriler by remember { mutableStateOf(sp.getStringSet("favori", emptySet())!!.toSet()) }
@@ -183,7 +184,7 @@ fun App() {
         islemMesgul = false
     }
     LaunchedEffect(key, url) { while (true) { yukleSessiz(); delay(15_000) } }
-    BackHandler(enabled = ekran != "ana") { ekran = if (ekran in ALT_EKRAN) "profil" else "ana" }
+    BackHandler(enabled = ekran != "ana") { ekran = when { ekran == "hazir" -> "karne"; ekran in ALT_EKRAN || ekran == "bot" -> "profil"; else -> "ana" } }
 
     if (acilis) { AcilisEkrani { acilis = false }; return }
     if (kilitli) { Box(Modifier.fillMaxSize()) { AiArkaplan(); KilitEkrani(sp) { kilitli = false } }; return }
@@ -200,7 +201,7 @@ fun App() {
         )
     }
 
-    val menuSecili = if (ekran in ANA_SEKMELER) ekran else if (ekran == "takip") "kesfet" else "profil"
+    val menuSecili = when { ekran in ANA_SEKMELER -> ekran; ekran == "takip" -> "kesfet"; ekran == "hazir" -> "karne"; else -> "profil" }
     Box(Modifier.fillMaxSize()) {
     AiArkaplan()
     Scaffold(containerColor = Color.Transparent, bottomBar = { AltMenu2(menuSecili) { ekran = it } }) { pad ->
@@ -212,7 +213,7 @@ fun App() {
             ) {
                 if (ekran == "ana") item(key = "ust") { AnaUstBaslik({ ekran = it }) }
                 if (ekran in ALT_EKRAN) item(key = "alt_bas") {
-                    SayfaBasligi(ALT_EKRAN[ekran]!!, when (ekran) { "takip" -> "Analiz ve takip durumu"; "uye" -> "Üyelik, davet ve bağlantılar"; "hazir" -> "Gerçek paraya geçiş ölçütleri"; else -> "NEXORA" }, geri = { ekran = "profil" })
+                    SayfaBasligi(ALT_EKRAN[ekran]!!, when (ekran) { "takip" -> "Analiz ve takip durumu"; "uye" -> "Üyelik, davet ve bağlantılar"; "hazir" -> "Gerçek paraya geçiş ölçütleri"; else -> "NEXORA" }, geri = { ekran = if (ekran == "hazir") "karne" else "profil" })
                 }
                 val bagliDegil = !v.bagli && v.guncelleme == 0.0
                 if (v.hata.isNotEmpty() && !(bagliDegil && ekran == "ana")) item(key = "hata") { Text(v.hata, color = Nx.Kirmizi, fontSize = 13.sp) }
@@ -224,7 +225,8 @@ fun App() {
                     }
                 } else when (ekran) {
                     "ana" -> anaSayfa(v, gizle, { gizle = !gizle; sp.edit().putBoolean("gizle", gizle).apply() }, aralik, { aralik = it },
-                                      { ekran = it }, { kesfetSekme = it }, { ekran = "bot" }, { durdurOnay = true })
+                                      { ekran = it }, eko, { eko = it }, { mesaj(it) }, { durdurOnay = true })
+                    "karne" -> karne(v) { ekran = it }
                     "kesfet" -> {
                         item(key = "k_sekme") {
                             Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(50)).background(Nx.Yuzey2).padding(4.dp),
@@ -242,7 +244,7 @@ fun App() {
                     }
                     "takip" -> takipListesi(v)
                     "bot" -> {
-                        autoPilot(v, { ekran = "ana" }, { riskKaydet(it) }, { komut("/devam") }, { durdurOnay = true }, { modelKapat() })
+                        autoPilot(v, { ekran = "profil" }, { riskKaydet(it) }, { komut("/devam") }, { durdurOnay = true }, { modelKapat() })
                         item(key = "bot_ayrinti") { Column(verticalArrangement = Arrangement.spacedBy(12.dp)) { BotEkrani(v, { durdurOnay = true }, { komut("/devam") }) } }
                         items(v.sinyaller, key = { "s_" + it.ts + it.token + it.yon }) { SinyalKarti(it) }
                     }

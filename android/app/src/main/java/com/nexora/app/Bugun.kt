@@ -20,7 +20,7 @@ private val GURULTU = setOf("sahip olunmayan pozisyon satılamaz", "cüzdan yaln
 
 /** Ana sayfa: "bugün ne oldu ve şu an neden işlem açılıyor/açılmıyor?" sorusunun tek karttaki cevabı. */
 @Composable
-fun BugunKarti(v: Veri, pozisyonlaraGit: () -> Unit) {
+fun BugunKarti(v: Veri, durdurIste: () -> Unit = {}, pozisyonlaraGit: () -> Unit) {
     val b = v.rapor?.optJSONObject("bugun") ?: return
     val maks = v.ayarlar.optInt("max_positions", 8).coerceAtLeast(1)
     val acik = v.pozisyonlar.size
@@ -60,6 +60,9 @@ fun BugunKarti(v: Veri, pozisyonlaraGit: () -> Unit) {
             Text("En eski pozisyon ${sureMetni((simdi - enEski).toInt())} önce açıldı ve bir yeri tutuyor. Dokunup inceleyin.", color = Nx.Sari, fontSize = 12.sp)
         if (nedenler.size > 1)
             Text(nedenler.drop(if (dolu) 0 else 1).take(3).joinToString(" · ") { "${it.second}× ${it.first}" }, color = Nx.Soluk, fontSize = 11.sp)
+        if (!v.acilDurdurma)
+            Text("■ Acil durdur", color = Nx.Kirmizi, fontSize = 13.sp, fontWeight = FontWeight.Bold,
+                 modifier = Modifier.padding(top = 6.dp).clip(CircleShape).clickable(onClick = durdurIste).padding(horizontal = 4.dp, vertical = 4.dp))
     }
 }
 

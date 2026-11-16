@@ -122,7 +122,9 @@ fun nexoDurum(v: Veri, d24: Double, kz24: Double): Triple<NexoIfade, NexoPoz, St
 }
 
 fun LazyListScope.anaSayfa(v: Veri, gizle: Boolean, gizleDegis: () -> Unit, aralik: String, aralikSec: (String) -> Unit,
-                           git: (String) -> Unit, kesfetSekme: (Int) -> Unit, botAc: () -> Unit, durdurIste: () -> Unit) {
+                           git: (String) -> Unit, eko: String, ekoSec: (String) -> Unit, bilgi: (String) -> Unit,
+                           durdurIste: () -> Unit = {}) {
+    item(key = "eko") { EkosistemSecici(eko, ekoSec, bilgi) }
     item(key = "nexo") {
         val simdi = System.currentTimeMillis() / 1000.0
         val ref = degerAni(v.gecmis, simdi - 86400, v.baslangic)
@@ -130,9 +132,7 @@ fun LazyListScope.anaSayfa(v: Veri, gizle: Boolean, gizleDegis: () -> Unit, aral
         NexoKonusuyor(metin, ifade, Modifier.fillMaxWidth(), poz = poz)
     }
     item(key = "demo") { DemoHap() }
-    item(key = "bugun") { BugunKarti(v) { git("portfoy") } }
-    item(key = "strateji") { StratejiKarti(v) }
-    item(key = "borsa") { BorsaKarti(v) }
+    item(key = "bugun") { BugunKarti(v, durdurIste) { git("portfoy") } }
     item(key = "bakiye") {
         val simdi = System.currentTimeMillis() / 1000.0
         // 24 saatten eski veri yoksa değişim başlangıca göre gösterilir (etiket de buna göre değişir)
@@ -179,50 +179,7 @@ fun LazyListScope.anaSayfa(v: Veri, gizle: Boolean, gizleDegis: () -> Unit, aral
             }
         }
     }
-    item(key = "autopilot") {
-        NeonKart(Modifier.fillMaxWidth(), kenar = Nx.KenarParlak, dolgu = Nx.DolguMor) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Nexo(68.dp, if (v.acilDurdurma) NexoIfade.UYKU else NexoIfade.ODAK, NexoPoz.SERBEST)
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("AutoPilot X", color = Nx.Metin, fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                        Etiket(if (v.acilDurdurma) "DURDURULDU" else "AKTİF", if (v.acilDurdurma) Nx.Kirmizi else Nx.Yesil)
-                    }
-                    Text("Öncü cüzdanları paper modda kopyalar", color = Nx.Soluk, fontSize = 12.sp)
-                    Button(botAc, colors = NxButonRenk(), modifier = Modifier.fillMaxWidth().height(40.dp),
-                           contentPadding = PaddingValues(horizontal = 12.dp)) {
-                        NexoYuz(24.dp, NexoIfade.KIRPMA)
-                        Text(" Botu Yönet  ›", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                    }
-                }
-            }
-        }
-    }
-    item(key = "ai_cekirdek") { AiCekirdekKarti(v.yz, v.modelFiltre) }
-    item(key = "kisayol") {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Kisayol2("Token Radar", "Fırsatları Keşfet", { NexoYuz(44.dp, NexoIfade.MERAK) }, Modifier.weight(1f)) { kesfetSekme(0); git("kesfet") }
-            Kisayol2("Wallet DNA", "Cüzdan Analizi", { NexoYuz(44.dp, NexoIfade.DUSUN) }, Modifier.weight(1f)) { kesfetSekme(1); git("kesfet") }
-            Kisayol2("Portföy", "Sanal İşlemler", { NexoYuz(44.dp, NexoIfade.YILDIZ) }, Modifier.weight(1f)) { git("portfoy") }
-        }
-    }
-    item(key = "kalkan") {
-        val sekil = RoundedCornerShape(20.dp)
-        Row(Modifier.fillMaxWidth().belir().clip(sekil)
-            .background(Brush.linearGradient(listOf(Color(0xFF3A0D1A), Color(0xFF160B18))))
-            .border(1.dp, Nx.Kirmizi.copy(alpha = 0.6f), sekil).padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            NexoYuz(48.dp, if (v.acilDurdurma) NexoIfade.UYKU else NexoIfade.HAVALI)
-            Column(Modifier.weight(1f)) {
-                Text("NEXORA Shield", color = Nx.Metin, fontSize = 17.sp, fontWeight = FontWeight.Bold)
-                Text(if (v.acilDurdurma) "Bot durduruldu · yeni alım yok" else "Acil Durdurma (Tüm Botları Durdur)", color = Nx.Soluk, fontSize = 12.sp)
-            }
-            Box(Modifier.size(52.dp).clip(RoundedCornerShape(14.dp)).background(if (v.acilDurdurma) Nx.Yuzey2 else Nx.Kirmizi)
-                .clickable(enabled = !v.acilDurdurma, onClick = durdurIste), contentAlignment = Alignment.Center) {
-                IkonGuc(Color.White, 28.dp)
-            }
-        }
-    }
+    item(key = "ekosistem") { EkosistemOzeti(v) { git("karne") } }
 }
 
 @Composable
@@ -608,11 +565,10 @@ fun LazyListScope.profil(v: Veri, git: (String) -> Unit, ayarlar: @Composable ()
     }
     item(key = "pr_menu") {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            ProfilSatiri("Otomatik Pilot · Risk · Acil Durdurma", { IkonRobot(Nx.MorAcik) }) { git("bot") }
             ProfilSatiri("Hesabım · Davet · Bağlantılar", { Icon(Icons.Filled.AccountCircle, null, tint = Nx.MorAcik) }) { git("uye") }
-            ProfilSatiri("Gerçek Para Hazırlık Karnesi", { Icon(Icons.Filled.CheckCircle, null, tint = Nx.MorAcik) }) { git("hazir") }
             ProfilSatiri("Günlük Rapor", { Icon(Icons.Filled.DateRange, null, tint = Nx.MorAcik) }) { git("rapor") }
             ProfilSatiri("Yol Haritası", { Icon(Icons.Filled.List, null, tint = Nx.MorAcik) }) { git("yol") }
-            ProfilSatiri("Sistem Sağlığı ve Sinyaller", { IkonRobot(Nx.MorAcik) }) { git("bot") }
             ProfilSatiri("Takip Edilen Cüzdanlar", { IkonDna(Nx.MorAcik) }) { git("takip") }
         }
     }
@@ -637,8 +593,8 @@ data class Sekme(val id: String, val ad: String, val ikon: @Composable (Color) -
 fun AltMenu2(secili: String, sec: (String) -> Unit) {
     // Her sekmede Nexo'nun ayrı bir ifadesi: seçilen büyür, parlar ve altında ışık yanar.
     val sekmeler = listOf(
-        Triple("ana", "Ana Sayfa", NexoIfade.GULUS), Triple("kesfet", "Keşfet", NexoIfade.MERAK), Triple("bot", "Bot", NexoIfade.ODAK),
-        Triple("portfoy", "Portföy", NexoIfade.YILDIZ), Triple("profil", "Profil", NexoIfade.HAVALI),
+        Triple("ana", "Ana Sayfa", NexoIfade.GULUS), Triple("kesfet", "Keşfet", NexoIfade.MERAK), Triple("portfoy", "Portföy", NexoIfade.YILDIZ),
+        Triple("karne", "Karne", NexoIfade.ODAK), Triple("profil", "Profil", NexoIfade.HAVALI),
     )
     Column(Modifier.fillMaxWidth().background(Nx.Zemin.copy(alpha = 0.94f))) {
         Box(Modifier.fillMaxWidth().height(1.dp).background(Nx.KenarParlak))

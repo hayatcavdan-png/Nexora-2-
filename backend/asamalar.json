@@ -302,17 +302,17 @@
    "ad": "Arayüz yenileme",
    "grup": "Faz 2 · Çoklu platform",
    "durum": "devam",
-   "yuzde": 10,
-   "yapilan": "5.5–5.7: Bugün kartı, pozisyon yaşı ve kapatma, animasyonları azalt, Platform 2 kartları.",
-   "eksik": "Ana sayfa üstüne ekosistem seçici (Tümü · Solana · BNB · Base · TON, DeFi filtre); alt menü: Ana Sayfa · Keşfet · Portföy · Karne · Profil (Bot ayarları Profil'e); ana sayfa üç kart; borsa bağlantı ekranı (N29). Önkoşul: yok (ekosistemler 'yakında' olarak görünür)."
+   "yuzde": 60,
+   "yapilan": "5.5–5.7: Bugün kartı, pozisyon yaşı ve kapatma, animasyonları azalt. 5.8: ana sayfada ekosistem seçici (Tümü · Solana · BNB · Base · TON · DeFi; açılmayanlar 'yakında' ve aşama kodu), ana sayfa sadeleşti (Bugün, Portföy değeri, Ekosistemler); alt menü Ana Sayfa · Keşfet · Portföy · Karne · Profil; Bot ekranı Profil'e taşındı; acil durdurma Bugün kartında; yeni Karne sekmesi (Solana sonucu, hazırlık, stratejiler, borsa, yapay zekâ, risk bildirimi).",
+   "eksik": "Borsa bağlantı ekranı (N29 ile); ekosistem seçicinin veriyi süzmesi (N23 sonrası); gerçek telefonda kullanılabilirlik geri bildirimi"
   },
   {
    "kod": "N34",
    "ad": "Karne ve şeffaflık",
    "grup": "Faz 2 · Çoklu platform",
    "durum": "devam",
-   "yuzde": 30,
-   "yapilan": "Hazırlık Karnesi, strateji karnesi ve BTC kıyası, cüzdan kalite puanı.",
+   "yuzde": 45,
+   "yapilan": "Hazırlık Karnesi, strateji karnesi ve BTC kıyası, cüzdan kalite puanı. Karne sekmesi: tüm kaynakların sonucu tek yerde ve risk bildirimi.",
    "eksik": "Ekosistem ve sinyal kaynağı karnesi tek sekmede; zararlar dahil gerçek paper sonuçları; kullanıcıya gösterilecek risk bildirimi. Önkoşul: N33."
   },
   {
