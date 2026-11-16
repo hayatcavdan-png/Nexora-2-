@@ -35,3 +35,6 @@ backend/kasa.key
 backend/wallets_bnb.txt
 backend/wallets_base.txt
 backend/wallets_ton.txt
+backend/wallets_bnb_kesif.txt
+backend/wallets_base_kesif.txt
+backend/wallets_bnb.txt.yedek

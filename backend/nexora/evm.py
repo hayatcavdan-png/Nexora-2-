@@ -42,7 +42,7 @@ def _konu(adres):
 
 class EvmRpc:
     YONTEMLER = {"eth_chainId", "eth_blockNumber", "eth_getLogs", "eth_getTransactionByHash", "eth_getTransactionReceipt",
-                 "eth_getBlockByNumber", "eth_call"}
+                 "eth_getBlockByNumber", "eth_call", "eth_getCode"}
 
     def __init__(self, url, session=None, timeout=15):
         self.url, self.s, self.timeout, self._id = url, session or requests.Session(), timeout, 0

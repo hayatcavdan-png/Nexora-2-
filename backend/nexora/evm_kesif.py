@@ -1,0 +1,92 @@
+"""EVM cüzdan keşfi (N24, 1. yarı · anahtarsız): yükselen token'ları bulur, her birinin çiftinden İLK dakikalarda token
+alan gerçek kullanıcı cüzdanlarını (sözleşme değil) çıkarır. Birden çok yükselen token'ı erken alan cüzdan = aday.
+
+Kaynaklar: DexScreener (öne çıkan ve en yeni token profilleri, çift likiditesi/hacmi/oluşturulma zamanı; anahtarsız),
+zincir düğümü (eth_getLogs ile çiftten çıkan Transfer olayları, eth_getCode ile sözleşme ayıklama).
+Adayların kârlılık analizi 2. yarıdır (cüzdan işlem geçmişi gerektirir). Salt okunur; emir yok."""
+import time
+from collections import Counter
+
+import requests
+
+from nexora.evm import TRANSFER, ZINCIRLER, EvmHatasi, _adr, _konu
+
+DS = "https://api.dexscreener.com"
+DS_ZINCIR = {"bnb": "bsc", "base": "base"}
+SIFIR = "0x" + "0" * 40
+
+
+def sicak_tokenler(s, zincir, en_fazla=15, min_likidite=50_000, min_hacim=100_000, maks_yas_gun=7, now=None, timeout=15):
+    """[(token, çift, çift_oluşturma_ts, likidite, hacim24)] — likiditeli, hacimli ve son günlerde açılmış çiftler."""
+    now = now or time.time(); hedef = DS_ZINCIR[zincir]
+    adresler = []
+    for yol in ("/token-boosts/top/v1", "/token-profiles/latest/v1", "/token-boosts/latest/v1"):
+        try:
+            for x in s.get(DS + yol, timeout=timeout).json() or []:
+                if isinstance(x, dict) and x.get("chainId") == hedef and x.get("tokenAddress"):
+                    a = x["tokenAddress"].lower()
+                    if a not in adresler: adresler.append(a)
+        except (requests.RequestException, ValueError, TypeError):
+            continue
+    out = []
+    for i in range(0, len(adresler), 30):
+        try:
+            ciftler = s.get(f"{DS}/tokens/v1/{hedef}/{','.join(adresler[i:i + 30])}", timeout=timeout).json() or []
+        except (requests.RequestException, ValueError):
+            continue
+        en_iyi = {}
+        for p in ciftler if isinstance(ciftler, list) else []:
+            tok = ((p.get("baseToken") or {}).get("address") or "").lower()
+            lik = float((p.get("liquidity") or {}).get("usd") or 0)
+            if tok in adresler and lik > en_iyi.get(tok, {}).get("lik", -1):
+                en_iyi[tok] = dict(lik=lik, cift=(p.get("pairAddress") or "").lower(), ts=(p.get("pairCreatedAt") or 0) / 1000,
+                                  hacim=float((p.get("volume") or {}).get("h24") or 0))
+        for tok, v in en_iyi.items():
+            if v["lik"] >= min_likidite and v["hacim"] >= min_hacim and v["cift"] and 0 < now - v["ts"] <= maks_yas_gun * 86400:
+                out.append((tok, v["cift"], v["ts"], v["lik"], v["hacim"]))
+    return sorted(out, key=lambda x: -x[4])[:en_fazla]
+
+
+def blok_bul(rpc, ts):
+    """Zaman damgasına karşılık gelen ilk blok (ikili arama)."""
+    hi = rpc.blok(); lo = max(0, hi - 2_000_000)
+    if rpc.blok_zamani(lo) > ts: return lo
+    while lo < hi:
+        m = (lo + hi) // 2
+        if rpc.blok_zamani(m) < ts: lo = m + 1
+        else: hi = m
+    return lo
+
+
+def erken_alicilar(rpc, token, cift, bas_blok, pencere_blok=2400, parca=800):
+    """Çiftten token'ı ilk `pencere_blok` blokta alan adresler (çiftin kendisi ve sıfır adres hariç)."""
+    alicilar = set()
+    for b in range(bas_blok, bas_blok + pencere_blok, parca):
+        for l in rpc.call("eth_getLogs", [{"address": token, "fromBlock": hex(b), "toBlock": hex(min(b + parca - 1, bas_blok + pencere_blok)),
+                                           "topics": [TRANSFER, _konu(cift)]}]) or []:
+            t = l.get("topics") or []
+            if len(t) == 3: alicilar.add(_adr(t[2]))
+    return alicilar - {cift, SIFIR}
+
+
+def kullanici_mi(rpc, adres, _onbellek={}):
+    """Sözleşme değil (kodu yok) = gerçek kullanıcı cüzdanı."""
+    if adres not in _onbellek:
+        try: _onbellek[adres] = (rpc.call("eth_getCode", [adres, "latest"]) or "0x") in ("0x", "0x0")
+        except EvmHatasi: return False
+    return _onbellek[adres]
+
+
+def kesfet(rpc, tokenler, en_az=2, bilinen=(), pencere_blok=2400, log=print):
+    say = Counter()
+    for tok, cift, ts, lik, hacim in tokenler:
+        try:
+            b0 = blok_bul(rpc, ts)
+            a = erken_alicilar(rpc, tok, cift, b0, pencere_blok)
+        except EvmHatasi as e:
+            log(f"  {tok[:6]}…{tok[-4:]}: okunamadı ({str(e)[:60]})"); continue
+        for w in a: say[w] += 1
+        log(f"  {tok[:6]}…{tok[-4:]}  likidite {lik:,.0f} $  hacim {hacim:,.0f} $  erken alıcı {len(a)}")
+    bilinen = {b.lower() for b in bilinen}
+    adaylar = [w for w, c in say.most_common() if c >= en_az and w not in bilinen and kullanici_mi(rpc, w)]
+    return adaylar, say
