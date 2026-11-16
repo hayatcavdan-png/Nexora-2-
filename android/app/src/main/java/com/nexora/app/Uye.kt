@@ -26,7 +26,9 @@ import java.util.Locale
 
 /**
  * Hesabım: giriş/kayıt, davet kodu, bağlantılar ve komisyon sonrası SANAL bakiye.
- * Bu ekran hiçbir gizli anahtar istemez: Phantom için yalnızca herkese açık adres; Binance kilitlidir.
+ * Cüzdan özel anahtarı / seed ASLA istenmez (Phantom için yalnızca herkese açık adres). Borsa API anahtarı (N29) yalnızca
+ * para çekme izni KAPALI ise sunucu tarafından kabul edilir, sunucuda şifreli saklanır ve şimdilik yalnızca bakiye okunur.
+ * Gizli alanlar gönderildikten sonra ekrandan silinir; cihazda saklanmaz.
  * Oturum anahtarı yalnızca bu cihazda (SharedPreferences) tutulur.
  */
 @Composable
@@ -41,6 +43,8 @@ fun UyeEkrani(url: String, key: String, sp: SharedPreferences) {
     var eposta by remember { mutableStateOf("") }
     var parola by remember { mutableStateOf("") }
     var davet by remember { mutableStateOf("") }
+    var borsalar by remember { mutableStateOf<org.json.JSONArray?>(null) }
+    var gercek by remember { mutableStateOf<JSONObject?>(null) }
 
     fun cagri(yol: String, post: Boolean = false, govde: JSONObject = JSONObject(), basari: (String) -> Unit) = scope.launch {
         mesgul = true; mesaj = ""
@@ -57,6 +61,7 @@ fun UyeEkrani(url: String, key: String, sp: SharedPreferences) {
     fun yukle() {
         cagri("/uye/ben") { profil = JSONObject(it) }
         cagri("/uye/bakiye") { bakiye = JSONObject(it) }
+        cagri("/uye/borsa") { borsalar = JSONObject(it).optJSONArray("borsalar") }
     }
     fun girisBitti(r: String) {
         oturum = JSONObject(r).optString("oturum"); Kasa.yaz(sp, "oturum", oturum); parola = ""
@@ -177,7 +182,12 @@ fun UyeEkrani(url: String, key: String, sp: SharedPreferences) {
                     kaydet = { adres -> cagri("/uye/baglanti", true, JSONObject().put("tur", b.optString("tur")).put("adres", adres)) { profil = JSONObject(it) } },
                     sil = { cagri("/uye/baglanti", true, JSONObject().put("tur", b.optString("tur")).put("sil", true)) { profil = JSONObject(it) } })
             }
-            BilgiKutusu("Sistem sunucuları (Helius, Jupiter) sizin adınıza ayrı anahtar gerektirmez. Binance API anahtarı gerçek emir açılana kadar kabul edilmez; açıldığında yalnızca para çekme yetkisiz anahtar istenecek.")
+            BorsaHesaplari(borsalar, gercek, mesgul,
+                bagla = { b, k, g, p, bitti -> cagri("/uye/borsa", true, JSONObject().put("borsa", b).put("api_key", k).put("api_secret", g).put("passphrase", p)) {
+                    borsalar = JSONObject(it).optJSONArray("borsalar"); gercek = null; mesaj = "Bağlandı: para çekme izni kapalı doğrulandı."; bitti() } },
+                sil = { b -> cagri("/uye/borsa", true, JSONObject().put("borsa", b).put("sil", true)) { borsalar = JSONObject(it).optJSONArray("borsalar"); gercek = null } },
+                oku = { cagri("/uye/borsa?bakiye=1") { gercek = JSONObject(it) } })
+            BilgiKutusu("Sistem sunucuları (Helius, Jupiter) sizin adınıza ayrı anahtar gerektirmez. Borsa anahtarınızla şu an yalnızca bakiye okunur; uygulama emir göndermez ve para çekemez.")
         }
     }
 }
@@ -203,8 +213,83 @@ private fun BaglantiKarti(b: JSONObject, mesgul: Boolean, kaydet: (String) -> Un
                 Button({ kaydet(adres) }, Modifier.fillMaxWidth(), enabled = !mesgul && adres.length >= 32, colors = NxButonRenk()) { Text("Adresi kaydet") }
             }
         }
-        if (b.optString("tur") == "binance") {
-            OutlinedTextField("", {}, label = { Text("API anahtarı (kilitli)") }, enabled = false, singleLine = true, modifier = Modifier.fillMaxWidth())
+    }
+}
+
+/** N29/N30: borsa hesapları. Her borsa için bağla/kaldır; bağlı borsaların GERÇEK bakiyesi yalnızca okunur. */
+@Composable
+private fun BorsaHesaplari(liste: org.json.JSONArray?, gercek: JSONObject?, mesgul: Boolean,
+                           bagla: (String, String, String, String, () -> Unit) -> Unit, sil: (String) -> Unit, oku: () -> Unit) {
+    Text("Borsa hesaplarım", color = Nx.Metin, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+    if (liste == null) { Text("Sunucudan bekleniyor…", color = Nx.Soluk, fontSize = 12.sp); return }
+    BilgiKutusu("Borsada yeni bir API anahtarı oluşturun: OKUMA açık, PARA ÇEKME KAPALI. Mümkünse IP kısıtı ekleyin. " +
+                "Çekim izni açık anahtar reddedilir ve saklanmaz. Paranız her zaman kendi borsa hesabınızda kalır.")
+    var acik by remember { mutableStateOf("") }
+    for (i in 0 until liste.length()) {
+        val b = liste.getJSONObject(i); val id = b.optString("borsa")
+        NeonKart(Modifier.fillMaxWidth()) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(b.optString("ad"), color = Nx.Metin, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                Etiket(if (b.optBoolean("bagli")) "bağlı" else "bağlı değil", if (b.optBoolean("bagli")) Nx.Nane else Nx.Soluk)
+            }
+            if (b.optBoolean("bagli")) {
+                Text("Anahtar " + b.optString("maske"), color = Nx.Metin, fontSize = 13.sp)
+                val iz = b.optJSONObject("izin")
+                if (iz != null) {
+                    Text("Para çekme: KAPALI ✓ · İşlem izni: ${if (iz.optBoolean("islem")) "var" else "yok"}" +
+                         (if (iz.isNull("ip_kisitli")) "" else " · IP kısıtı: ${if (iz.optBoolean("ip_kisitli")) "var" else "yok"}"),
+                         color = Nx.Soluk, fontSize = 12.sp)
+                    if (!iz.isNull("ip_kisitli") && !iz.optBoolean("ip_kisitli"))
+                        Text("Öneri: anahtara IP kısıtı ekleyin (sunucu adresi).", color = Nx.Kehribar, fontSize = 12.sp)
+                }
+                TextButton({ sil(id) }, enabled = !mesgul) { Text("Bağlantıyı kaldır", color = Nx.Kirmizi) }
+            } else if (acik != id) {
+                Button({ acik = id }, Modifier.fillMaxWidth(), enabled = !mesgul, colors = NxGriButon()) { Text("Bağla") }
+            } else {
+                var k by remember(id) { mutableStateOf("") }
+                var g by remember(id) { mutableStateOf("") }
+                var p by remember(id) { mutableStateOf("") }
+                var onay by remember(id) { mutableStateOf(false) }
+                val parolaGerekli = b.optBoolean("parola_gerekli")
+                OutlinedTextField(k, { k = it.trim() }, label = { Text("API anahtarı") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(g, { g = it.trim() }, label = { Text("Gizli anahtar (secret)") }, singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth())
+                if (parolaGerekli) OutlinedTextField(p, { p = it.trim() }, label = { Text("API parolası (passphrase)") }, singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth())
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(onay, { onay = it })
+                    Text("Bu anahtarda para çekme izni KAPALI", color = Nx.Metin, fontSize = 13.sp)
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button({ acik = ""; k = ""; g = ""; p = "" }, Modifier.weight(1f), colors = NxGriButon()) { Text("Vazgeç") }
+                    Button({ bagla(id, k, g, p) { acik = "" }; g = ""; p = "" }, Modifier.weight(1f),
+                        enabled = !mesgul && onay && k.length >= 8 && g.length >= 8 && (!parolaGerekli || p.isNotEmpty()),
+                        colors = NxButonRenk()) { Text("Doğrula ve bağla") }
+                }
+            }
+        }
+    }
+    val bagliVar = (0 until liste.length()).any { liste.getJSONObject(it).optBoolean("bagli") }
+    if (bagliVar) NeonKart(Modifier.fillMaxWidth()) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("GERÇEK BAKİYE (yalnızca okuma)", color = Nx.Soluk, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+            TextButton(oku, enabled = !mesgul) { Text(if (gercek == null) "Oku" else "Yenile", color = Nx.Nane) }
+        }
+        if (gercek != null) {
+            Text(String.format(Locale.US, "≈ %,.2f $", gercek.optDouble("toplam_usd", 0.0)), color = Nx.Metin, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+            val bl = gercek.optJSONArray("borsalar")
+            if (bl != null) for (i in 0 until bl.length()) {
+                val x = bl.getJSONObject(i)
+                if (x.has("hata")) { Text("${x.optString("ad")}: ${x.optString("hata")}", color = Nx.Kirmizi, fontSize = 12.sp); continue }
+                SatirKV(x.optString("ad"), String.format(Locale.US, "%,.2f $", x.optDouble("toplam_usd", 0.0)))
+                val v = x.optJSONArray("varliklar")
+                if (v != null) for (j in 0 until minOf(v.length(), 5)) {
+                    val a = v.getJSONObject(j)
+                    Text("   ${a.optString("varlik")}  ${a.optDouble("miktar")}  ≈ ${String.format(Locale.US, "%,.2f $", a.optDouble("usd"))}", color = Nx.Soluk, fontSize = 12.sp)
+                }
+                if (x.optInt("degeri_bilinmeyen") > 0) Text("   + ${x.optInt("degeri_bilinmeyen")} varlığın değeri bilinmiyor", color = Nx.Soluk, fontSize = 11.sp)
+            }
+            Text(gercek.optString("not_"), color = Nx.Soluk, fontSize = 11.sp)
         }
     }
 }

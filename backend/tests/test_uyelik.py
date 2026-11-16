@@ -50,12 +50,12 @@ class Test(unittest.TestCase):
         u.baglanti_kaydet(me["id"], "phantom", ADRES)
         ph = [b for b in u.baglantilar(me["id"]) if b["tur"] == "phantom"][0]
         self.assertEqual((ph["durum"], ph["adres"]), ("bağlı", ADRES))
-        with self.assertRaises(UyelikHatasi): u.baglanti_kaydet(me["id"], "binance", "anahtar")    # kilitli: anahtar saklanmaz
+        with self.assertRaises(UyelikHatasi): u.baglanti_kaydet(me["id"], "borsa", "anahtar")      # borsa anahtarı bu yoldan alınmaz
         with self.assertRaises(UyelikHatasi): u.baglanti_kaydet(me["id"], "jupiter", "x")
         with self.assertRaises(UyelikHatasi): u.baglanti_kaydet(me["id"], "phantom", "5" * 88)     # uzun gizli anahtar biçimi reddedilir
         u.baglanti_sil(me["id"], "phantom")
         self.assertEqual([b for b in u.baglantilar(me["id"]) if b["tur"] == "phantom"][0]["durum"], "bağlı değil")
-        self.assertEqual({b["tur"]: b["durum"] for b in u.baglantilar(me["id"])}["binance"], "kilitli")
+        self.assertEqual({b["tur"]: b["durum"] for b in u.baglantilar(me["id"])}["borsa"], "bağlı değil")
 
     def test_komisyon(self):
         k = komisyon_hesapla(100, 10, 20)

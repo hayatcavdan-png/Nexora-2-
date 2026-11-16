@@ -2,11 +2,12 @@
 
 Kapsam (bilinçli olarak dar):
 - Yalnızca PAPER modu. Para saklanmaz, komisyon tahsil edilmez, emir gönderilmez; komisyon yalnızca sanal hesaplanır.
-- Hiçbir gizli anahtar (borsa API anahtarı, cüzdan özel anahtarı, seed) SAKLANMAZ ve istenmez. Bağlantılar için yalnızca
-  herkese açık Solana adresi kaydedilir. Borsa API anahtarı alanı, gerçek emir onayına (N12) kadar kilitlidir.
+- Cüzdan özel anahtarı ve seed phrase ASLA istenmez ve saklanmaz. Solana için yalnızca herkese açık adres kaydedilir.
+- Borsa API anahtarı (N29): yalnızca PARA ÇEKME İZNİ KAPALI olduğu borsadan doğrulanan anahtar kabul edilir; sunucuda
+  yalnızca şifreli (kasa.py) saklanır ve şimdilik yalnızca bakiye OKUMAK için kullanılır. Emir gönderme yok (N31).
 - Parola: scrypt + kişiye özel tuz. Oturum anahtarı rastgele; veritabanında yalnızca SHA-256 özeti tutulur.
 """
-import hashlib, hmac, os, re, secrets, sqlite3, time
+import hashlib, hmac, json, os, re, secrets, sqlite3, time
 
 from nexora.ed25519 import _ALFABE
 
@@ -21,9 +22,10 @@ BAGLANTILAR = {
     "solana_rpc": dict(ad="Solana RPC (Helius)", tur="sistem", aciklama="Zincir verisi: sistem sunucusu kullanır, sizden anahtar istenmez."),
     "jupiter": dict(ad="Jupiter fiyat/rota", tur="sistem", aciklama="Fiyat ve rota teklifleri: sistem sunucusu kullanır."),
     "phantom": dict(ad="Phantom / Solana cüzdanı", tur="adres", aciklama="Yalnızca herkese açık adresiniz kaydedilir. Özel anahtar ve seed phrase asla istenmez."),
-    "binance": dict(ad="Binance API", tur="kilitli",
-                    aciklama="Gerçek emir açılana kadar kilitli. Açıldığında yalnızca 'işlem yetkili', 'para çekme KAPALI', IP kısıtlı anahtar kabul edilecek."),
+    "borsa": dict(ad="Borsa hesapları (Binance · OKX · KuCoin · MEXC)", tur="borsa",
+                  aciklama="Kendi hesabınızın API anahtarı. Para çekme izni KAPALI olmalı; şifreli saklanır, şimdilik yalnızca bakiye okunur."),
 }
+BORSA_DENEME, BORSA_PENCERE_SN = 10, 3600
 
 
 class UyelikHatasi(ValueError):
@@ -67,6 +69,8 @@ class Uyelik:
         CREATE TABLE IF NOT EXISTS giris_deneme(anahtar TEXT NOT NULL, ts REAL NOT NULL);
         CREATE TABLE IF NOT EXISTS uye_portfoy(uye INTEGER PRIMARY KEY, baslangic REAL NOT NULL, giris_deger REAL NOT NULL,
             zirve REAL NOT NULL, ts REAL NOT NULL);
+        CREATE TABLE IF NOT EXISTS borsa_anahtar(uye INTEGER NOT NULL, borsa TEXT NOT NULL, sifreli TEXT NOT NULL, maske TEXT NOT NULL,
+            izin TEXT NOT NULL, ts REAL NOT NULL, PRIMARY KEY(uye, borsa));
         """)
 
     # ---- kayıt / giriş
@@ -138,9 +142,70 @@ class Uyelik:
         kayit = {r["tur"]: r["adres"] for r in self.db.execute("SELECT tur, adres FROM baglanti WHERE uye=?", (uye_id,))}
         cikti = []
         for tur, b in BAGLANTILAR.items():
+            if b["tur"] == "borsa":
+                n = self.db.execute("SELECT COUNT(*) FROM borsa_anahtar WHERE uye=?", (uye_id,)).fetchone()[0]
+                cikti.append(dict(tur=tur, ad=b["ad"], aciklama=b["aciklama"], durum=f"{n} borsa bağlı" if n else "bağlı değil", adres=None))
+                continue
             durum = {"sistem": "sistem kullanıyor", "kilitli": "kilitli"}.get(b["tur"], "bağlı" if tur in kayit else "bağlı değil")
             cikti.append(dict(tur=tur, ad=b["ad"], aciklama=b["aciklama"], durum=durum, adres=kayit.get(tur)))
         return cikti
+
+    # ---- borsa API anahtarları (N29/N30): yalnızca okuma
+    def borsa_bagla(self, uye_id, borsa, anahtar, gizli, parola, kasa, istemci, now=None):
+        """Anahtarı borsadan doğrular (izinler), çekim izni kapalıysa şifreli kaydeder. `istemci(borsa, k, g, p)` -> Istemci."""
+        from nexora import borsa_hesap as BH
+        from nexora.kasa import maskele as _mask
+        now = now or time.time(); borsa = (borsa or "").strip().lower()
+        if borsa not in BH.BORSALAR: raise UyelikHatasi("desteklenmeyen borsa")
+        k, g = BH._temiz(anahtar), BH._temiz(gizli)
+        p = BH._temiz(parola, en_az=1, en_cok=64) if BH.BORSALAR[borsa]["parola"] else ""
+        if not k or not g: raise UyelikHatasi("API anahtarı ve gizli anahtar gerekli (boşluksuz)")
+        if BH.BORSALAR[borsa]["parola"] and not p: raise UyelikHatasi(f"{BH.BORSALAR[borsa]['ad']} için API parolası (passphrase) gerekli")
+        sayac = f"borsa:{uye_id}"
+        self.db.execute("DELETE FROM giris_deneme WHERE ts<?", (now - BORSA_PENCERE_SN,))
+        if self.db.execute("SELECT COUNT(*) FROM giris_deneme WHERE anahtar=?", (sayac,)).fetchone()[0] >= BORSA_DENEME:
+            raise PermissionError("çok fazla bağlantı denemesi: 1 saat sonra tekrar deneyin")
+        self.db.execute("INSERT INTO giris_deneme VALUES(?,?)", (sayac, now)); self.db.commit()
+        try:
+            izin = BH.izinler(istemci(borsa, k, g, p))
+            BH.kabul_et(izin)
+        except BH.BorsaHesapHatasi as e:
+            raise UyelikHatasi(str(e)) from None
+        sifreli = kasa.sifrele(json.dumps(dict(k=k, g=g, p=p)), baglam=f"uye:{uye_id}:borsa:{borsa}")
+        self.db.execute("INSERT OR REPLACE INTO borsa_anahtar VALUES(?,?,?,?,?,?)",
+                        (uye_id, borsa, sifreli, _mask(k), json.dumps(izin), now)); self.db.commit()
+        return self.borsalar(uye_id)
+
+    def borsa_sil(self, uye_id, borsa):
+        self.db.execute("DELETE FROM borsa_anahtar WHERE uye=? AND borsa=?", (uye_id, (borsa or "").strip().lower())); self.db.commit()
+        return self.borsalar(uye_id)
+
+    def borsalar(self, uye_id):
+        from nexora.borsa_hesap import BORSALAR
+        kayit = {r["borsa"]: r for r in self.db.execute("SELECT borsa, maske, izin, ts FROM borsa_anahtar WHERE uye=?", (uye_id,))}
+        out = []
+        for b, m in BORSALAR.items():
+            r = kayit.get(b)
+            out.append(dict(borsa=b, ad=m["ad"], parola_gerekli=m["parola"], bagli=r is not None,
+                            maske=r["maske"] if r else None, izin=json.loads(r["izin"]) if r else None, ts=r["ts"] if r else None))
+        return out
+
+    def borsa_bakiye(self, uye_id, kasa, istemci, fiyat=None):
+        """Bağlı her borsanın GERÇEK bakiyesi (yalnızca okuma). `fiyat(borsa)` -> {taban: dict(son)} ya da None."""
+        from nexora import borsa_hesap as BH
+        out, toplam = [], 0.0
+        for r in self.db.execute("SELECT borsa, sifreli FROM borsa_anahtar WHERE uye=?", (uye_id,)).fetchall():
+            b = r["borsa"]
+            try:
+                a = json.loads(kasa.coz(r["sifreli"], baglam=f"uye:{uye_id}:borsa:{b}"))
+                oz = BH.ozet_bakiye(BH.bakiyeler(istemci(b, a["k"], a["g"], a["p"]), fiyat(b) if fiyat else None))
+                toplam += oz["toplam_usd"]; out.append(dict(borsa=b, ad=BH.BORSALAR[b]["ad"], **oz))
+            except BH.BorsaHesapHatasi as e:
+                out.append(dict(borsa=b, ad=BH.BORSALAR[b]["ad"], hata=str(e)))
+            except Exception:
+                out.append(dict(borsa=b, ad=BH.BORSALAR[b]["ad"], hata="anahtar okunamadı: yeniden bağlayın"))
+        return dict(borsalar=out, toplam_usd=round(toplam, 2), ts=time.time(),
+                    not_="Gerçek bakiyeniz kendi borsa hesabınızdadır; uygulama yalnızca okur, emir göndermez.")
 
     # ---- profil, davet, bakiye
     def profil(self, u):

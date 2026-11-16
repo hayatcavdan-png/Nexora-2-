@@ -47,6 +47,13 @@ def servis(ad):
 
 paper = Paper(os.getenv("NEXORA_DB", "nexora_paper.db"))
 uyelik = Uyelik(os.getenv("UYELIK_DB", "nexora_uyelik.db"))
+_kasa = []
+def kasa():
+    """Borsa anahtarları için şifreleme kasası (ilk kullanımda yüklenir; anahtar dosyası KASA_ANAHTAR)."""
+    if not _kasa:
+        from nexora.kasa import Kasa
+        _kasa.append(Kasa())
+    return _kasa[0]
 KOMISYON_PCT = float(os.getenv("KOMISYON_PCT", "20"))      # uygulama kâr payı (sanal gösterim)
 KEY = os.getenv("NEXORA_API_KEY", "").strip()
 # Telefonda yalnızca bu cihazdan erişilir. Sunucuda (N13) özel ağ adresi verilir: NEXORA_HOST=100.x.y.z
@@ -127,12 +134,18 @@ class H(BaseHTTPRequestHandler):
             if yol == "/uye/portfoy":
                 uyelik.portfoy_baslat(u["id"], d.get("baslangic"), paper.equity())
                 self._send(200, uyelik.uye_bakiye(u["id"], paper.equity(), KOMISYON_PCT)); return
+            if yol == "/uye/borsa":                          # N29: borsa API anahtarı bağla/kaldır (yalnızca okuma)
+                if d.get("sil"): self._send(200, dict(borsalar=uyelik.borsa_sil(u["id"], d.get("borsa")))); return
+                from nexora import borsa_hesap
+                self._send(200, dict(borsalar=uyelik.borsa_bagla(u["id"], d.get("borsa"), d.get("api_key"), d.get("api_secret"),
+                                                                 d.get("passphrase"), kasa(), borsa_hesap.Istemci))); return
             if yol == "/uye/baglanti":
                 if d.get("sil"): uyelik.baglanti_sil(u["id"], d.get("tur"))
                 else: uyelik.baglanti_kaydet(u["id"], d.get("tur"), d.get("adres"))
                 self._send(200, uyelik.profil(u))
         except UyelikHatasi as e: self._send(400, {"hata": str(e)})
         except PermissionError as e: self._send(429, {"hata": str(e)})
+        except ValueError: self._send(500, {"hata": "sunucu kasası okunamadı"})        # ayrıntı (anahtar vb.) yanıta yazılmaz
 
     def do_GET(self):
         if not self._ok(): return
@@ -168,6 +181,18 @@ class H(BaseHTTPRequestHandler):
         if parts.path == "/uye/ben":
             u = self._uye()
             if u: self._send(200, uyelik.profil(u))
+            return
+        if parts.path == "/uye/borsa":                      # N30: bağlı borsalar; ?bakiye=1 ile gerçek bakiye (yalnızca okuma)
+            u = self._uye()
+            if not u: return
+            if parse_qs(parts.query).get("bakiye") == ["1"]:
+                from nexora import borsa_hesap, piyasa
+                import requests as _rq
+                s_ = _rq.Session()
+                self._send(200, uyelik.borsa_bakiye(u["id"], kasa(), borsa_hesap.Istemci,
+                                                    lambda b: piyasa.borsa_fiyatlari(s_, borsa_hesap.BORSALAR[b]["ad"])))
+            else:
+                self._send(200, dict(borsalar=uyelik.borsalar(u["id"])))
             return
         if parts.path == "/uye/bakiye":
             if self._uye():
