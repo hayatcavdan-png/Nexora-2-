@@ -47,8 +47,9 @@ fun Amblem(boyut: Dp, modifier: Modifier = Modifier) {
             close()
         }
         val firca = Brush.linearGradient(AmblemRenk, start = p(0f, 0f), end = p(100f, 100f))
-        drawPath(yol, firca, alpha = 0.22f, style = Stroke(width = w * 0.14f, join = StrokeJoin.Round))
-        drawPath(yol, firca, alpha = 0.35f, style = Stroke(width = w * 0.06f, join = StrokeJoin.Round))
+        drawPath(yol, firca, alpha = 0.16f, style = Stroke(width = w * 0.22f, join = StrokeJoin.Round))
+        drawPath(yol, firca, alpha = 0.30f, style = Stroke(width = w * 0.12f, join = StrokeJoin.Round))
+        drawPath(yol, firca, alpha = 0.50f, style = Stroke(width = w * 0.05f, join = StrokeJoin.Round))
         drawPath(yol, firca)
         drawPath(yol, Color.White.copy(alpha = 0.45f), style = Stroke(width = w * 0.012f, join = StrokeJoin.Miter))
     }
@@ -58,8 +59,8 @@ fun Amblem(boyut: Dp, modifier: Modifier = Modifier) {
 @Composable
 fun AtesX(genislik: Dp, yukseklik: Dp, modifier: Modifier = Modifier) {
     Canvas(modifier.size(genislik, yukseklik)) {
-        bicak(Offset(size.width * 0.06f, size.height * 0.02f), Offset(size.width * 0.96f, size.height * 0.98f), 0.135f, 0.42f)
-        bicak(Offset(size.width * 0.92f, size.height * 0.0f), Offset(size.width * 0.04f, size.height * 1.0f), 0.115f, 0.58f)
+        bicak(Offset(size.width * 0.06f, size.height * 0.02f), Offset(size.width * 0.96f, size.height * 0.98f), 0.16f, 0.42f)
+        bicak(Offset(size.width * 0.92f, size.height * 0.0f), Offset(size.width * 0.04f, size.height * 1.0f), 0.14f, 0.58f)
     }
 }
 
@@ -81,7 +82,8 @@ private fun DrawScope.bicak(a: Offset, b: Offset, kalinlik: Float, darbe: Float)
         0f to Color(0xFF5A0000), 0.22f to Color(0xFFC40000), 0.42f to Color(0xFFFF4D00),
         0.52f to Color(0xFFFFD27A), 0.62f to Color(0xFFFF4D00), 0.82f to Color(0xFFC40000), 1f to Color(0xFF5A0000),
         start = a, end = b)
-    drawPath(yol, Color(0xFFFF2A00), alpha = 0.28f, style = Stroke(width = W * 1.4f, join = StrokeJoin.Round))
+    drawPath(yol, Color(0xFFFF1A00), alpha = 0.16f, style = Stroke(width = W * 2.6f, join = StrokeJoin.Round))
+    drawPath(yol, Color(0xFFFF3D00), alpha = 0.32f, style = Stroke(width = W * 1.3f, join = StrokeJoin.Round))
     drawPath(yol, ates)
     val c0 = a + d * 0.22f; val c1 = a + d * 0.8f
     drawLine(Color(0xFFFFF1C2).copy(alpha = 0.8f), c0, c1, strokeWidth = W * 0.12f, cap = StrokeCap.Round)
@@ -93,13 +95,13 @@ fun NexoraYazi(boy: TextUnit = 30.sp, altYazi: Boolean = true, modifier: Modifie
     val yogunluk = LocalDensity.current
     val harf = TextStyle(fontFamily = Orbitron, fontWeight = FontWeight.Black, fontSize = boy, color = Color.White,
                          letterSpacing = (boy.value * 0.06f).sp)
-    val xYuk = with(yogunluk) { (boy * 0.78f).toDp() }
-    val xGen = with(yogunluk) { (boy * 0.86f).toDp() }
+    val xYuk = with(yogunluk) { (boy * (if (amblemliN) 1.12f else 0.78f)).toDp() }
+    val xGen = with(yogunluk) { (boy * (if (amblemliN) 1.18f else 0.86f)).toDp() }
     Column(modifier, horizontalAlignment = Alignment.Start) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             if (amblemliN) {
                 // N harfi yerine amblem: harf yüksekliğine göre boyutlanır
-                Amblem(with(yogunluk) { (boy * 0.98f).toDp() }, Modifier.padding(end = with(yogunluk) { (boy * 0.06f).toDp() }))
+                Amblem(with(yogunluk) { (boy * 1.32f).toDp() }, Modifier.padding(end = with(yogunluk) { (boy * 0.02f).toDp() }))
                 Text("E", style = harf)
             } else Text("NE", style = harf)
             AtesX(xGen, xYuk, Modifier.padding(horizontal = with(yogunluk) { (boy * 0.04f).toDp() }))
@@ -117,4 +119,4 @@ fun NexoraYazi(boy: TextUnit = 30.sp, altYazi: Boolean = true, modifier: Modifie
 
 /** Logo: N harfi amblemin kendisidir (N amblemi + E + ateş X + ORA), altında COMMAND X. */
 @Composable
-fun Logo(boy: TextUnit = 22.sp) = NexoraYazi(boy, amblemliN = true)
+fun Logo(boy: TextUnit = 22.sp) = NexoraYazi(boy, altYazi = false, amblemliN = true)

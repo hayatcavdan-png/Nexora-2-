@@ -3,7 +3,7 @@
 #   sudo bash /opt/nexora/deploy/calistir.sh cuzdan_kesif.py
 # Yalnızca aşağıdaki salt okunur rapor/analiz araçlarına izin verilir.
 set -euo pipefail
-IZINLI="cuzdan_kesif.py cuzdan_analiz.py cuzdan_tarama.py takip_kaybi.py golge_rapor.py gunluk_rapor.py zarar_kesme.py token_filtre.py yedek.py yz_veri.py yz_model.py"
+IZINLI="cuzdan_kesif.py cuzdan_analiz.py cuzdan_tarama.py takip_kaybi.py golge_rapor.py gunluk_rapor.py zarar_kesme.py token_filtre.py yedek.py yz_veri.py yz_model.py portfoy_denetim.py"
 ARAC="${1:-}"; shift || true
 case " $IZINLI " in *" $ARAC "*) ;; *) echo "Kullanım: sudo bash /opt/nexora/deploy/calistir.sh ARAÇ [argüman]"; echo "Araçlar: $IZINLI"; exit 1;; esac
 [ "$(id -u)" -eq 0 ] || { echo "sudo ile çalıştırın"; exit 1; }

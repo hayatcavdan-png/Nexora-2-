@@ -293,7 +293,7 @@ fun AnaUstBaslik(git: (String) -> Unit) {
                 DropdownMenuItem({ Text("Ayarlar") }, { menu = false; git("profil") })
             }
         }
-        Box(Modifier.weight(1f), contentAlignment = Alignment.Center) { Logo(18.sp) }
+        Box(Modifier.weight(1f), contentAlignment = Alignment.Center) { Logo(24.sp) }
         Box {
             IconButton({ git("rapor") }) { Icon(Icons.Filled.Notifications, "Rapor", tint = Nx.Metin) }
             Box(Modifier.align(Alignment.TopEnd).padding(top = 10.dp, end = 10.dp).size(8.dp).clip(CircleShape).background(Nx.Mor))

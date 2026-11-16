@@ -111,27 +111,40 @@ fun LazyListScope.anaSayfa(v: Veri, gizle: Boolean, gizleDegis: () -> Unit, aral
     item(key = "demo") { DemoHap() }
     item(key = "bakiye") {
         val simdi = System.currentTimeMillis() / 1000.0
-        val ref24 = degerAni(v.gecmis, simdi - 86400, v.baslangic)
+        // 24 saatten eski veri yoksa değişim başlangıca göre gösterilir (etiket de buna göre değişir)
+        val eskiVar = v.gecmis.isNotEmpty() && v.gecmis.first().ts <= simdi - 86400
+        val ref24 = if (eskiVar) degerAni(v.gecmis, simdi - 86400, v.baslangic) else v.baslangic
         val d24 = if (ref24 > 0) (v.toplam - ref24) / ref24 * 100 else 0.0
         val sure = ARALIKLAR.first { it.first == aralik }.second
         val bas = degerAni(v.gecmis, simdi - sure, v.baslangic)
         val pencere = listOf(Nokta2(simdi - sure, bas)) + v.gecmis.filter { it.ts > simdi - sure }
         NeonKart(Modifier.fillMaxWidth(), kenar = Nx.Kenar, dolgu = Nx.DolguMor) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("SANAL BAKİYE", color = Nx.Soluk, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                Text("SANAL PORTFÖY DEĞERİ", color = Nx.Soluk, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
                 IconButton(gizleDegis, Modifier.size(28.dp)) {
                     Icon(if (gizle) Icons.Filled.Lock else Icons.Filled.Search, "Gizle", tint = Nx.Soluk, modifier = Modifier.size(18.dp))
                 }
             }
-            Text(if (gizle) "•••••• USDC" else "${usd(v.nakit)} USDC", color = Nx.Metin, fontSize = 32.sp, fontWeight = FontWeight.Bold)
+            Row(verticalAlignment = Alignment.Bottom) {
+                Text(if (gizle) "•••••• USDC" else "${usd(v.toplam)} USDC", color = Nx.Metin, fontSize = 32.sp, fontWeight = FontWeight.Bold,
+                     modifier = Modifier.weight(1f))
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(degisimMetni(d24), color = kzRenk(d24), fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                    Text(if (eskiVar) "son 24 saat" else "başlangıçtan", color = Nx.Soluk, fontSize = 11.sp)
+                }
+            }
             Row(Modifier.fillMaxWidth()) {
                 Column(Modifier.weight(1f)) {
-                    Text("Sanal Portföy Değeri", color = Nx.Soluk, fontSize = 12.sp)
-                    Text(if (gizle) "••••" else "${usd(v.toplam)} USDC", color = Nx.Metin, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                    Text("Nakit", color = Nx.Soluk, fontSize = 12.sp)
+                    Text(if (gizle) "••••" else "${usd(v.nakit)} USDC", color = Nx.Metin, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                }
+                Column(Modifier.weight(1f)) {
+                    Text("Pozisyonlarda (${v.pozisyonlar.size})", color = Nx.Soluk, fontSize = 12.sp)
+                    Text(if (gizle) "••••" else "${usd(v.toplam - v.nakit)} USDC", color = Nx.Metin, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
                 }
                 Column(horizontalAlignment = Alignment.End) {
-                    Text("24s Değişim", color = Nx.Soluk, fontSize = 12.sp)
-                    Text(degisimMetni(d24), color = kzRenk(d24), fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                    Text("Toplam K/Z", color = Nx.Soluk, fontSize = 12.sp)
+                    Text(if (gizle) "••••" else isaretli(v.kz), color = kzRenk(v.kz), fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
                 }
             }
             DegerGrafigi(pencere, bas, Modifier.fillMaxWidth().height(150.dp))
@@ -442,6 +455,18 @@ fun LazyListScope.portfoy(v: Veri, geri: () -> Unit, sekme: Int, sekmeSec: (Int)
                 }
             }
             Text("Başlangıç: ${usd(v.baslangic)} USDC   |   Kâr/Zarar: ${isaretli(v.kz)} USDC", color = Nx.Soluk, fontSize = 12.sp)
+            Text("Nakit ${usd(v.nakit)} + pozisyonlar ${usd(v.toplam - v.nakit)} = ${usd(v.toplam)} USDC", color = Nx.Soluk, fontSize = 12.sp)
+            v.defter?.let { d ->
+                val tamam = kotlin.math.abs(d.optDouble("nakit_farki", 1.0)) < 0.01 && kotlin.math.abs(d.optDouble("toplam_farki", 1.0)) < 0.01
+                Text(if (tamam) "✓ Defter doğrulandı: gerçekleşen ${isaretli(d.optDouble("gerceklesen"))} − alım ücretleri ${usd(d.optDouble("alim_ucreti"))} + açık pozisyonlar ${isaretli(d.optDouble("gerceklesmemis"))}"
+                     else "⚠ Defter tutarsız: nakit farkı ${d.optDouble("nakit_farki")}. Sunucuda portfoy_denetim.py çalıştırın.",
+                     color = if (tamam) Nx.Yesil else Nx.Kirmizi, fontSize = 12.sp)
+                val eb = d.optJSONArray("en_buyuk")
+                if (eb != null && eb.length() > 0) {
+                    val x = eb.getJSONObject(0)
+                    Text("En büyük kapanış: ${kisa(x.str("token"))} ${isaretli(x.optDouble("pnl"))} USDC (${kisa(x.str("wallet"))})", color = Nx.Soluk, fontSize = 12.sp)
+                }
+            }
         }
     }
     item(key = "pf_sekme") {
@@ -518,7 +543,7 @@ fun LazyListScope.profil(v: Veri, git: (String) -> Unit, ayarlar: @Composable ()
         NeonKart(Modifier.fillMaxWidth(), kenar = Nx.KenarParlak, dolgu = Nx.DolguMor) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                 Column {
-                    Logo(26.sp)
+                    Logo(28.sp)
                     Text("Paper hesabı · gerçek işlem kapalı", color = Nx.Soluk, fontSize = 12.sp)
                     Text("Sürüm ${BuildConfig.VERSION_NAME}", color = Nx.Soluk, fontSize = 11.sp)
                 }
