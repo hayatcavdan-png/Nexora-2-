@@ -517,9 +517,8 @@ fun LazyListScope.profil(v: Veri, git: (String) -> Unit, ayarlar: @Composable ()
     item(key = "pr_kart") {
         NeonKart(Modifier.fillMaxWidth(), kenar = Nx.KenarParlak, dolgu = Nx.DolguMor) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                Amblem(64.dp)
                 Column {
-                    NexoraYazi(22.sp)
+                    Logo(26.sp)
                     Text("Paper hesabı · gerçek işlem kapalı", color = Nx.Soluk, fontSize = 12.sp)
                     Text("Sürüm ${BuildConfig.VERSION_NAME}", color = Nx.Soluk, fontSize = 11.sp)
                 }

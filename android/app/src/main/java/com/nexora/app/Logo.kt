@@ -89,7 +89,7 @@ private fun DrawScope.bicak(a: Offset, b: Offset, kalinlik: Float, darbe: Float)
 
 /** NEXORA yazısı (X ateş kızılı) ve altında COMMAND X. */
 @Composable
-fun NexoraYazi(boy: TextUnit = 30.sp, altYazi: Boolean = true, modifier: Modifier = Modifier) {
+fun NexoraYazi(boy: TextUnit = 30.sp, altYazi: Boolean = true, modifier: Modifier = Modifier, amblemliN: Boolean = false) {
     val yogunluk = LocalDensity.current
     val harf = TextStyle(fontFamily = Orbitron, fontWeight = FontWeight.Black, fontSize = boy, color = Color.White,
                          letterSpacing = (boy.value * 0.06f).sp)
@@ -97,7 +97,11 @@ fun NexoraYazi(boy: TextUnit = 30.sp, altYazi: Boolean = true, modifier: Modifie
     val xGen = with(yogunluk) { (boy * 0.86f).toDp() }
     Column(modifier, horizontalAlignment = Alignment.Start) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("NE", style = harf)
+            if (amblemliN) {
+                // N harfi yerine amblem: harf yüksekliğine göre boyutlanır
+                Amblem(with(yogunluk) { (boy * 0.98f).toDp() }, Modifier.padding(end = with(yogunluk) { (boy * 0.06f).toDp() }))
+                Text("E", style = harf)
+            } else Text("NE", style = harf)
             AtesX(xGen, xYuk, Modifier.padding(horizontal = with(yogunluk) { (boy * 0.04f).toDp() }))
             Text("ORA", style = harf)
         }
@@ -111,11 +115,6 @@ fun NexoraYazi(boy: TextUnit = 30.sp, altYazi: Boolean = true, modifier: Modifie
     }
 }
 
-/** Küçük başlık logosu: amblem + yazı. */
+/** Logo: N harfi amblemin kendisidir (N amblemi + E + ateş X + ORA), altında COMMAND X. */
 @Composable
-fun Logo(boy: TextUnit = 22.sp) {
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Amblem(with(LocalDensity.current) { (boy * 1.7f).toDp() })
-        NexoraYazi(boy)
-    }
-}
+fun Logo(boy: TextUnit = 22.sp) = NexoraYazi(boy, amblemliN = true)
