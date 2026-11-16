@@ -18,7 +18,7 @@ class AyarTests(unittest.TestCase):
         self.assertEqual(len(self.p.ayarlar()["gecmis"]), 2)
 
     def test_cannot_loosen_beyond_rules(self):
-        for bad in [{"max_pos_pct": 0.06}, {"daily_loss_pct": 0.05}, {"max_positions": 6}, {"max_positions_per_wallet": 3},
+        for bad in [{"max_pos_pct": 0.06}, {"daily_loss_pct": 0.05}, {"max_positions": 9}, {"max_positions_per_wallet": 3},
                     {"max_roundtrip_loss_pct": 7}, {"max_signal_age_s": 30}, {"max_positions": 0},
                     {"start_cash": 1000}, {"max_positions": 2.5}, {"max_positions": "3"}, {"max_positions": True}, {}]:
             with self.assertRaises(ValueError, msg=str(bad)): self.p.ayar_degistir(bad)

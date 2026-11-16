@@ -12,7 +12,7 @@ CFG = dict(
     start_cash=100.0,        # USDC (sanal)
     max_pos_pct=0.05,        # pozisyon başına %5
     daily_loss_pct=0.03,     # günlük %3 zarar eşiği
-    max_positions=5,
+    max_positions=8,         # kullanıcı talebiyle 5 -> 8 (16.11.2026); toplam risk: 8 x %5 = en fazla %40
     max_signal_age_s=10,
     min_liquidity_usd=50_000,
     base_slippage=0.005,     # %0.5
@@ -30,7 +30,7 @@ CFG = dict(
 AYARLANABILIR = dict(
     max_pos_pct=(0.005, 0.05, float),
     daily_loss_pct=(0.005, 0.03, float),
-    max_positions=(1, 5, int),
+    max_positions=(1, 8, int),
     max_positions_per_wallet=(1, 2, int),
     max_signal_age_s=(3, 10, int),
     max_price_impact_pct=(0.5, 3.0, float),

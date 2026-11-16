@@ -1,5 +1,5 @@
 import sys, unittest; import os; sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
-from nexora.core import Paper
+from nexora.core import Paper, CFG
 
 class T(unittest.TestCase):
     def setUp(self): self.p = Paper()
@@ -14,8 +14,9 @@ class T(unittest.TestCase):
         self.assertEqual(self.buy("a", age=60)["reason"], "sinyal bayat")
         self.assertIn("likidite", self.buy("b", liq=100)["reason"])
     def test_max_positions(self):
-        for i in range(5): self.assertEqual(self.buy(f"e{i}", tok=f"T{i}")["decision"], "KOPYALANDI")
-        self.assertEqual(self.buy("x", tok="T9")["reason"], "maks. eşzamanlı pozisyon")
+        n = CFG["max_positions"]
+        for i in range(n): self.assertEqual(self.buy(f"e{i}", tok=f"T{i}")["decision"], "KOPYALANDI")
+        self.assertEqual(self.buy("x", tok="T99")["reason"], "maks. eşzamanlı pozisyon")
     def test_sell_only_owned(self):
         self.assertEqual(self.p.handle_signal("s1", "W", "NOPE", "sell", 1.0, 1e6, 1)["decision"], "REDDEDİLDİ")
     def test_sell_realizes_pnl(self):

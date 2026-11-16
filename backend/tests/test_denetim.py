@@ -1,3 +1,4 @@
+from nexora.core import CFG
 import json, os, sqlite3, sys, tempfile, threading, unittest, urllib.request
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from unittest.mock import Mock
@@ -23,7 +24,7 @@ class DenetimIziTests(unittest.TestCase):
         iz = self.p.karar_izi("e1")
         self.assertEqual((iz["karar"], iz["yas_sn"]), ("KOPYALANDI", 1.5))
         self.assertEqual([a["adim"] for a in iz["adimlar"]], ["kurallar", "token_guvenligi", "alis_teklifi", "geri_satis_teklifi"])
-        self.assertEqual(iz["adimlar"][0]["limitler"]["max_positions"], 5)
+        self.assertEqual(iz["adimlar"][0]["limitler"]["max_positions"], CFG["max_positions"])
         self.assertEqual(iz["adimlar"][2]["cikis"], 5_000_000 * 200)
         self.assertAlmostEqual(iz["adimlar"][3]["al_sat_kaybi_pct"], 3.0, places=3)
         self.y.enqueue.assert_called_once_with("e1", "buy", TOK, USDC_MINT, TOK, 5_000_000, 5_000_000 * 200)

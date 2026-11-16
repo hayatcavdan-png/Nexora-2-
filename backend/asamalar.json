@@ -78,7 +78,7 @@
    "grup": "İşlem",
    "durum": "devam",
    "yuzde": 92,
-   "yapilan": "100 USDC, %5 pozisyon, %3 günlük zarar, 5 pozisyon, cüzdan başına 2 pozisyon, 1 USDC ücret rezervi, acil durdurma; limitler uygulamadan değiştirilebilir (yalnızca sıkılaştırma, sunucu denetimi, değişiklik kaydı); token yoğunlaşması: token başına tek pozisyon (%5) ve aynı token'a günde en fazla 2 giriş (uygulamadan 1'e düşürülebilir)",
+   "yapilan": "100 USDC, %5 pozisyon, %3 günlük zarar, 5 pozisyon, cüzdan başına 2 pozisyon, 1 USDC ücret rezervi, acil durdurma; limitler uygulamadan değiştirilebilir (yalnızca sıkılaştırma, sunucu denetimi, değişiklik kaydı); token yoğunlaşması: token başına tek pozisyon (%5) ve aynı token'a günde en fazla 2 giriş (uygulamadan 1'e düşürülebilir). 16.11.2026: açık pozisyon sınırı 5 -> 8 (kullanıcı talebi; toplam risk en fazla %40, günlük %3 zarar sınırı geçerli).",
    "eksik": "Uzun süreli gerçek kullanımda sınırların gözden geçirilmesi"
   },
   {

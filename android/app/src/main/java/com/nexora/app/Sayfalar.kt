@@ -396,7 +396,7 @@ private val RISK_ON_AYAR = listOf(
 fun LazyListScope.autoPilot(v: Veri, geri: () -> Unit, ayarla: (JSONObject) -> Unit, baslat: () -> Unit, durdurIste: () -> Unit,
                             modelKapat: () -> Unit = {}) {
     val a = v.ayarlar
-    val pos = a.optDouble("max_pos_pct", 0.05); val gunluk = a.optDouble("daily_loss_pct", 0.03); val maxp = a.optInt("max_positions", 5)
+    val pos = a.optDouble("max_pos_pct", 0.05); val gunluk = a.optDouble("daily_loss_pct", 0.03); val maxp = a.optInt("max_positions", 8)
     item(key = "ap_bas") {
         SayfaBasligi("AutoPilot X", "Öncü cüzdan kopyalama botu", geri = geri,
             sag = { Icon(Icons.Outlined.Info, null, tint = Nx.Soluk) })
@@ -445,7 +445,7 @@ fun LazyListScope.autoPilot(v: Veri, geri: () -> Unit, ayarla: (JSONObject) -> U
                 { ayarla(JSONObject().put("daily_loss_pct", (gunluk + 0.005).coerceAtMost(0.03))) })
             Adim("Maks. Açık Pozisyon", "$maxp adet",
                 { ayarla(JSONObject().put("max_positions", (maxp - 1).coerceAtLeast(1))) },
-                { ayarla(JSONObject().put("max_positions", (maxp + 1).coerceAtMost(5))) })
+                { ayarla(JSONObject().put("max_positions", (maxp + 1).coerceAtMost(8))) })
         }
     }
     item(key = "ap_dugme") {
