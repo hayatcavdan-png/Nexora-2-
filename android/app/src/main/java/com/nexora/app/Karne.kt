@@ -117,6 +117,7 @@ fun LazyListScope.karne(v: Veri, git: (String) -> Unit) {
         }
     }
     item(key = "kr_kanit") { KanitKarti(v) }
+    item(key = "kr_bildirim") { BildirimKarti(v) }
     item(key = "kr_yon") { YonlendiriciKarti(v) }
     item(key = "kr_strateji") { StratejiKarti(v) }
     item(key = "kr_borsa") { BorsaKarti(v) }

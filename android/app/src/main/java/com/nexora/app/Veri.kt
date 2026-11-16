@@ -89,6 +89,7 @@ class Veri {
     var strateji by mutableStateOf<JSONObject?>(null)
     var yonlendirici by mutableStateOf<JSONObject?>(null)
     var kanit by mutableStateOf<JSONObject?>(null)
+    var bildirim by mutableStateOf<JSONObject?>(null)
     var ekosistemler by mutableStateOf<org.json.JSONArray?>(null)
     var radarOzet by mutableStateOf("")
     var eksikUclar by mutableStateOf(listOf<String>())
@@ -181,6 +182,7 @@ class Veri {
         try { strateji = JSONObject(api(url, key, "/strateji")) } catch (e: Exception) { eksik += "strateji" }
         try { yonlendirici = JSONObject(api(url, key, "/yonlendirici")) } catch (e: Exception) { }
         try { kanit = JSONObject(api(url, key, "/kanit")) } catch (e: Exception) { }
+        try { bildirim = JSONObject(api(url, key, "/bildirim")) } catch (e: Exception) { }
         try { ekosistemler = JSONObject(api(url, key, "/ekosistemler")).optJSONArray("ekosistemler") } catch (e: Exception) { eksik += "ekosistem" }
         try {
             val r = JSONObject(api(url, key, "/radar", zamanAsimi = 15000))

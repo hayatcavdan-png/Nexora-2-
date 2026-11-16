@@ -216,3 +216,26 @@ fun KanitKarti(v: Veri) {
              color = Nx.Soluk, fontSize = 11.sp, lineHeight = 14.sp)
     }
 }
+
+
+/** N32: borsada listesiz tokenler için bildirim kayıtları. Yalnızca bilgi; uygulama bu tokenlerde işlem açmaz. */
+@Composable
+fun BildirimKarti(v: Veri) {
+    val j = v.bildirim ?: return
+    val a = j.optJSONArray("son") ?: return
+    NeonKart(Modifier.fillMaxWidth(), kenar = Nx.KenarParlak) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("BİLDİRİMLER", color = Nx.Soluk, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+            Etiket("yalnızca bilgi", Nx.Gok)
+        }
+        if (a.length() == 0) {
+            Text("Henüz bildirim yok. Öncü cüzdanlar borsada listesiz bir token aldığında burada görünür.", color = Nx.Soluk, fontSize = 12.sp, lineHeight = 16.sp)
+        }
+        for (i in 0 until minOf(a.length(), 10)) {
+            val x = a.getJSONObject(i)
+            Text(x.optString("metin"), color = Nx.Metin, fontSize = 12.sp, lineHeight = 16.sp, modifier = Modifier.padding(top = 8.dp))
+        }
+        Text("Bu bildirimler al-sat önerisi değildir. Uygulama borsada listesiz tokenlerde işlem açmaz; karar sizindir.",
+             color = Nx.Soluk, fontSize = 11.sp, lineHeight = 14.sp)
+    }
+}

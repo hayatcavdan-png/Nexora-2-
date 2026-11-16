@@ -293,9 +293,9 @@
    "ad": "Bildirim sinyalleri",
    "grup": "Faz 2 · Çoklu platform",
    "durum": "devam",
-   "yuzde": 25,
-   "yapilan": "1. sürüm: öncü cüzdanların dört borsada listesiz tokenlere yaptığı alımlar için bildirim kaydı (bildirim.py, bildirim_tara.py); yalnızca bildirim, emir yok; her sinyal bir kez bildirilir; /bildirim uç noktası. 4 yeni test.",
-   "eksik": "Zamanlayıcı (saatlik tarama) kurulumu; uygulamada bildirim kartı; işlem açıldı/kapandı ve günlük zarar sınırı bildirimleri; cihaz bildirimi (push) için karar."
+   "yuzde": 40,
+   "yapilan": "1. sürüm: öncü cüzdanların dört borsada listesiz tokenlere yaptığı alımlar için bildirim kaydı (bildirim.py, bildirim_tara.py); yalnızca bildirim, emir yok; her sinyal bir kez bildirilir; /bildirim uç noktası. 4 yeni test. Saatlik zamanlayıcı (nexora-bildirim) ve uygulamada Karne sekmesinde Bildirimler kartı (uygulama 5.15.0).",
+   "eksik": "İşlem açıldı/kapandı ve günlük zarar sınırı bildirimleri; cihaz bildirimi (push) için karar; ilk gerçek bildirimlerin gözden geçirilmesi."
   },
   {
    "kod": "N33",
