@@ -5,50 +5,70 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.*
+import org.json.JSONObject
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(b: Bundle?) {
         super.onCreate(b)
+        window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(0xFF07061A.toInt()))
         setContent { MaterialTheme(colorScheme = NxRenkler) { Surface(color = Nx.Zemin) { App() } } }
     }
 }
 
-private val SEKMELER = listOf(
-    Triple("panel", "Ana", Icons.Filled.Home),
-    Triple("bot", "Bot", Icons.Filled.Face),
-    Triple("cuzdanlar", "Cüzdanlar", Icons.Filled.Search),
-    Triple("islemler", "Portföy", Icons.Filled.List),
-    Triple("ayarlar", "Profil", Icons.Filled.Person),
-)
-private val ALT_EKRAN = mapOf("rapor" to "Günlük Rapor", "yol" to "Yol Haritası")
+private val ANA_SEKMELER = setOf("ana", "kesfet", "bot", "portfoy", "profil")
+private val ALT_EKRAN = mapOf("rapor" to "Günlük Rapor", "yol" to "Yol Haritası", "takip" to "Takip Edilen Cüzdanlar")
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun App() {
     val ctx = androidx.compose.ui.platform.LocalContext.current
     val sp = remember { ctx.getSharedPreferences("nx", Context.MODE_PRIVATE) }
     var url by remember { mutableStateOf(sp.getString("url", "http://127.0.0.1:8000")!!) }
     var key by remember { mutableStateOf(sp.getString("key", "")!!.trim()) }
-    var ekran by remember { mutableStateOf("panel") }
-    var islemSekme by remember { mutableIntStateOf(0) }
+    var ekran by rememberSaveable { mutableStateOf("ana") }
     var durdurOnay by remember { mutableStateOf(false) }
     val v = remember { Veri() }
+    var yenileniyor by remember { mutableStateOf(false) }
+
+    // ekran durumları
+    var gizle by remember { mutableStateOf(sp.getBoolean("gizle", false)) }
+    var aralik by rememberSaveable { mutableStateOf("1G") }
+    var kesfetSekme by rememberSaveable { mutableIntStateOf(0) }
+    var radarArama by rememberSaveable { mutableStateOf("") }
+    var radarSira by rememberSaveable { mutableIntStateOf(0) }
+    var favoriler by remember { mutableStateOf(sp.getStringSet("favori", emptySet())!!.toSet()) }
+    var dnaAdres by rememberSaveable { mutableStateOf("") }
+    var dnaSonuc by remember { mutableStateOf<JSONObject?>(null) }
+    var dnaHata by remember { mutableStateOf("") }
+    var dnaYukleniyor by remember { mutableStateOf(false) }
+    var portfoySekme by rememberSaveable { mutableIntStateOf(0) }
+    var seciliToken by rememberSaveable { mutableStateOf("") }
+    var islemSonuc by remember { mutableStateOf("") }
+    var islemMesgul by remember { mutableStateOf(false) }
+
+    // kilit
     var kilitli by remember { mutableStateOf(Kilit.var_(sp)) }
     val yasam = androidx.compose.ui.platform.LocalLifecycleOwner.current
     DisposableEffect(yasam) {
@@ -61,6 +81,8 @@ fun App() {
         yasam.lifecycle.addObserver(g)
         onDispose { yasam.lifecycle.removeObserver(g) }
     }
+
+    // bildirim
     var bildirim by remember { mutableStateOf(sp.getBoolean("bildirim", false)) }
     fun bildirimAyarla(acik: Boolean) {
         bildirim = acik
@@ -74,8 +96,8 @@ fun App() {
     LaunchedEffect(Unit) { if (bildirim) BildirimServisi.baslat(ctx) }
     val scope = rememberCoroutineScope()
 
-    fun yenile() = scope.launch {
-        if (key.isEmpty()) return@launch
+    suspend fun yukleSessiz() {
+        if (key.isEmpty()) return
         try {
             withContext(Dispatchers.IO) { v.yukle(url, key) }
             v.bagli = true; v.hata = ""; v.guncelleme = System.currentTimeMillis() / 1000.0
@@ -85,19 +107,18 @@ fun App() {
                      else "Bağlantı hatası: ${e.message}"
         }
     }
+    fun yenile() = scope.launch { yukleSessiz() }
+    fun cekYenile() = scope.launch { yenileniyor = true; yukleSessiz(); yenileniyor = false }
+    fun mesaj(m: String) = android.widget.Toast.makeText(ctx, m, android.widget.Toast.LENGTH_LONG).show()
     fun komut(path: String) = scope.launch {
-        try { withContext(Dispatchers.IO) { api(url, key, path, true) }; yenile() }
-        catch (e: Exception) { v.hata = "Komut gönderilemedi: ${e.message}" }
+        try { withContext(Dispatchers.IO) { api(url, key, path, true) }; yukleSessiz() }
+        catch (e: Exception) { v.hata = "Komut gönderilemedi: ${e.message}"; mesaj("Komut gönderilemedi: ${e.message}") }
     }
-    fun riskKaydet(j: org.json.JSONObject) = scope.launch {
+    fun riskKaydet(j: JSONObject) = scope.launch {
         try {
             withContext(Dispatchers.IO) { api(url, key, "/ayarlar", true, j.toString()) }
-            yenile()
-            android.widget.Toast.makeText(ctx, "Risk sınırları kaydedildi", android.widget.Toast.LENGTH_SHORT).show()
-        } catch (e: Exception) {
-            v.hata = "Kaydedilemedi: ${e.message}"
-            android.widget.Toast.makeText(ctx, "Kaydedilemedi: ${e.message}", android.widget.Toast.LENGTH_LONG).show()
-        }
+            yukleSessiz(); mesaj("Risk ayarı kaydedildi")
+        } catch (e: Exception) { v.hata = "Kaydedilemedi: ${e.message}"; mesaj("Kaydedilemedi: ${e.message}") }
     }
     fun yedekIndir() = scope.launch {
         try {
@@ -106,103 +127,102 @@ fun App() {
                 val (ad, veri) = Yedek.indir(url, key)
                 Yedek.kaydet(ctx, ad, veri).also { sp.edit().putString("yedek_son_ad", ad).apply() }
             }
-            android.widget.Toast.makeText(ctx, "Yedek kaydedildi: $yer", android.widget.Toast.LENGTH_LONG).show()
+            mesaj("Yedek kaydedildi: $yer")
         } catch (e: Exception) {
             val neden = if (e.message?.contains("404") == true) "sunucu güncel değil (sudo bash /opt/nexora/deploy/guncelle.sh)" else e.message
-            v.hata = "Yedek indirilemedi: $neden"
-            android.widget.Toast.makeText(ctx, "Yedek indirilemedi: $neden", android.widget.Toast.LENGTH_LONG).show()
+            v.hata = "Yedek indirilemedi: $neden"; mesaj("Yedek indirilemedi: $neden")
         }
     }
-    LaunchedEffect(Unit) { while (true) { yenile(); delay(10_000) } }
-    BackHandler(enabled = ekran != "panel") { ekran = "panel" }
+    fun dnaAnaliz() = scope.launch {
+        dnaYukleniyor = true; dnaHata = ""
+        try {
+            val r = withContext(Dispatchers.IO) {
+                api(url, key, "/cuzdan-dna", true, JSONObject().put("adres", dnaAdres.trim()).toString(), zamanAsimi = 90_000)
+            }
+            dnaSonuc = JSONObject(r)
+        } catch (e: Exception) {
+            dnaHata = when {
+                e.message?.contains("429") == true -> "Günlük analiz sınırı doldu (Helius kredisi korunuyor)."
+                e.message?.contains("404") == true -> "Sunucu güncel değil: sudo bash /opt/nexora/deploy/guncelle.sh"
+                else -> "Analiz yapılamadı: ${e.message}"
+            }
+        }
+        dnaYukleniyor = false
+    }
+    fun manuelIslem(token: String, yon: String, usdTutar: Double?) = scope.launch {
+        islemMesgul = true; islemSonuc = ""
+        try {
+            val g = JSONObject().put("token", token).put("yon", yon); if (usdTutar != null) g.put("usd", usdTutar)
+            val r = JSONObject(withContext(Dispatchers.IO) { api(url, key, "/manuel", true, g.toString(), zamanAsimi = 45_000) })
+            islemSonuc = "${r.str("decision")}: ${r.str("reason")}"
+            yukleSessiz()
+        } catch (e: Exception) {
+            islemSonuc = if (e.message?.contains("404") == true) "Sunucu güncel değil: sudo bash /opt/nexora/deploy/guncelle.sh"
+                         else "İşlem yapılamadı: ${e.message}"
+        }
+        islemMesgul = false
+    }
+    LaunchedEffect(key, url) { while (true) { yukleSessiz(); delay(15_000) } }
+    BackHandler(enabled = ekran != "ana") { ekran = if (ekran in ALT_EKRAN) "profil" else "ana" }
 
     if (kilitli) { KilitEkrani(sp) { kilitli = false }; return }
 
     if (durdurOnay) {
         AlertDialog(
             onDismissRequest = { durdurOnay = false },
-            title = { Text("Acil durdurma") },
+            icon = { IkonKalkan(Nx.Kirmizi, 32.dp) },
+            title = { Text("NEXORA Shield · Acil durdurma") },
             text = { Text("Bot yeni alım yapmayı durduracak. Açık pozisyonlar yerinde kalır. Emin misiniz?") },
             confirmButton = { TextButton({ durdurOnay = false; komut("/acil-durdur") }) { Text("Durdur", color = Nx.Kirmizi) } },
             dismissButton = { TextButton({ durdurOnay = false }) { Text("Vazgeç") } },
-            containerColor = Nx.Yuzey2,
-            shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
+            containerColor = Nx.Yuzey2, shape = RoundedCornerShape(24.dp),
         )
     }
 
-    Scaffold(
-        containerColor = Nx.Zemin,
-        bottomBar = {
-            AltMenu(SEKMELER, if (ekran in ALT_EKRAN) "panel" else ekran) { ekran = it }
-        },
-    ) { pad ->
-        LazyColumn(
-            Modifier.padding(pad).fillMaxSize().background(Nx.Zemin).padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            item {
-                Column(Modifier.padding(top = 14.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                    UstBaslik(Icons.Filled.Notifications, { ekran = "rapor" }, Icons.Filled.Menu, { ekran = "yol" })
-                    DurumSeridi(
-                        if (v.acilDurdurma) "BOT DURDURULDU" else if (v.bagli) "PAPER MODU" else "BAĞLANTI YOK",
-                        if (v.acilDurdurma || !v.bagli) Nx.Kirmizi else Nx.Limon,
-                        "Gerçek emir: KAPALI")
-                    if (ekran != "panel") Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        if (ekran in ALT_EKRAN) IconButton({ ekran = "panel" }) { Icon(Icons.Filled.ArrowBack, "Geri", tint = Nx.Metin) }
-                        Text(ALT_EKRAN[ekran] ?: SEKMELER.first { it.first == ekran }.second,
-                             color = Nx.Metin, fontSize = 30.sp, fontWeight = FontWeight.Bold)
-                    }
-                    if (v.hata.isNotEmpty()) Text(v.hata, color = Nx.Kirmizi, fontSize = 13.sp)
-                    else if (v.guncelleme > 0) Text("Son güncelleme ${saat(v.guncelleme)}", color = Nx.Soluk, fontSize = 12.sp)
+    val menuSecili = if (ekran in ANA_SEKMELER) ekran else if (ekran == "takip") "kesfet" else "profil"
+    Scaffold(containerColor = Nx.Zemin, bottomBar = { AltMenu2(menuSecili) { ekran = it } }) { pad ->
+        PullToRefreshBox(isRefreshing = yenileniyor, onRefresh = { cekYenile() }, modifier = Modifier.padding(pad).fillMaxSize()) {
+            LazyColumn(
+                Modifier.fillMaxSize().background(Nx.Zemin),
+                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                if (ekran == "ana") item(key = "ust") { AnaUstBaslik({ ekran = it }) }
+                if (ekran in ALT_EKRAN) item(key = "alt_bas") {
+                    SayfaBasligi(ALT_EKRAN[ekran]!!, if (ekran == "takip") "Analiz ve takip durumu" else "NEXORA", geri = { ekran = "profil" })
                 }
-            }
-            when (ekran) {
-                "panel" -> item {
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        AnaPanel(v, key.isNotEmpty(), { ekran = it }, { durdurOnay = true }, { komut("/devam") })
-                    }
+                if (v.hata.isNotEmpty()) item(key = "hata") { Text(v.hata, color = Nx.Kirmizi, fontSize = 13.sp) }
+                else if (key.isEmpty()) item(key = "anahtar") {
+                    BilgiKutusu("Sunucuya bağlanmak için Profil › Sunucu bağlantısı bölümüne adres ve API anahtarını girin.")
                 }
-                "bot" -> {
-                    item { Column(verticalArrangement = Arrangement.spacedBy(12.dp)) { BotEkrani(v, { durdurOnay = true }, { komut("/devam") }) } }
-                    items(v.sinyaller) { SinyalKarti(it) }
-                }
-                "cuzdanlar" -> {
-                    item { CuzdanOzeti(v) }
-                    if (v.cuzdanlar.isEmpty()) item {
-                        Text("Cüzdan analizi bulunamadı: backend klasöründe cuzdan_analiz.py çalıştırın.", color = Nx.Soluk)
-                    }
-                    itemsIndexed(v.cuzdanlar) { i, c -> CuzdanKarti(i + 1, c) }
-                }
-                "islemler" -> {
-                    item {
-                        TabRow(selectedTabIndex = islemSekme, containerColor = Nx.Yuzey, contentColor = Nx.Camgobegi) {
-                            Tab(selected = islemSekme == 0, onClick = { islemSekme = 0 }, text = { Text("Açık pozisyonlar (${v.pozisyonlar.size})") })
-                            Tab(selected = islemSekme == 1, onClick = { islemSekme = 1 }, text = { Text("İşlem geçmişi") })
+                when (ekran) {
+                    "ana" -> anaSayfa(v, gizle, { gizle = !gizle; sp.edit().putBoolean("gizle", gizle).apply() }, aralik, { aralik = it },
+                                      { ekran = it }, { kesfetSekme = it }, { ekran = "bot" }, { durdurOnay = true })
+                    "kesfet" -> {
+                        item(key = "k_sekme") {
+                            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(50)).background(Nx.Yuzey2).padding(4.dp),
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                listOf("Token Radar", "Wallet DNA", "Takip").forEachIndexed { i, ad -> Hap(ad, kesfetSekme == i, Modifier.weight(1f)) { kesfetSekme = i } }
+                            }
+                        }
+                        when (kesfetSekme) {
+                            0 -> tokenRadar(v, radarArama, { radarArama = it }, radarSira, { radarSira = it }, favoriler,
+                                    { t -> favoriler = if (t in favoriler) favoriler - t else favoriler + t; sp.edit().putStringSet("favori", favoriler).apply() },
+                                    { t -> seciliToken = t.token; portfoySekme = 0; ekran = "portfoy" })
+                            1 -> walletDna(v, dnaAdres, { dnaAdres = it; dnaSonuc = null }, dnaYukleniyor, dnaSonuc, dnaHata) { dnaAnaliz() }
+                            else -> takipListesi(v)
                         }
                     }
-                    if (islemSekme == 0) {
-                        if (v.pozisyonlar.isEmpty()) item { Text("Açık pozisyon yok.", color = Nx.Soluk) }
-                        items(v.pozisyonlar) { PozisyonKarti(it) }
-                        item { PerformansOzeti(v) }
-                    } else {
-                        items(v.islemler) { IslemSatiri(it) }
+                    "takip" -> takipListesi(v)
+                    "bot" -> {
+                        autoPilot(v, { ekran = "ana" }, { riskKaydet(it) }, { komut("/devam") }, { durdurOnay = true })
+                        item(key = "bot_ayrinti") { Column(verticalArrangement = Arrangement.spacedBy(12.dp)) { BotEkrani(v, { durdurOnay = true }, { komut("/devam") }) } }
+                        items(v.sinyaller, key = { "s_" + it.ts + it.token + it.yon }) { SinyalKarti(it) }
                     }
-                }
-                "rapor" -> item { Column(verticalArrangement = Arrangement.spacedBy(12.dp)) { RaporEkrani(v) } }
-                "yol" -> {
-                    item {
-                        val ort = if (v.asamalar.isEmpty()) 0 else v.asamalar.sumOf { it.yuzde } / v.asamalar.size
-                        NeonKart(Modifier.fillMaxWidth(), dolgu = Nx.DolguMor) {
-                            Text("Genel ilerleme %$ort", color = Nx.Metin, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                            Text("${v.asamalar.count { it.durum == "ileri" }} ileri · ${v.asamalar.count { it.durum == "devam" }} devam ediyor · " +
-                                 "${v.asamalar.count { it.durum == "baslamadi" }} başlamadı", color = Nx.Soluk, fontSize = 13.sp)
-                            if (v.asamaGuncelleme.isNotEmpty()) Text(v.asamaGuncelleme, color = Nx.Soluk, fontSize = 11.sp)
-                        }
+                    "portfoy" -> portfoy(v, { ekran = "ana" }, portfoySekme, { portfoySekme = it }) {
+                        IslemFormu(v, seciliToken, { seciliToken = it }, { t, y, u -> manuelIslem(t, y, u) }, islemSonuc, islemMesgul)
                     }
-                    items(v.asamalar) { AsamaKarti(it) }
-                }
-                "ayarlar" -> item {
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    "profil" -> profil(v, { ekran = it }) {
                         AyarlarEkrani(v, url, key, bildirim, { acik ->
                             if (acik && android.os.Build.VERSION.SDK_INT >= 33 &&
                                 androidx.core.content.ContextCompat.checkSelfPermission(ctx, android.Manifest.permission.POST_NOTIFICATIONS) !=
@@ -216,9 +236,52 @@ fun App() {
                         }
                         KilitAyari(sp)
                     }
+                    "rapor" -> item(key = "rapor") { Column(verticalArrangement = Arrangement.spacedBy(12.dp)) { RaporEkrani(v) } }
+                    "yol" -> {
+                        item(key = "yol_ozet") {
+                            val ort = if (v.asamalar.isEmpty()) 0 else v.asamalar.sumOf { it.yuzde } / v.asamalar.size
+                            NeonKart(Modifier.fillMaxWidth(), dolgu = Nx.DolguMor) {
+                                Text("Genel ilerleme %$ort", color = Nx.Metin, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                                Text("${v.asamalar.count { it.durum == "ileri" }} ileri · ${v.asamalar.count { it.durum == "devam" }} devam ediyor · " +
+                                     "${v.asamalar.count { it.durum == "baslamadi" }} başlamadı", color = Nx.Soluk, fontSize = 13.sp)
+                                if (v.asamaGuncelleme.isNotEmpty()) Text(v.asamaGuncelleme, color = Nx.Soluk, fontSize = 11.sp)
+                            }
+                        }
+                        items(v.asamalar, key = { "a_" + it.kod }) { AsamaKarti(it) }
+                    }
+                }
+                if (v.guncelleme > 0) item(key = "son") {
+                    Text("Son güncelleme ${saat(v.guncelleme)} · aşağı çekerek yenileyin", color = Nx.Soluk, fontSize = 11.sp,
+                         modifier = Modifier.fillMaxWidth())
                 }
             }
-            item { Spacer(Modifier.height(16.dp)) }
+        }
+    }
+}
+
+fun androidx.compose.foundation.lazy.LazyListScope.takipListesi(v: Veri) {
+    item(key = "t_ozet") { CuzdanOzeti(v) }
+    if (v.cuzdanlar.isEmpty()) item(key = "t_bos") { Text("Cüzdan analizi bulunamadı: sunucuda cuzdan_analiz.py çalıştırın.", color = Nx.Soluk) }
+    itemsIndexed(v.cuzdanlar, key = { _, c -> "c_" + c.adres }) { i, c -> CuzdanKarti(i + 1, c) }
+}
+
+@Composable
+fun AnaUstBaslik(git: (String) -> Unit) {
+    var menu by remember { mutableStateOf(false) }
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Box {
+            IconButton({ menu = true }) { Icon(Icons.Filled.Menu, "Menü", tint = Nx.Metin) }
+            DropdownMenu(menu, { menu = false }, containerColor = Nx.Yuzey2) {
+                DropdownMenuItem({ Text("Günlük Rapor") }, { menu = false; git("rapor") })
+                DropdownMenuItem({ Text("Yol Haritası") }, { menu = false; git("yol") })
+                DropdownMenuItem({ Text("Takip Edilen Cüzdanlar") }, { menu = false; git("takip") })
+                DropdownMenuItem({ Text("Ayarlar") }, { menu = false; git("profil") })
+            }
+        }
+        Box(Modifier.weight(1f), contentAlignment = Alignment.Center) { Logo(18.sp) }
+        Box {
+            IconButton({ git("rapor") }) { Icon(Icons.Filled.Notifications, "Rapor", tint = Nx.Metin) }
+            Box(Modifier.align(Alignment.TopEnd).padding(top = 10.dp, end = 10.dp).size(8.dp).clip(CircleShape).background(Nx.Mor))
         }
     }
 }

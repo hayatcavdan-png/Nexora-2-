@@ -1,6 +1,10 @@
 """NEXORA 2.0 çekirdek: paper trading + risk motoru (yalnızca stdlib).
 GERÇEK İŞLEM YOK. Execution bilinçli olarak kapalıdır (N11/N12 sonrası)."""
-import json, sqlite3, time, threading
+import contextlib, json, os, sqlite3, time, threading
+try:
+    import fcntl
+except ImportError:          # Windows: süreçler arası kilit yok (yalnızca test)
+    fcntl = None
 
 from nexora import durum as D
 
@@ -75,7 +79,8 @@ class SemaHatasi(RuntimeError):
 
 class Paper:
     def __init__(self, path=":memory:"):
-        self.db = sqlite3.connect(path, check_same_thread=False)
+        self.path = path
+        self.db = sqlite3.connect(path, check_same_thread=False, timeout=10)
         self.db.row_factory = sqlite3.Row
         self.lock = threading.Lock()
         try:
@@ -204,7 +209,17 @@ class Paper:
     def _roll_day(self):
         d = time.strftime("%Y-%m-%d")
         if self._get("day") != d:
-            self._set("day", d); self._set("day_start", self.equity())
+            self._set("day", d); self._set("day_start", self.equity()); self.db.commit()
+
+    @contextlib.contextmanager
+    def _surec_kilidi(self):
+        """Takip ve sunucu aynı defteri yazabilir (elle işlem): nakit değiştiren yazımlar süreçler arası kilitlenir."""
+        if fcntl is None or not self.path or self.path == ":memory:":
+            yield; return
+        with open(self.path + ".kilit", "a") as f:
+            fcntl.flock(f, fcntl.LOCK_EX)
+            try: yield
+            finally: fcntl.flock(f, fcntl.LOCK_UN)
 
     def _log(self, ev, wallet, token, side, qty, price, fee, pnl, decision, reason):
         self.db.execute("INSERT INTO trades(ts,event_id,wallet,token,side,qty,price,fee,pnl,decision,reason) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
@@ -291,7 +306,7 @@ class Paper:
             return None, size
 
     def record_buy(self, event_id, wallet, token, size_usd, qty_raw, decimals, note="ok"):
-        with self.lock:
+        with self.lock, self._surec_kilidi():
             if self.db.execute("SELECT 1 FROM trades WHERE event_id=?", (event_id,)).fetchone():
                 return dict(decision="ATLANDI", reason="tekrarlanan olay")
             if self.db.execute("SELECT 1 FROM positions WHERE token=?", (token,)).fetchone():
@@ -310,7 +325,7 @@ class Paper:
             return self._log(event_id, wallet, token, "buy", qty, price, fee, 0, "KOPYALANDI", note)
 
     def record_sell(self, event_id, wallet, token, proceeds_usd, note="ok"):
-        with self.lock:
+        with self.lock, self._surec_kilidi():
             if self.db.execute("SELECT 1 FROM trades WHERE event_id=?", (event_id,)).fetchone():
                 return dict(decision="ATLANDI", reason="tekrarlanan olay")
             pos = self.db.execute("SELECT * FROM positions WHERE token=?", (token,)).fetchone()

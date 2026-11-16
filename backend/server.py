@@ -9,7 +9,40 @@ from nexora.rapor import build_report
 from nexora import panel
 from nexora import gizle as _gizle
 _gizle.kur()
-import glob, yedek
+import glob, yedek, threading, time as _time
+from nexora import kesif_api
+
+_servis = {}
+_servis_kilit = threading.Lock()
+
+def servis(ad):
+    """Ağa çıkan bileşenler yalnızca ilk kullanımda kurulur (anahtar yoksa ilgili uç nokta hata döner, sunucu çalışır)."""
+    with _servis_kilit:
+        if ad in _servis: return _servis[ad]
+        from nexora.market import JupiterQuoter
+        if "quoter" not in _servis: _servis["quoter"] = JupiterQuoter()
+        if ad == "bilgi":
+            from nexora.token_bilgi import TokenBilgi
+            _servis[ad] = TokenBilgi(throttle=_servis["quoter"]._throttle)
+        elif ad in ("helius", "decider", "dna"):
+            from nexora.helius_client import HeliusClient
+            if "helius" not in _servis: _servis["helius"] = HeliusClient(max_retries=2)
+            if ad == "decider":
+                from nexora.token_safety import TokenSafety
+                from nexora.decision import Decider
+                _servis[ad] = Decider(paper, _servis["quoter"], TokenSafety(_servis["helius"]))
+            elif ad == "dna":
+                import cuzdan_analiz
+                from nexora.wallet_analysis import analyze, verdict
+                fiyat = {"ts": 0, "v": None}
+                def analiz_et(adres):
+                    if fiyat["v"] is None or _time.time() - fiyat["ts"] > 600:
+                        fiyat.update(v=cuzdan_analiz.sol_price(_servis["quoter"]), ts=_time.time())
+                    m = analyze(cuzdan_analiz.fetch(_servis["helius"], adres), adres, fiyat["v"])
+                    karar, why = verdict(m)
+                    return m, karar, "; ".join(why)
+                _servis[ad] = kesif_api.DnaServisi(os.getenv("DNA_DB", "nexora_dna.db"), analiz_et)
+        return _servis[ad]
 
 paper = Paper(os.getenv("NEXORA_DB", "nexora_paper.db"))
 KEY = os.getenv("NEXORA_API_KEY", "").strip()
@@ -57,10 +90,24 @@ class H(BaseHTTPRequestHandler):
         self.send_header("X-Yedek-Ad", os.path.basename(yol)); self.send_header("Content-Length", str(len(b)))
         self.end_headers(); self.wfile.write(b)
 
+    def _dna(self, adres, yenile):
+        try:
+            self._send(200, servis("dna").getir(adres, yenile))
+        except ValueError as e: self._send(400, {"hata": str(e)})
+        except PermissionError as e: self._send(429, {"hata": str(e)})
+        except Exception as e: self._send(502, {"hata": f"analiz yapılamadı: {type(e).__name__}"})
+
     def do_GET(self):
         if not self._ok(): return
         parts = urlsplit(self.path)
         if parts.path == "/yedek/son": self._yedek_gonder(); return
+        if parts.path == "/radar":
+            from nexora.token_bilgi import toplu
+            self._send(200, kesif_api.radar(os.getenv("TRACKER_DB", "nexora_tracker.db"), lambda ms: toplu(servis("bilgi"), ms)))
+            return
+        if parts.path == "/cuzdan-dna":
+            adres = (parse_qs(parts.query).get("adres") or [""])[0]
+            self._dna(adres, False); return
         if parts.path == "/karar-izi":
             ev = (parse_qs(parts.query).get("olay") or [""])[0]
             d = paper.karar_izi(ev) if ev else None
@@ -92,6 +139,16 @@ class H(BaseHTTPRequestHandler):
         raw = self.rfile.read(n) if n else b"{}"
         if self.path == "/acil-durdur": paper.set_kill(True); self._send(200, {"acil_durdurma": True})
         elif self.path == "/devam": paper.set_kill(False); self._send(200, {"acil_durdurma": False})
+        elif self.path == "/cuzdan-dna":
+            try: d = json.loads(raw or b"{}")
+            except ValueError: d = {}
+            self._dna(d.get("adres", ""), bool(d.get("yenile")))
+        elif self.path == "/manuel":
+            try:
+                d = json.loads(raw or b"{}")
+                self._send(200, kesif_api.manuel_islem(servis("decider"), d.get("token", ""), d.get("yon", ""), d.get("usd")))
+            except ValueError as e: self._send(400, {"hata": str(e)})
+            except Exception as e: self._send(502, {"hata": f"işlem yapılamadı: {type(e).__name__}"})
         elif self.path == "/yedek":
             try:
                 y = yedek.yedekle()

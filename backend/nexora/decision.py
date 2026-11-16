@@ -32,7 +32,7 @@ class Decider:
     def _olc(self, event_id, token):
         if self.bilgi is not None: self.bilgi.enqueue(event_id, token)
 
-    def decide(self, event_id, wallet, token, side, signal_age_s):
+    def decide(self, event_id, wallet, token, side, signal_age_s, boyut_usd=None):
         p = self.paper
         if p.seen(event_id): return dict(decision="ATLANDI", reason="tekrarlanan olay")
         iz = []                       # N1: her adımın girdisi ve sonucu (değiştirilemez kayıt)
@@ -42,6 +42,8 @@ class Decider:
             limitler = {k: p.limit(k) for k in ("max_pos_pct", "daily_loss_pct", "max_positions", "max_positions_per_wallet",
                                                 "max_signal_age_s", "max_price_impact_pct", "max_roundtrip_loss_pct")}
             reason, size = p.precheck(side, token, signal_age_s, wallet)
+            if boyut_usd is not None and size: size = round(min(size, max(0.0, float(boyut_usd))), 6)   # elle işlem: sınırı aşamaz
+            if boyut_usd is not None and side == "buy" and not reason and size < 0.5: reason = "tutar çok küçük (en az 0.5 USDC)"
             iz.append(dict(adim="kurallar", sonuc=reason or "geçti", boyut_usd=size, limitler=limitler,
                            nakit=round(p.cash(), 6)))
             if reason:

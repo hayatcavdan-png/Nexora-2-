@@ -73,6 +73,20 @@ class TokenBilgi:
         return parse(item, now if now is not None else time.time())
 
 
+def toplu(fetcher, mints):
+    """En fazla 100 mint için tek istek: {mint: ham MintInformation}. Hata: boş sözlük (radar bilgisiz gösterir)."""
+    mints = [m for m in dict.fromkeys(mints) if m][:100]
+    if not mints: return {}
+    if fetcher.throttle: fetcher.throttle()
+    url, headers = (URL_KEY, {"x-api-key": fetcher.api_key}) if fetcher.api_key else (URL_LITE, {})
+    try:
+        r = fetcher.session.get(url, params={"query": ",".join(mints)}, headers=headers, timeout=fetcher.timeout)
+        d = r.json() if r.status_code == 200 else []
+    except (requests.RequestException, ValueError):
+        return {}
+    return {x["id"]: x for x in d if isinstance(x, dict) and x.get("id") in mints} if isinstance(d, list) else {}
+
+
 class Toplayici:
     """Arka plan kuyruğu: enqueue() hemen döner; tek işçi iş parçacığı bilgiyi alıp Paper'a yazar."""
     def __init__(self, fetcher, paper, maxsize=200):

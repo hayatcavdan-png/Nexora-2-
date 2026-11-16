@@ -8,9 +8,9 @@ import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 
-fun api(base: String, key: String, path: String, post: Boolean = false, govde: String = "{}"): String {
+fun api(base: String, key: String, path: String, post: Boolean = false, govde: String = "{}", zamanAsimi: Int = 8000): String {
     val c = URL(base.trim().trimEnd('/') + path).openConnection() as HttpURLConnection
-    c.connectTimeout = 8000; c.readTimeout = 8000
+    c.connectTimeout = 8000; c.readTimeout = zamanAsimi
     c.setRequestProperty("X-API-Key", key.trim())
     if (post) {
         c.requestMethod = "POST"; c.doOutput = true
@@ -41,6 +41,9 @@ data class CuzdanSatiri(val adres: String, val takipte: Boolean, val durum: Stri
                         val maxDusus: Double? = null, val dususOrani: Double? = null)
 data class Asama(val kod: String, val ad: String, val durum: String, val yuzde: Int, val yapilan: String, val eksik: String)
 data class Nokta2(val ts: Double, val deger: Double)
+data class RadarToken(val token: String, val sembol: String, val ad: String, val fiyat: Double?, val degisim: Double?,
+                      val hacim: Double?, val likidite: Double?, val organik: Double?, val cuzdan: Int, val alim: Int,
+                      val ilk: Double, val son: Double, val kopyalandi: Boolean)
 
 /** Sunucudan okunan her şey. Her uç nokta ayrı denenir: eski sunucuda olmayan bir uç diğerlerini bozmaz. */
 class Veri {
@@ -73,6 +76,8 @@ class Veri {
     var asamaGuncelleme by mutableStateOf("")
     var rapor by mutableStateOf<JSONObject?>(null)
     var saglik by mutableStateOf<JSONObject?>(null)
+    var radar by mutableStateOf(listOf<RadarToken>())
+    var radarOzet by mutableStateOf("")
     var eksikUclar by mutableStateOf(listOf<String>())
 
     /** Kapanan paper işlemlerin özeti. */
@@ -151,6 +156,17 @@ class Veri {
 
         try { rapor = JSONObject(api(url, key, "/rapor")) } catch (e: Exception) { eksik += "rapor" }
         try { saglik = JSONObject(api(url, key, "/saglik")) } catch (e: Exception) { eksik += "saglik" }
+        try {
+            val r = JSONObject(api(url, key, "/radar", zamanAsimi = 15000))
+            radarOzet = r.str("ozet")
+            val a = r.getJSONArray("tokenler")
+            radar = (0 until a.length()).map {
+                val x = a.getJSONObject(it)
+                RadarToken(x.str("token"), x.str("sembol"), x.str("ad"), x.dbl("fiyat"), x.dbl("degisim_24s"), x.dbl("hacim_24s"),
+                           x.dbl("likidite"), x.dbl("organik"), x.optInt("cuzdan"), x.optInt("alim"), x.optDouble("ilk", 0.0),
+                           x.optDouble("son", 0.0), x.optBoolean("kopyalandi"))
+            }
+        } catch (e: Exception) { eksik += "radar" }
         eksikUclar = eksik
     }
 }
