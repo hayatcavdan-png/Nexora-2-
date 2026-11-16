@@ -79,6 +79,8 @@ BILGI_BOYUTLARI = [
                               ("250 bin $ üstü", 2.5e5, 1e18)]),
     ("Organik skor", "organik", [("düşük (<30)", 0, 30), ("orta (30-60)", 30, 60), ("yüksek (60+)", 60, 1e9)]),
     ("İlk 10 sahip payı", "top_pct", [("%20 altı", 0, 20), ("%20-40", 20, 40), ("%40 üstü", 40, 1e9)]),
+    ("Derinlik (100 USDC'de birim fiyat kaybı)", "kayip_100", [("%2 altı (derin)", -1e9, 2), ("%2-10", 2, 10),
+                                                                ("%10 üstü (sığ)", 10, 1e9)]),
 ]
 
 def bilgi_summary(iz_rows, shadows, bilgi_rows):
@@ -134,11 +136,24 @@ def _wilson_ust(k, n, z=1.96):
     return min(1.0, (p + z * z / (2 * n) + z * ((p * (1 - p) + z * z / (4 * n)) / n) ** 0.5) / d)
 
 
+PIYASA_HATALARI = ("rota yok",)          # piyasadan kaynaklı: emir gerçekten düşerdi
+
+
+def _teknik(r):
+    """Yeniden teklif bizim tarafımızda başarısız olduysa (hız sınırı, bağlantı) ölçüm piyasa hakkında bilgi vermez."""
+    h = r.get("hata")
+    return bool(h) and not any(k in h for k in PIYASA_HATALARI)
+
+
 def basarisizlik_modeli(rows, toleranslar=TOLERANSLAR):
     """N9: gerçek emir başarısız olma olasılığı. Emir, karardan ~3 sn sonra zincire ulaşır; o andaki fiyat
     ilk tekliften tolerans kadar kötüyse işlem 'kayma aşıldı' hatasıyla düşer (ücret yine ödenir).
-    Yeniden teklif alınamayan ölçümler (rota kayboldu, likidite çekildi) her toleransta başarısız sayılır."""
-    out = dict(olculen=len(rows), teklif_yok=sum(1 for r in rows if r.get("kayip_pct") is None), toleranslar=[])
+    'Rota yok' (likidite çekildi) her toleransta başarısız sayılır. Teknik hatalar (Jupiter hız sınırı, bağlantı)
+    piyasa hakkında bilgi taşımadığı için hesaba katılmaz, ayrıca sayılır."""
+    teknik = [r for r in rows if _teknik(r)]
+    rows = [r for r in rows if not _teknik(r)]
+    out = dict(olculen=len(rows), teknik_hata=len(teknik), teklif_yok=sum(1 for r in rows if r.get("kayip_pct") is None),
+               toleranslar=[])
     for side in ("buy", "sell", None):
         satir = [r for r in rows if side is None or r["side"] == side]
         n = len(satir)
@@ -186,6 +201,9 @@ def build_report(paper_path, tracker_path=None, now=None):
         iz = _rows(p, "SELECT * FROM pos_iz ORDER BY id")
         tetik = _rows(p, "SELECT * FROM stop_tetik")
         bilgi = _rows(p, "SELECT * FROM token_bilgi")
+        derinlik = {d["event_id"]: d for d in _rows(p, "SELECT * FROM derinlik_olcum") if not d.get("hata")}
+        for b in bilgi:                                              # N5: derinlik, token özellikleriyle aynı tabloda gruplanır
+            if b["event_id"] in derinlik: b["kayip_100"] = derinlik[b["event_id"]]["kayip_100"]
         yurutme = _rows(p, "SELECT * FROM yurutme_olcum")
         boyut = _rows(p, "SELECT * FROM boyut_olcum")
         state = {r["k"]: r["v"] for r in _rows(p, "SELECT k, v FROM state")}
@@ -307,7 +325,9 @@ def as_text(r):
         bm = y.get("basarisizlik") or {}
         hep = [t for t in bm.get("toleranslar", []) if t["yon"] == "hepsi"]
         if hep:
-            L.append(f"Gerçek emir başarısızlık tahmini ({hep[0]['n']} ölçüm; tolerans → düşen emir oranı, %95 üst sınır):")
+            L.append(f"Gerçek emir başarısızlık tahmini ({hep[0]['n']} ölçüm, {bm['teklif_yok']} rota yok"
+                     + (f", {bm['teknik_hata']} teknik hata hariç" if bm.get("teknik_hata") else "")
+                     + "; tolerans → düşen emir oranı, %95 üst sınır):")
             L += [f"  kayma toleransı %{t['tolerans']:<4} → %{100 * t['oran']:.0f} (en çok %{100 * t['ust_sinir']:.0f})"
                   + (f", geçenlerde ort. kayıp %{t['basarili_ort_kayip']:+.2f}" if t["basarili_ort_kayip"] is not None else "")
                   for t in hep]

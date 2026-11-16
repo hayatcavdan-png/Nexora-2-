@@ -66,6 +66,8 @@ CREATE TRIGGER IF NOT EXISTS durum_gecis_degismez BEFORE UPDATE ON durum_gecis
 CREATE TRIGGER IF NOT EXISTS durum_gecis_silinmez BEFORE DELETE ON durum_gecis
   BEGIN SELECT RAISE(ABORT, 'durum geçmişi silinemez'); END;
 CREATE TABLE IF NOT EXISTS boyut_olcum(event_id TEXT PRIMARY KEY, wallet TEXT, gercek_usd REAL, agirlik REAL, skor REAL);
+CREATE TABLE IF NOT EXISTS derinlik_olcum(event_id TEXT PRIMARY KEY, token TEXT, ts REAL, taban_usd REAL,
+  kayip_25 REAL, kayip_100 REAL, hata TEXT);
 CREATE TABLE IF NOT EXISTS stop_tetik(iz_id INTEGER, esik REAL, ts REAL, pnl REAL, PRIMARY KEY(iz_id, esik));
 """
 
@@ -74,7 +76,7 @@ CREATE TABLE IF NOT EXISTS stop_tetik(iz_id INTEGER, esik REAL, ts REAL, pnl REA
 STOP_ESIKLERI = (10, 20, 30, 50)
 
 # Veritabanı şema sürümü. Bu koddan DAHA YENİ bir sürümle oluşturulmuş veritabanı açılmaz (eski kod veriyi bozmasın).
-SEMA_SURUMU = 6
+SEMA_SURUMU = 7
 
 
 class SemaHatasi(RuntimeError):
@@ -378,6 +380,15 @@ class Paper:
                 top_pct,dev_pct,sus,launchpad,hata) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                 (event_id, token, ts, d.get("yas_sn"), d.get("likidite"), d.get("mcap"), d.get("sahip"), d.get("organik"),
                  d.get("organik_etiket"), d.get("top_pct"), d.get("dev_pct"), d.get("sus"), d.get("launchpad"), hata))
+            self.db.commit()
+
+    def derinlik_kaydet(self, event_id, token, taban_usd, kayip, hata=None):
+        """N5 likidite derinliği: kopyalanan alımda 25 ve 100 USDC'lik alımın, bizim tutarımıza göre birim başına
+        ne kadar daha kötü fiyat alacağı (%). Yalnızca ölçüm; karar kuralı değişmez."""
+        kayip = kayip or {}
+        with self.lock:
+            self.db.execute("INSERT OR REPLACE INTO derinlik_olcum VALUES(?,?,?,?,?,?,?)",
+                            (event_id, token, time.time(), taban_usd, kayip.get(25), kayip.get(100), hata))
             self.db.commit()
 
     # --- Durum makinesi -----------------------------------------------------------------------------

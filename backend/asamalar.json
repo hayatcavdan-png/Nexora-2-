@@ -50,9 +50,9 @@
    "ad": "Cüzdan ve token güvenliği",
    "grup": "Seçim",
    "durum": "devam",
-   "yuzde": 50,
-   "yapilan": "Basım/dondurma yetkisi, Token-2022, satılabilirlik teklifi; hacim botu (wash trading) kalıbı tespiti; her alımda token yaşı, likidite, organik skor, sahip yoğunlaşması ve Jupiter şüpheli işareti ölçülüyor",
-   "eksik": "Ölçüme göre filtre kararı (20+ kapanmış örnek); likidite derinliği"
+   "yuzde": 60,
+   "yapilan": "Basım/dondurma yetkisi, Token-2022, satılabilirlik teklifi; hacim botu (wash trading) kalıbı tespiti; her alımda token yaşı, likidite, organik skor, sahip yoğunlaşması ve Jupiter şüpheli işareti ölçülüyor; likidite derinliği ölçümü: kopyalanan her alımda 25 ve 100 USDC'lik teklif de alınıyor, birim fiyat kaybı token özellikleri raporunda kâr/zararla birlikte gruplanıyor",
+   "eksik": "Ölçüme göre filtre kararı (20+ kapanmış örnek)"
   },
   {
    "kod": "N6",
@@ -87,7 +87,7 @@
    "grup": "İşlem",
    "durum": "devam",
    "yuzde": 85,
-   "yapilan": "Gerçek Jupiter teklifiyle doldurma, 2 dakikada bir değerleme, gölge işlemler, günlük rapor (komut satırı ve uygulama); ilk kapanan işlemler ve gerçekleşen K/Z kaydedildi; yürütme gecikmesi ölçümü: kopyalanan her işlemde teklif 3 sn sonra yeniden alınıyor; portföy denetimi (defter işlemlerden yeniden hesaplanır); tutarsız teklif (al-sat 'kazancı' >%2) ile alım engellendi, geçmişteki 3 işlem işaretlendi; başarısız işlem olasılığı modeli: 3 sn gecikme ölçümlerinden kayma toleransı başına (%0,5–5) düşen emir oranı, %95 Wilson üst sınırı ve geçen emirlerde ortalama kayıp; günlük raporda",
+   "yapilan": "Gerçek Jupiter teklifiyle doldurma, 2 dakikada bir değerleme, gölge işlemler, günlük rapor (komut satırı ve uygulama); ilk kapanan işlemler ve gerçekleşen K/Z kaydedildi; yürütme gecikmesi ölçümü: kopyalanan her işlemde teklif 3 sn sonra yeniden alınıyor; portföy denetimi (defter işlemlerden yeniden hesaplanır); tutarsız teklif (al-sat 'kazancı' >%2) ile alım engellendi, geçmişteki 3 işlem işaretlendi; başarısız işlem olasılığı modeli: 3 sn gecikme ölçümlerinden kayma toleransı başına (%0,5–5) düşen emir oranı, %95 Wilson üst sınırı ve geçen emirlerde ortalama kayıp; günlük raporda; teknik hatalar (Jupiter hız sınırı, bağlantı) başarısızlık tahmininden ayrıldı, bir kez yeniden deneniyor; 'rota yok' ayrı sayılıyor",
    "eksik": "Uzun süreli sonuç; gerçek emir öncesi kayma toleransı kararı (yeterli ölçümle)"
   },
   {

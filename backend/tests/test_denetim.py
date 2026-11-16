@@ -59,6 +59,27 @@ class YurutmeTests(unittest.TestCase):
         s = yurutme_summary(list(rows.values()))
         self.assertEqual((s["olculen"], s["hatali"], s["buy"]["n"], s["buy"]["ort"]), (2, 1, 1, 2.0))
 
+    def test_rate_limit_retried_once(self):
+        p = Paper(); t = [0.0]
+        q = Mock(); q.quote = Mock(side_effect=[QuoteError("Jupiter hız sınırı (429)"), dict(out_amount=990, in_amount=10)])
+        o = YurutmeOlcer(q, p, gecikme=3, clock=lambda: t[0], sleep=lambda s: t.__setitem__(0, t[0] + s))
+        o.enqueue("e1", "buy", TOK, USDC_MINT, TOK, 10, 1000)
+        self.assertAlmostEqual(o.isle(o.q.get()), 1.0); self.assertEqual(q.quote.call_count, 2)
+        q.quote = Mock(side_effect=QuoteError("rota yok")); o.enqueue("e2", "buy", TOK, USDC_MINT, TOK, 10, 1000)
+        o.isle(o.q.get()); self.assertEqual(q.quote.call_count, 1)        # piyasa hatası tekrarlanmaz
+
+    def test_depth_measured_on_buy(self):
+        p = Paper(); t = [0.0]
+        def quote(i, o, a):                                  # 5 USDC -> 1000 token; büyük tutarda birim fiyat kötüleşir
+            return dict(out_amount={5_000_000: 1000, 25_000_000: 4750, 100_000_000: 16000}.get(a, 5_000_000), in_amount=a)
+        q = Mock(); q.quote = Mock(side_effect=quote)
+        o = YurutmeOlcer(q, p, gecikme=3, clock=lambda: t[0], sleep=lambda s: t.__setitem__(0, t[0] + s))
+        o.enqueue("e1", "buy", TOK, USDC_MINT, TOK, 5_000_000, 1000); o.isle(o.q.get())
+        d = dict(p.db.execute("SELECT * FROM derinlik_olcum").fetchone())
+        self.assertEqual((d["kayip_25"], d["kayip_100"], d["taban_usd"]), (5.0, 20.0, 5.0))
+        o.enqueue("e2", "sell", TOK, TOK, USDC_MINT, 1000, 5_000_000); o.isle(o.q.get())
+        self.assertEqual(p.db.execute("SELECT COUNT(*) FROM derinlik_olcum").fetchone()[0], 1)   # satışta ölçülmez
+
     def test_full_queue_drops(self):
         o = YurutmeOlcer(Mock(), Paper(), maxsize=1)
         o.enqueue("a", "buy", TOK, "x", "y", 1, 1); o.enqueue("b", "buy", TOK, "x", "y", 1, 1)

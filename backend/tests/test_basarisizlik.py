@@ -22,6 +22,13 @@ class Test(unittest.TestCase):
         self.assertGreater(u, 0.2); self.assertLess(u, 0.35)                            # 0/10 "sıfır risk" demek değil
         self.assertGreater(rapor._wilson_ust(5, 10), 0.5)
 
+    def test_teknik_hata_haric(self):
+        rows = [r("buy", 0.2), dict(side="buy", kayip_pct=None, hata="Jupiter hız sınırı (429)"),
+                dict(side="buy", kayip_pct=None, hata="rota yok"), dict(side="sell", kayip_pct=None, hata="Jupiter bağlantı hatası")]
+        m = rapor.basarisizlik_modeli(rows, toleranslar=(1.0,))
+        hep = [t for t in m["toleranslar"] if t["yon"] == "hepsi"][0]
+        self.assertEqual((m["teknik_hata"], m["teklif_yok"], hep["n"], hep["basarisiz"]), (2, 1, 2, 1))
+
     def test_bos(self):
         self.assertEqual(rapor.basarisizlik_modeli([])["toleranslar"], [])
 
