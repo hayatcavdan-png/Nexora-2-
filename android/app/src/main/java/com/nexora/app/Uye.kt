@@ -115,12 +115,12 @@ fun UyeEkrani(url: String, key: String, sp: SharedPreferences) {
             NeonKart(Modifier.fillMaxWidth(), dolgu = Nx.DolguMor) {
                 Text("BAKİYE · KOMİSYON SONRASI", color = Nx.Soluk, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                 Spacer(Modifier.height(6.dp))
-                Text(usd(b.optDouble("net_bakiye")), color = Nx.Metin, fontSize = 30.sp, fontWeight = FontWeight.Bold)
+                Text(para(b.optDouble("net_bakiye")), color = Nx.Metin, fontSize = 30.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(8.dp))
-                SatirKV("Başlangıç", usd(b.optDouble("baslangic")))
-                SatirKV("Brüt kâr/zarar", isaretli(b.optDouble("brut_kar")))
-                SatirKV("Uygulama komisyonu (%${String.format(Locale.US, "%.0f", b.optDouble("komisyon_pct"))} kâr payı)", "−" + usd(b.optDouble("komisyon")))
-                SatirKV("Net kâr/zarar", isaretli(b.optDouble("net_kar")))
+                SatirKV("Başlangıç", para(b.optDouble("baslangic")))
+                SatirKV("Brüt kâr/zarar", paraIsaretli(b.optDouble("brut_kar")))
+                SatirKV("Uygulama komisyonu (%${String.format(Locale.US, "%.0f", b.optDouble("komisyon_pct"))} kâr payı)", "−" + para(b.optDouble("komisyon")))
+                SatirKV("Net kâr/zarar", paraIsaretli(b.optDouble("net_kar")))
                 Spacer(Modifier.height(6.dp))
                 Text("Komisyon yalnızca kârdan hesaplanır; zararda 0'dır. Bu bir SANAL gösterimdir: para saklanmaz, tahsilat yapılmaz.",
                      color = Nx.Soluk, fontSize = 11.sp, lineHeight = 15.sp)
@@ -202,5 +202,5 @@ private fun SatirKV(k: String, v: String) {
     }
 }
 
-private fun usd(x: Double) = String.format(Locale.US, "%,.2f USDC", x)
-private fun isaretli(x: Double) = (if (x >= 0) "+" else "−") + String.format(Locale.US, "%,.2f", Math.abs(x)) + " USDC"
+private fun para(x: Double) = String.format(Locale.US, "%,.2f USDC", x)
+private fun paraIsaretli(x: Double) = (if (x >= 0) "+" else "−") + String.format(Locale.US, "%,.2f", Math.abs(x)) + " USDC"
