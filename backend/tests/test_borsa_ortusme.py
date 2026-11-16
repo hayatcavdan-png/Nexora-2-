@@ -29,8 +29,8 @@ class S:
 def db(now):
     d = tempfile.mkdtemp(); t = os.path.join(d, "t.db"); p = os.path.join(d, "p.db")
     c = sqlite3.connect(t); c.execute("CREATE TABLE tracker_signals(ts REAL, wallet TEXT, side TEXT, token TEXT)")
-    rows = [(now - 60, "W1", "buy", BONK)] * 3 + [(now - 60, "W2", "buy", SAHTE)] * 2 + [(now - 60, "W1", "buy", YENI)] * 5 \
-         + [(now - 30 * 86400, "W1", "buy", BONK), (now - 60, "W1", "sell", YENI)]
+    rows = [(now - 60, "W1", "BUY", BONK)] * 3 + [(now - 60, "W2", "BUY", SAHTE)] * 2 + [(now - 60, "W1", "BUY", YENI)] * 5 \
+         + [(now - 30 * 86400, "W1", "BUY", BONK), (now - 60, "W1", "SELL", YENI)]
     c.executemany("INSERT INTO tracker_signals VALUES(?,?,?,?)", rows); c.commit(); c.close()
     c = sqlite3.connect(p); c.execute("CREATE TABLE trades(ts REAL, token TEXT, side TEXT, decision TEXT)")
     c.executemany("INSERT INTO trades VALUES(?,?,?,?)", [(now - 60, BONK, "buy", "KOPYALANDI"), (now - 60, YENI, "buy", "KOPYALANDI"),

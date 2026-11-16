@@ -38,7 +38,7 @@ def sinyaller(tracker, paper, gun, now):
         c = sqlite3.connect(f"file:{tracker}?mode=ro", uri=True, timeout=5)
         try:
             for t, n, w in c.execute("""SELECT token, COUNT(*), COUNT(DISTINCT wallet) FROM tracker_signals
-                                        WHERE side='buy' AND ts>=? GROUP BY token""", (now - gun * 86400,)):
+                                        WHERE UPPER(side)='BUY' AND ts>=? GROUP BY token""", (now - gun * 86400,)):
                 if t and t not in (USDC_MINT, WSOL_MINT): out[t] = dict(sinyal=n, cuzdan=w, kopya=0)
         finally:
             c.close()

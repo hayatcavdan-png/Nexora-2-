@@ -23,7 +23,7 @@ class Helius:
 def _ortam(tokenler):
     d = tempfile.mkdtemp(); tr = os.path.join(d, "t.db"); c = sqlite3.connect(tr)
     c.execute("CREATE TABLE tracker_signals(id INTEGER PRIMARY KEY, side TEXT, token TEXT)")
-    for t in tokenler: c.execute("INSERT INTO tracker_signals(side, token) VALUES('buy', ?)", (t,))
+    for t in tokenler: c.execute("INSERT INTO tracker_signals(side, token) VALUES('BUY', ?)", (t,))
     c.commit(); c.close()
     return d, tr
 

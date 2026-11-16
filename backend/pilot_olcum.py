@@ -34,7 +34,7 @@ def son_tokenler(tracker_path, n, haric=(USDC_MINT,)):
     c = sqlite3.connect(f"file:{tracker_path}?mode=ro", uri=True, timeout=5)
     try:
         out = []
-        for (t,) in c.execute("SELECT token FROM tracker_signals WHERE side='buy' ORDER BY id DESC LIMIT 500"):
+        for (t,) in c.execute("SELECT token FROM tracker_signals WHERE UPPER(side)='BUY' ORDER BY id DESC LIMIT 500"):
             if t and t not in haric and t not in out: out.append(t)
             if len(out) >= n: break
         return out
