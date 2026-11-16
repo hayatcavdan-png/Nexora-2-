@@ -13,6 +13,8 @@ def _ro(path):
     c.row_factory = sqlite3.Row
     return c
 
+from nexora.core import kararlilik_hesapla
+
 def _rows(conn, sql, args=()):
     try:
         return [dict(r) for r in conn.execute(sql, args)]
@@ -207,6 +209,7 @@ def build_report(paper_path, tracker_path=None, now=None):
         yurutme = _rows(p, "SELECT * FROM yurutme_olcum")
         boyut = _rows(p, "SELECT * FROM boyut_olcum")
         state = {r["k"]: r["v"] for r in _rows(p, "SELECT k, v FROM state")}
+        kesintiler = _rows(p, "SELECT bas, bit, sure_sn FROM kesinti ORDER BY bas")
     finally:
         p.close()
 
@@ -270,6 +273,7 @@ def build_report(paper_path, tracker_path=None, now=None):
         boyut=boyut_summary(iz, boyut),
         gecikme=gecikme,
         kesinlik=kesinlik,
+        kararlilik=kararlilik_hesapla(state.get("izleme_bas"), state.get("takip_nabiz"), kesintiler, time.time()),
         etiket=_etiket_ozet(),
     )
 
@@ -335,6 +339,11 @@ def as_text(r):
     if bo.get("kapanan"):
         L += ["", f"Büyüklük yöntemleri ({bo['kapanan']} kapanmış kopya):"]
         L += [f"  {x['yontem']:<20} K/Z {x['kz']:+.2f}$  sermaye {x['sermaye']:.2f}$  getiri %{x['getiri_pct']:+.1f}" for x in bo["yontemler"]]
+    kr = r.get("kararlilik")
+    if kr:
+        L += ["", f"Kesintisiz çalışma (N13): {kr['izleme_gun']} gündür izleniyor, çalışma oranı %{kr['calisma_pct']:.2f}, "
+                  f"{kr['kesinti_sayisi']} kesinti (toplam {kr['kesinti_toplam_dk']} dk, en uzun {kr['en_uzun_dk']} dk), "
+                  f"son kesintiden beri {kr['kesintisiz_saat']} saat"]
     k = r.get("kesinlik") or {}
     if k:
         L += ["", f"Zincir kesinliği: {k['kesin']} kesinleşti, {k['hatali']} başarısız, {k['dusuruldu']} düştü, "

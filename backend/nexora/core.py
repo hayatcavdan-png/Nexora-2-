@@ -68,15 +68,32 @@ CREATE TRIGGER IF NOT EXISTS durum_gecis_silinmez BEFORE DELETE ON durum_gecis
 CREATE TABLE IF NOT EXISTS boyut_olcum(event_id TEXT PRIMARY KEY, wallet TEXT, gercek_usd REAL, agirlik REAL, skor REAL);
 CREATE TABLE IF NOT EXISTS derinlik_olcum(event_id TEXT PRIMARY KEY, token TEXT, ts REAL, taban_usd REAL,
   kayip_25 REAL, kayip_100 REAL, hata TEXT);
+CREATE TABLE IF NOT EXISTS kesinti(id INTEGER PRIMARY KEY AUTOINCREMENT, bas REAL, bit REAL, sure_sn REAL);
 CREATE TABLE IF NOT EXISTS stop_tetik(iz_id INTEGER, esik REAL, ts REAL, pnl REAL, PRIMARY KEY(iz_id, esik));
 """
 
 # Zarar kesme ölçümü (yalnızca ölçüm, işlem davranışını DEĞİŞTİRMEZ): açık pozisyonun değerlemesi
 # maliyetin bu yüzdeleri kadar altına ilk düştüğünde, o anki gerçek satış teklifiyle "burada satsaydık" K/Z'si kaydedilir.
 STOP_ESIKLERI = (10, 20, 30, 50)
+KESINTI_ESIK_SN = 300          # nabızlar arası bundan uzun boşluk kesinti sayılır (güncelleme yeniden başlatması ~10 sn: sayılmaz)
 
 # Veritabanı şema sürümü. Bu koddan DAHA YENİ bir sürümle oluşturulmuş veritabanı açılmaz (eski kod veriyi bozmasın).
-SEMA_SURUMU = 7
+SEMA_SURUMU = 8
+
+
+def kararlilik_hesapla(bas, son, kesintiler, now):
+    """İzleme süresi, kesintiler, çalışma oranı ve son kesintiden beri geçen süre. Nabız yoksa None."""
+    if bas is None or son is None: return None
+    bas, son = float(bas), float(son)
+    acik = max(0.0, now - son) if now - son > KESINTI_ESIK_SN else 0.0          # şu an süren kesinti
+    toplam = max(1.0, now - bas)
+    kesik = sum(r["sure_sn"] for r in kesintiler) + acik
+    son_bit = max([r["bit"] for r in kesintiler], default=bas)
+    return dict(izleme_gun=round(toplam / 86400, 2), kesinti_sayisi=len(kesintiler) + (1 if acik else 0),
+                kesinti_toplam_dk=round(kesik / 60, 1), calisma_pct=round(max(0.0, 1 - kesik / toplam) * 100, 3),
+                en_uzun_dk=round(max([r["sure_sn"] for r in kesintiler] + [acik], default=0.0) / 60, 1),
+                kesintisiz_saat=0.0 if acik else round((now - son_bit) / 3600, 1),
+                son_kesintiler=[dict(bas=r["bas"], sure_dk=round(r["sure_sn"] / 60, 1)) for r in kesintiler[-5:]])
 
 
 class SemaHatasi(RuntimeError):
@@ -159,11 +176,26 @@ class Paper:
         return self.ayarlar()
 
     def nabiz(self, ts=None, saglik=None):
-        """Takip süreci her turda yazar; sunucu ve uygulama 'takip durdu' uyarısını ve sağlık kartını buradan üretir."""
+        """Takip süreci her turda yazar; sunucu ve uygulama 'takip durdu' uyarısını ve sağlık kartını buradan üretir.
+        N13: iki nabız arası KESINTI_ESIK_SN'yi aşarsa (süreç durmuş ya da takılmış) kesinti olarak kaydedilir."""
+        ts = ts if ts is not None else time.time()
         with self.lock:
-            self._set("takip_nabiz", ts if ts is not None else time.time())
+            once = self._get("takip_nabiz")
+            if once is None:
+                self._set("izleme_bas", ts)
+            elif ts - float(once) > KESINTI_ESIK_SN:
+                self.db.execute("INSERT INTO kesinti(bas, bit, sure_sn) VALUES(?,?,?)", (float(once), ts, round(ts - float(once), 1)))
+            if self._get("izleme_bas") is None: self._set("izleme_bas", float(once) if once is not None else ts)
+            self._set("takip_nabiz", ts)
             if saglik is not None: self._set("takip_saglik", json.dumps(saglik))
             self.db.commit()
+
+    def kararlilik(self, now=None):
+        """N13 kesintisiz çalışma kanıtı (bkz. kararlilik_hesapla)."""
+        with self.lock:
+            bas, son = self._get("izleme_bas"), self._get("takip_nabiz")
+            rows = [dict(r) for r in self.db.execute("SELECT bas, bit, sure_sn FROM kesinti ORDER BY bas")]
+        return kararlilik_hesapla(bas, son, rows, now if now is not None else time.time())
 
     def takip_saglik(self):
         v = self._get("takip_saglik")

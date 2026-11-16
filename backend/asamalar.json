@@ -122,9 +122,9 @@
    "ad": "Kesintisiz sunucu",
    "grup": "Ürün",
    "durum": "devam",
-   "yuzde": 82,
-   "yapilan": "Oracle Always Free sunucuda (Ubuntu 24.04) çalışıyor: systemd ile otomatik başlatma ve yeniden başlatma, Tailscale özel ağ (internete port açık değil), rastgele sunucu anahtarı, gece yedeği (14 gün), telefondaki veri taşındı (16.11.2026); 'takip durdu' ve 'sunucuya ulaşılamıyor' uyarıları; yedek her gün telefona da kopyalanıyor (İndirilenler/NEXORA); testli tek komut güncelleme; sunucuda araç çalıştırıcı (calistir.sh); Jupiter ücretsiz sunucu anahtarı eklendi (teklif hızı 0,5 → 1 istek/sn, 16.11.2026)",
-   "eksik": "Uzun süreli kesintisiz çalışma kanıtı"
+   "yuzde": 88,
+   "yapilan": "Oracle Always Free sunucuda (Ubuntu 24.04) çalışıyor: systemd ile otomatik başlatma ve yeniden başlatma, Tailscale özel ağ (internete port açık değil), rastgele sunucu anahtarı, gece yedeği (14 gün), telefondaki veri taşındı (16.11.2026); 'takip durdu' ve 'sunucuya ulaşılamıyor' uyarıları; yedek her gün telefona da kopyalanıyor (İndirilenler/NEXORA); testli tek komut güncelleme; sunucuda araç çalıştırıcı (calistir.sh); Jupiter ücretsiz sunucu anahtarı eklendi (teklif hızı 0,5 → 1 istek/sn, 16.11.2026); kesintisiz çalışma kanıtı: 5 dakikayı aşan her takip boşluğu kesinti olarak kaydediliyor; çalışma oranı, en uzun kesinti ve son kesintiden beri geçen süre günlük raporda ve sağlık uç noktasında",
+   "eksik": "Birkaç gün ölçüm birikmesi (hedef: 7 gün, çalışma oranı ≥ %99,5)"
   },
   {
    "kod": "N14",
@@ -132,7 +132,7 @@
    "grup": "Ürün",
    "durum": "devam",
    "yuzde": 90,
-   "yapilan": "Uygulama 4.0 (COMMAND X tasarımı): ateş kızılı X'li NEXORA logosu ve N amblemi simgesi; Ana Sayfa (bakiye, 24s değişim, aralıklı grafik, AutoPilot, Shield), Keşfet (gerçek Token Radar, Wallet DNA analizi, takip edilen cüzdanlar), AutoPilot X (risk seviyesi ve sınırlar), Portföy (elle paper işlem, pozisyonlar, geçmiş), Profil; aşağı çekip yenileme; optimize (R8) derleme; bildirimler, PIN kilidi, yedek indirme, rapor kartları",
+   "yapilan": "Uygulama 4.0 (COMMAND X tasarımı): ateş kızılı X'li NEXORA logosu ve N amblemi simgesi; Ana Sayfa (bakiye, 24s değişim, aralıklı grafik, AutoPilot, Shield), Keşfet (gerçek Token Radar, Wallet DNA analizi, takip edilen cüzdanlar), AutoPilot X (risk seviyesi ve sınırlar), Portföy (elle paper işlem, pozisyonlar, geçmiş), Profil; aşağı çekip yenileme; optimize (R8) derleme; bildirimler, PIN kilidi, yedek indirme, rapor kartları; 5.0.0 yeni tasarım: NEXORA AI paleti, Nexo maskotu (10 ifade), yeni logo ve simge, açılış animasyonu, canlı arka plan, Yapay Zekâ Çekirdeği kartı",
    "eksik": "Gerçek kullanımda akıcılık geri bildirimi"
   },
   {

@@ -5,6 +5,8 @@ from nexora.core import CFG
 from nexora.rapor import build_report
 
 
+from nexora.core import kararlilik_hesapla
+
 def _ro(path):
     if not path or not os.path.exists(path): return None
     c = sqlite3.connect(f"file:{path}?mode=ro", uri=True, timeout=5)
@@ -218,10 +220,13 @@ def saglik(paper_path, tracker_path, yedek_dizin="yedekler", now=None):
     now = now if now is not None else time.time()
     st, takip = {}, None
     c = _ro(paper_path)
+    kararlilik = None
     if c is not None:
         try:
-            st = {r["k"]: r["v"] for r in _rows(c, "SELECT k, v FROM state WHERE k IN ('takip_nabiz','takip_saglik')")}
+            st = {r["k"]: r["v"] for r in _rows(c, "SELECT k, v FROM state WHERE k IN ('takip_nabiz','takip_saglik','izleme_bas')")}
             izn = _rows(c, "SELECT COUNT(*) n FROM karar_izi")
+            kes = _rows(c, "SELECT bas, bit, sure_sn FROM kesinti ORDER BY bas")
+            kararlilik = kararlilik_hesapla(st.get("izleme_bas"), st.get("takip_nabiz"), kes, now)
         finally:
             c.close()
     else:
@@ -253,7 +258,7 @@ def saglik(paper_path, tracker_path, yedek_dizin="yedekler", now=None):
         ws_son_mesaj_once_sn=round(now - takip["ws_son_mesaj"]) if takip and takip.get("ws_son_mesaj") else None,
         okunamayan=(takip or {}).get("okunamayan"), cuzdan=(takip or {}).get("cuzdan"), bot=(takip or {}).get("bot"),
         son_sinyal_once_sn=round(now - son_sinyal) if son_sinyal else None,
-        karar_izi=izn[0]["n"] if izn else 0,
+        karar_izi=izn[0]["n"] if izn else 0, kararlilik=kararlilik,
         disk=disk, paper_db_mb=boyut(paper_path), takip_db_mb=boyut(tracker_path),
         son_yedek=os.path.basename(yed[-1]) if yed else None,
         son_yedek_once_sn=round(now - os.path.getmtime(yed[-1])) if yed else None,
