@@ -48,6 +48,9 @@ def main():
     for w in [w for w in wallets if w in black]:
         print(f"  {short(w)}: kara listede (bilinen bot), izlenmeyecek", flush=True)
     wallets = [w for w in wallets if w not in black]
+    # Platform 2: borsa cüzdanları (wallets_borsa.txt) da izlenir; platform 1'de yalnızca izlenir, alımları kopyalanmaz
+    borsa_cuz = [w for w in read_list("wallets_borsa.txt") if w not in black and w not in wallets]
+    wallets += borsa_cuz
     if not wallets: sys.exit("wallets.txt boş (ya da hepsi kara listede)")
 
     client = HeliusClient(max_retries=2)
@@ -68,7 +71,7 @@ def main():
                 except ValueError: pass
                 cuzdan_ist[r["wallet"]] = {k: r.get(k) for k in ("karar", "kazanma_orani", "kar_faktoru", "ort_getiri", "kapanan",
                                                                   "medyan_tutma_sn", "skor", "dusus_kazanc_orani", "sifir_tur_orani")}
-        izle = [w for w in read_list("izle_listesi.txt") if w in wallets]
+        izle = [w for w in read_list("izle_listesi.txt") if w in wallets] + borsa_cuz
         model = ModelDosyasi()                            # N19/N20: yz_model.json (yalnızca N18'de kabul edilmiş model)
         kapi = ModelKapisi(model, bilgi=TokenBilgi(api_key=quoter.api_key, throttle=quoter._throttle), cuzdanlar=cuzdan_ist)
         decider = Decider(paper, quoter, TokenSafety(client), bilgi=bilgi, yurutme=YurutmeOlcer(quoter, paper).baslat(),
@@ -82,7 +85,16 @@ def main():
     if decider and os.getenv("ETIKET", "1") != "0":       # N16: her sinyali etiketle (yalnızca ölçüm)
         etiketci = Etiketci(os.getenv("ETIKET_DB", "nexora_etiket.db"), quoter, bilgi=TokenBilgi(api_key=quoter.api_key),
                             cuzdanlar=cuzdan_ist, model=model).baslat()
-    tr = LiveTracker(client, paper, os.getenv("TRACKER_DB", "nexora_tracker.db"), wallets, decider=decider, etiketci=etiketci)
+    borsa = None
+    if os.getenv("BORSA", "1") != "0":                    # Platform 2 (borsa): liste varsa ayrı paper portföy
+        from nexora import borsa_liste
+        from nexora.borsa_motor import BorsaMotoru
+        bl = borsa_liste.yukle()
+        if bl:
+            borsa = BorsaMotoru(Paper(os.getenv("BORSA_DB", "nexora_borsa.db")), bl).baslat()
+            print(f"  Platform 2 (borsa): {len(bl)} listeli token, {len(borsa_cuz)} borsa cüzdanı (paper)", flush=True)
+    tr = LiveTracker(client, paper, os.getenv("TRACKER_DB", "nexora_tracker.db"), wallets, decider=decider, etiketci=etiketci,
+                     borsa=borsa)
     n = tr.reset_quarantine()
     if n: print(f"{n} cüzdan karantinadan çıkarıldı (yeniden deneniyor)", flush=True)
     if os.getenv("CLEAR_BOT") == "1":
@@ -125,6 +137,9 @@ def main():
                 last_mark = time.time()
                 ok, bad = decider.mark_to_market()
                 if bad: print(f"  değerleme: {ok} pozisyon güncellendi, {bad} için teklif alınamadı", flush=True)
+                if borsa is not None:
+                    try: borsa.degerle()
+                    except Exception: pass
             for w, res in tr.poll_all().items():
                 if res == "hata": print(f"  {short(w)}: hata (karantinaya yaklaşıyor olabilir)", flush=True)
             for r in tr.last_poll_rows:                 # WebSocket'in kaçırıp yoklamanın bulduğu

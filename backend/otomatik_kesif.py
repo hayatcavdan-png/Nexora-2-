@@ -47,7 +47,7 @@ def takip_denetimi(analiz=None, gecmis_db=None):
     return dict(denetlenen=len(rows), bozulan=bozulan, iyi=sum(1 for r in rows.values() if r.get("karar") == "kopyalanabilir"))
 
 
-def calistir(kesif=None, analiz=None, now=None, denetim=None):
+def calistir(kesif=None, analiz=None, now=None, denetim=None, liste=None):
     now = now if now is not None else time.time()
     kesif = kesif or cuzdan_kesif.main
     analiz = analiz or (lambda: cuzdan_analiz.main(list_path=cuzdan_kesif.OUT_TXT))
@@ -85,6 +85,12 @@ def calistir(kesif=None, analiz=None, now=None, denetim=None):
         sonuc["takip"] = dict(denetlenen=0, bozulan=[], hata=str(e.code)[:160] if e.code else None)
     except Exception as e:
         sonuc["takip"] = dict(denetlenen=0, bozulan=[], hata=f"{type(e).__name__}: {str(e)[:120]}")
+    try:                                        # Platform 2: borsa token listesi günde bir yenilenir
+        from nexora import borsa_liste
+        if not os.path.exists(borsa_liste.DOSYA) or now - os.path.getmtime(borsa_liste.DOSYA) > 20 * 3600:
+            if (liste or borsa_liste.olustur)() is not None: sonuc["borsa_liste"] = "yenilendi"
+    except Exception as e:
+        sonuc["borsa_liste"] = f"yenilenemedi: {type(e).__name__}"
     _yaz_json(GORULEN, gorulen)
     _yaz_json(SON, sonuc)
     print(f"Otomatik keşif: {sonuc['durum']}, {sonuc['aday']} aday, {sonuc['analiz_edilen']} analiz, "

@@ -131,6 +131,7 @@ fun LazyListScope.anaSayfa(v: Veri, gizle: Boolean, gizleDegis: () -> Unit, aral
     }
     item(key = "demo") { DemoHap() }
     item(key = "bugun") { BugunKarti(v) { git("portfoy") } }
+    item(key = "borsa") { BorsaKarti(v) }
     item(key = "bakiye") {
         val simdi = System.currentTimeMillis() / 1000.0
         // 24 saatten eski veri yoksa değişim başlangıca göre gösterilir (etiket de buna göre değişir)

@@ -22,6 +22,7 @@ class Test(unittest.TestCase):
 
     def calis(self, **kw):
         kw.setdefault("denetim", lambda: dict(denetlenen=0, bozulan=[]))      # testte ağa çıkılmaz
+        kw.setdefault("liste", lambda: {})
         with redirect_stdout(io.StringIO()): return O.calistir(**kw)
 
     def test_oneri_ve_gorulen(self):

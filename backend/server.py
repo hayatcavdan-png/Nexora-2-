@@ -138,6 +138,14 @@ class H(BaseHTTPRequestHandler):
         if not self._ok(): return
         parts = urlsplit(self.path)
         if parts.path == "/yedek/son": self._yedek_gonder(); return
+        if parts.path == "/borsa":                          # Platform 2 (borsa) paper portföyü
+            from nexora import borsa_liste
+            yol = os.getenv("BORSA_DB", "nexora_borsa.db")
+            if not os.path.exists(yol):
+                self._send(200, dict(acik=False, liste=len(borsa_liste.yukle()), mesaj="borsa platformu henüz işlem yapmadı")); return
+            bp = Paper(yol); p = bp.portfolio()
+            self._send(200, dict(acik=True, liste=len(borsa_liste.yukle()), nakit=p["cash"], toplam=p["equity"], kz=p["pnl"],
+                                 pozisyonlar=p["positions"], islemler=bp.trades(30))); return
         if parts.path == "/hazirlik":
             from nexora import hazirlik as _hz
             from nexora.etiket import ozet as _et

@@ -75,3 +75,34 @@ fun GorunumAyari(sp: SharedPreferences) {
         }
     }
 }
+
+
+/** Platform 2 (borsa): dört borsada listeli token sinyallerinin ayrı paper portföyü. */
+@Composable
+fun BorsaKarti(v: Veri) {
+    val b = v.borsa ?: return
+    NeonKart(Modifier.fillMaxWidth()) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("PLATFORM 2 · BORSA", color = Nx.Soluk, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+            Etiket("paper", Nx.Gok)
+        }
+        if (!b.optBoolean("acik")) {
+            Text("Henüz işlem yok. ${b.optInt("liste")} listeli token izleniyor (Binance, OKX, KuCoin, MEXC).", color = Nx.Soluk, fontSize = 12.sp)
+            return@NeonKart
+        }
+        val kz = b.optDouble("kz", 0.0)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Mini("Değer", usd(b.optDouble("toplam", 0.0)))
+            Mini("K/Z", isaretli(kz))
+            Mini("Pozisyon", "${b.optJSONArray("pozisyonlar")?.length() ?: 0}")
+        }
+        val isl = b.optJSONArray("islemler")
+        if (isl != null) for (i in 0 until minOf(3, isl.length())) {
+            val x = isl.getJSONObject(i)
+            val ok = x.optString("decision") == "KOPYALANDI"
+            Text("${if (x.optString("side") == "buy") "AL" else "SAT"} ${kisa(x.optString("token"))} · ${if (ok) "yapıldı" else x.optString("reason")}",
+                 color = if (ok) Nx.Metin else Nx.Soluk, fontSize = 12.sp, maxLines = 1)
+        }
+        Text("Borsanın gerçek alış/satış fiyatıyla sanal işlem; gerçek emir yok.", color = Nx.Soluk, fontSize = 11.sp)
+    }
+}

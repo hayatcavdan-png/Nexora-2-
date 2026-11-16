@@ -25,3 +25,8 @@ backend/pilot_adres.txt
 backend/model_filtre.json
 backend/nexora_uyelik.db
 backend/borsa_ortusme.json
+backend/borsa_tokenleri.json
+backend/wallets_borsa.txt
+backend/wallets_borsa.txt.yedek
+backend/wallets_borsa_kesif.txt
+backend/wallets_borsa_onerilen.txt
