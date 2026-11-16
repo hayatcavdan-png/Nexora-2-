@@ -230,9 +230,9 @@
    "ad": "Base ekosistemi",
    "grup": "Faz 2 · Çoklu platform",
    "durum": "devam",
-   "yuzde": 50,
-   "yapilan": "N24 EVM bağdaştırıcısıyla Base: zincir ayarı (zincir 8453, USDC 6 ondalık, WETH/USDC/USDT/DAI/USDbC karşı varlıklar, KyberSwap 'base', GoPlus 8453, DexScreener/GeckoTerminal 'base'), ayrı paper portföy (nexora_base.db), nexora-base servisi, günlük otomatik keşif, uygulamada aktif (paper).",
-   "eksik": "Sunucuda evm_dene.py base doğrulaması; Base herkese açık düğümünün geçmiş sorgu sınırları (gerekirse ücretsiz bir Base düğüm anahtarı); ilk Base cüzdanları; 1 hafta paper ölçüm"
+   "yuzde": 65,
+   "yapilan": "N24 EVM bağdaştırıcısıyla Base: zincir ayarı (zincir 8453, USDC 6 ondalık, WETH/USDC/USDT/DAI/USDbC karşı varlıklar, KyberSwap 'base', GoPlus 8453, DexScreener/GeckoTerminal 'base'), ayrı paper portföy (nexora_base.db), nexora-base servisi, günlük otomatik keşif, uygulamada aktif (paper). Sunucuda doğrulandı: Alchemy düğümü (zincir 8453), Kyber, GoPlus, DexScreener. Alchemy ücretsiz katmanın 10 blok geçmiş sorgu sınırı için sorgular otomatik parçalanıyor; cüzdan geçmişi Base'in ücretsiz gezgini Blockscout'tan okunuyor.",
+   "eksik": "Blockscout ile ilk Base cüzdan keşfi (evm_kesif base --ekle); ilk Base cüzdanları; 1 hafta paper ölçüm"
   },
   {
    "kod": "N26",
