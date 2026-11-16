@@ -1,7 +1,7 @@
 """Portföy denetimi (salt okunur): defteri işlem kayıtlarından baştan hesaplar ve kayıtlı nakitle karşılaştırır;
 açık pozisyonların değerlemesini, en büyük kâr/zararları ve son işlemleri listeler.
 Çalıştır (backend klasöründe): python portfoy_denetim.py"""
-import os, sqlite3, sys, time
+import os, re, sqlite3, sys, time
 
 from nexora.core import CFG
 
@@ -35,7 +35,15 @@ def denetle(path, now=None):
     toplam = nakit + pozisyon_deger
     # Kimlik: toplam = başlangıç + gerçekleşen - alım ücretleri + gerçekleşmemiş
     beklenen_toplam = CFG["start_cash"] + gerceklesen - alim_ucreti + sum(x["kz"] for x in pozlar)
-    return dict(hazir=True, nakit=round(nakit, 4), nakit_beklenen=round(nakit_beklenen, 4), nakit_farki=round(nakit - nakit_beklenen, 4),
+    # Şüpheli: alış anında al-sat kaybı %-2'nin altında (teklifler çelişkili) açılmış ve kapanmış pozisyonlar
+    alis_rt = {}
+    for t in tr:
+        if t["side"] == "buy":
+            m = re.search(r"al-sat kaybı %(-?[\d.]+)", t["reason"] or "")
+            if m: alis_rt[t["token"]] = float(m.group(1))
+    supheli = [dict(id=t["id"], token=t["token"], pnl=round(t["pnl"] or 0, 4), al_sat=alis_rt.get(t["token"]))
+               for t in sat if alis_rt.get(t["token"], 0) < -2.0]
+    return dict(hazir=True, supheli=supheli, supheli_kz=round(sum(x["pnl"] for x in supheli), 4), nakit=round(nakit, 4), nakit_beklenen=round(nakit_beklenen, 4), nakit_farki=round(nakit - nakit_beklenen, 4),
                 pozisyon_degeri=round(pozisyon_deger, 4), toplam=round(toplam, 4), toplam_farki=round(toplam - beklenen_toplam, 4),
                 gerceklesen=round(gerceklesen, 4), alim_ucreti=round(alim_ucreti, 4), gerceklesmemis=round(sum(x["kz"] for x in pozlar), 4),
                 pozisyonlar=pozlar,
@@ -51,7 +59,12 @@ def metin(d):
          f"Nakit {d['nakit']:.2f} (işlemlerden hesaplanan {d['nakit_beklenen']:.2f}, fark {d['nakit_farki']:+.4f})",
          f"Pozisyon değeri {d['pozisyon_degeri']:.2f} · toplam {d['toplam']:.2f}",
          f"Başlangıç {100:.2f} + gerçekleşen {d['gerceklesen']:+.2f} − alım ücretleri {d['alim_ucreti']:.2f} + gerçekleşmemiş {d['gerceklesmemis']:+.2f}"
-         f" = {100 + d['gerceklesen'] - d['alim_ucreti'] + d['gerceklesmemis']:.2f} (fark {d['toplam_farki']:+.4f})", "", "Açık pozisyonlar:"]
+         f" = {100 + d['gerceklesen'] - d['alim_ucreti'] + d['gerceklesmemis']:.2f} (fark {d['toplam_farki']:+.4f})"]
+    if d.get("supheli"):
+        L += ["", f"UYARI: {len(d['supheli'])} kapanış tutarsız teklifle açılmış (alışta al-sat kaybı %-2'nin altında); "
+                  f"toplam etkisi {d['supheli_kz']:+.2f} USDC gerçekçi değil. Bunlar hariç toplam ≈ {d['toplam'] - d['supheli_kz']:.2f}:"]
+        L += [f"  #{x['id']} {kisa(x['token'])} {x['pnl']:+.2f} (alışta al-sat %{x['al_sat']})" for x in d["supheli"]]
+    L += ["", "Açık pozisyonlar:"]
     for p in d["pozisyonlar"]:
         L.append(f"  {kisa(p['token'])} {p['cuzdan'][:4] if p['cuzdan'] else '?'}…  maliyet {p['maliyet']:.2f}  değer {p['deger']:.2f}"
                  f"  K/Z {p['kz']:+.2f} (%{p['kz_pct']})  değerleme {p['degerleme_once_sn']} sn önce")

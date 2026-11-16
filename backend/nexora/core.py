@@ -21,6 +21,7 @@ CFG = dict(
     max_roundtrip_loss_pct=6.0,   # al-hemen-sat teklif kaybı (spread+etki+ücret) üst sınırı
     fee_reserve_usd=1.0,          # SOL işlem ücretleri için her zaman ayrılan nakit (alımda kullanılmaz)
     max_positions_per_wallet=2,   # tek bir kaynak cüzdan en fazla bu kadar açık pozisyon doldurabilir
+    min_roundtrip_loss_pct=-2.0,  # al-sat "kazancı" bundan büyükse teklifler tutarsız: gerçek piyasada olamaz, alım yapılmaz
 )
 
 # Uygulamadan değiştirilebilen sınırlar: (en düşük, EN YÜKSEK, tür). Üst sınırlar proje kuralındaki başlangıç

@@ -466,6 +466,12 @@ fun LazyListScope.portfoy(v: Veri, geri: () -> Unit, sekme: Int, sekmeSec: (Int)
                     val x = eb.getJSONObject(0)
                     Text("En büyük kapanış: ${kisa(x.str("token"))} ${isaretli(x.optDouble("pnl"))} USDC (${kisa(x.str("wallet"))})", color = Nx.Soluk, fontSize = 12.sp)
                 }
+                val su = d.optJSONArray("supheli")
+                if (su != null && su.length() > 0) {
+                    val etki = d.optDouble("supheli_kz", 0.0)
+                    Text("⚠ ${su.length()} kapanış tutarsız teklifle açılmış (alışta fiyatlar çelişkiliydi): ${isaretli(etki)} USDC gerçekçi değil. " +
+                         "Bunlar hariç portföy ≈ ${usd(v.toplam - etki)} USDC. Bu tür alımlar artık yapılmıyor.", color = Nx.Sari, fontSize = 12.sp)
+                }
             }
         }
     }

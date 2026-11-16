@@ -131,7 +131,8 @@ class H(BaseHTTPRequestHandler):
             import portfoy_denetim
             d = portfoy_denetim.denetle(os.getenv("NEXORA_DB", "nexora_paper.db"))
             self._send(200, {k: d.get(k) for k in ("hazir", "nakit", "nakit_beklenen", "nakit_farki", "pozisyon_degeri", "toplam",
-                                                   "toplam_farki", "gerceklesen", "alim_ucreti", "gerceklesmemis", "en_buyuk")})
+                                                   "toplam_farki", "gerceklesen", "alim_ucreti", "gerceklesmemis", "en_buyuk",
+                                                   "supheli", "supheli_kz")})
         elif self.path == "/saglik":
             self._send(200, panel.saglik(os.getenv("NEXORA_DB", "nexora_paper.db"), os.getenv("TRACKER_DB", "nexora_tracker.db")))
         elif self.path == "/ayarlar": self._send(200, paper.ayarlar())

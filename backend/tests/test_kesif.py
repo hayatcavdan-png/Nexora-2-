@@ -87,9 +87,9 @@ class BoyutTests(unittest.TestCase):
         self.assertEqual(puan_agirligi({"A": 2.0, "B": 0.5}, "A"), (2.0, 1.0))
         self.assertEqual(puan_agirligi({"A": 2.0, "B": 0.2}, "B"), (0.2, 0.2))       # alt sınır 0.2
         self.assertEqual(puan_agirligi({"A": 2.0}, "YOK"), (None, 0.5))
-        p = Paper(); q = FakeQuoter(sell_price=1.2)
+        p = Paper(); q = FakeQuoter()
         d = Decider(p, q, Safe(), puanlar={"W": 1.0, "Z": 2.0})
-        d.decide("b", "W", TOK, "buy", 1); d.decide("s", "W", TOK, "sell", 1)
+        d.decide("b", "W", TOK, "buy", 1); q.sell_price = 1.2; d.decide("s", "W", TOK, "sell", 1)   # alımdan sonra yükseldi
         iz = [dict(r) for r in p.db.execute("SELECT * FROM pos_iz")]
         bo = [dict(r) for r in p.db.execute("SELECT * FROM boyut_olcum")]
         self.assertEqual(bo[0]["agirlik"], 0.5)

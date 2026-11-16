@@ -10,6 +10,8 @@ T0_SUTUNLAR = ("event_id", "ts", "wallet", "token", "gecikme_sn", "karar", "gere
                "al_sat_kaybi_pct", "tb_yas_sn", "tb_likidite", "tb_mcap", "tb_sahip", "tb_organik", "tb_top_pct",
                "tb_dev_pct", "tb_sus", "cuzdan", "durum")
 
+TUTARSIZ_ESIK = -2.0
+
 OZELLIKLER = ["log_gecikme", "al_sat_kaybi", "giris_etki", "log_likidite", "log_yas_saat", "log_mcap", "log_sahip",
               "organik", "top_pay", "dev_pay", "supheli", "c_kazanma", "c_kar_faktoru", "c_ort_getiri", "c_skor",
               "c_dusus", "c_sifir_tur", "saat_sin", "saat_cos", "bot_kopyaladi"]
@@ -61,7 +63,9 @@ def veri_seti(db_path, ufuk="kaynak"):
             "SELECT event_id, getiri_pct FROM etiket_sonuc WHERE ufuk=? AND getiri_pct IS NOT NULL", (ufuk,))}
     finally:
         c.close()
-    out = [(o["ts"], e, o["wallet"], ozellikler(o), etiket[e]) for e, o in olaylar.items() if e in etiket]
+    # Tutarsız teklifle (al-sat 'kazancı' > %2) başlayan örnekler dışarıda: etiketleri gerçekleşemeyecek kârla şişer.
+    out = [(o["ts"], e, o["wallet"], ozellikler(o), etiket[e]) for e, o in olaylar.items()
+           if e in etiket and not (o.get("al_sat_kaybi_pct") is not None and o["al_sat_kaybi_pct"] < TUTARSIZ_ESIK)]
     out.sort(key=lambda x: x[0])
     return out
 

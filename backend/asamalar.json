@@ -87,7 +87,7 @@
    "grup": "İşlem",
    "durum": "devam",
    "yuzde": 78,
-   "yapilan": "Gerçek Jupiter teklifiyle doldurma, 2 dakikada bir değerleme, gölge işlemler, günlük rapor (komut satırı ve uygulama); ilk kapanan işlemler ve gerçekleşen K/Z kaydedildi; yürütme gecikmesi ölçümü: kopyalanan her işlemde teklif 3 sn sonra yeniden alınıyor",
+   "yapilan": "Gerçek Jupiter teklifiyle doldurma, 2 dakikada bir değerleme, gölge işlemler, günlük rapor (komut satırı ve uygulama); ilk kapanan işlemler ve gerçekleşen K/Z kaydedildi; yürütme gecikmesi ölçümü: kopyalanan her işlemde teklif 3 sn sonra yeniden alınıyor; portföy denetimi (defter işlemlerden yeniden hesaplanır); tutarsız teklif (al-sat 'kazancı' >%2) ile alım engellendi, geçmişteki 3 işlem işaretlendi",
    "eksik": "Başarısız işlem olasılığı modeli; uzun süreli sonuç"
   },
   {
@@ -150,7 +150,7 @@
    "grup": "Yapay zekâ",
    "durum": "devam",
    "yuzde": 30,
-   "yapilan": "Etiketleme motoru kuruldu: her kaynak alımında 5 USDC'lik gerçek alış ve geri satış teklifi, token bilgisi, cüzdan istatistikleri; 5 dk / 30 dk / kaynak satış (en geç 24 sa) etiketleri; ayrı veritabanı, yeniden başlatmaya dayanıklı, canlı kopyalamaya öncelik, günlük üst sınır; uygulamada ilerleme kartı",
+   "yapilan": "Etiketleme motoru kuruldu: her kaynak alımında 5 USDC'lik gerçek alış ve geri satış teklifi, token bilgisi, cüzdan istatistikleri; 5 dk / 30 dk / kaynak satış (en geç 24 sa) etiketleri; ayrı veritabanı, yeniden başlatmaya dayanıklı, canlı kopyalamaya öncelik, günlük üst sınır; uygulamada ilerleme kartı; tutarsız teklifli örnekler eğitim verisinden ayrılıyor",
    "eksik": "Veri birikmesi: ≥500 etiketli sinyal, ≥%90 eksiksiz"
   },
   {
@@ -202,7 +202,7 @@
  "meta": [
   {
    "label": "Kaynak",
-   "value": "Claude'un proje değerlendirmesi, 16.11.2026 05:30. Yüzdeler tahmini; hiçbir aşama kabul kriterleri karşılanmadan tamamlandı sayılmaz. N16–N21: yapay zekâ seçim hattı (ana yol haritasından bağımsız)."
+   "value": "Claude'un proje değerlendirmesi, 16.11.2026 04:15. Yüzdeler tahmini; hiçbir aşama kabul kriterleri karşılanmadan tamamlandı sayılmaz. N16–N21: yapay zekâ seçim hattı (ana yol haritasından bağımsız)."
   }
  ]
 }

@@ -87,6 +87,13 @@ class Decider:
             return p.reject(event_id, wallet, token, "buy", f"geri satış teklifi yok, satılamayabilir: {e}")
         rt = (1 - back["out_amount"] / amount) * 100
         iz.append(dict(adim="geri_satis_teklifi", sonuc="alındı", al_sat_kaybi_pct=round(rt, 4), **_q(back)))
+        if rt < CFG["min_roundtrip_loss_pct"]:
+            # Hemen geri satınca daha fazla USDC: alış ve satış teklifleri birbiriyle çelişiyor (bayat/tek taraflı havuz).
+            # Gerçekte bu fark yakalanamaz; paper defteri şişirmemek için alım yapılmaz, gölgede ölçülür.
+            why = f"teklif tutarsız (al-sat %{rt:.1f})"
+            if p.shadow_open(event_id, wallet, token, size, q["out_amount"], s["decimals"], rt, q["price_impact_pct"], why):
+                self._olc(event_id, token)
+            return p.reject(event_id, wallet, token, "buy", why)
         if rt > p.limit("max_roundtrip_loss_pct"):
             why = f"al-sat kaybı yüksek (%{rt:.1f})"
             if p.shadow_open(event_id, wallet, token, size, q["out_amount"], s["decimals"], rt, q["price_impact_pct"], why):
