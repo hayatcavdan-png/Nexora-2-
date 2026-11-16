@@ -9,6 +9,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -32,7 +33,7 @@ import org.json.JSONObject
 class MainActivity : androidx.fragment.app.FragmentActivity() {   // BiometricPrompt FragmentActivity ister
     override fun onCreate(b: Bundle?) {
         super.onCreate(b)
-        window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(0xFF07061A.toInt()))
+        window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(0xFF05080F.toInt()))
         setContent { MaterialTheme(colorScheme = NxRenkler) { Surface(color = Nx.Zemin) { App() } } }
     }
 }
@@ -49,6 +50,7 @@ fun App() {
     var key by remember { mutableStateOf(sp.getString("key", "")!!.trim()) }
     var ekran by rememberSaveable { mutableStateOf("ana") }
     var durdurOnay by remember { mutableStateOf(false) }
+    var acilis by rememberSaveable { mutableStateOf(true) }
     val v = remember { Veri() }
     var yenileniyor by remember { mutableStateOf(false) }
 
@@ -182,7 +184,8 @@ fun App() {
     LaunchedEffect(key, url) { while (true) { yukleSessiz(); delay(15_000) } }
     BackHandler(enabled = ekran != "ana") { ekran = if (ekran in ALT_EKRAN) "profil" else "ana" }
 
-    if (kilitli) { KilitEkrani(sp) { kilitli = false }; return }
+    if (acilis) { AcilisEkrani { acilis = false }; return }
+    if (kilitli) { Box(Modifier.fillMaxSize()) { AiArkaplan(); KilitEkrani(sp) { kilitli = false } }; return }
 
     if (durdurOnay) {
         AlertDialog(
@@ -197,10 +200,12 @@ fun App() {
     }
 
     val menuSecili = if (ekran in ANA_SEKMELER) ekran else if (ekran == "takip") "kesfet" else "profil"
-    Scaffold(containerColor = Nx.Zemin, bottomBar = { AltMenu2(menuSecili) { ekran = it } }) { pad ->
+    Box(Modifier.fillMaxSize()) {
+    AiArkaplan()
+    Scaffold(containerColor = Color.Transparent, bottomBar = { AltMenu2(menuSecili) { ekran = it } }) { pad ->
         PullToRefreshBox(isRefreshing = yenileniyor, onRefresh = { cekYenile() }, modifier = Modifier.padding(pad).fillMaxSize()) {
             LazyColumn(
-                Modifier.fillMaxSize().background(Nx.Zemin),
+                Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
@@ -278,6 +283,7 @@ fun App() {
             }
         }
     }
+    }
 }
 
 fun androidx.compose.foundation.lazy.LazyListScope.takipListesi(v: Veri) {
@@ -314,9 +320,10 @@ fun BaglanKarti(url: String, key: String, hata: String, kaydet: (String, String)
     var u by remember(url) { mutableStateOf(if (url.contains("127.0.0.1")) "http://100.105.213.95:8000" else url) }
     var k by remember(key) { mutableStateOf(key) }
     Column {
-    NexoKonusuyor(if (hata.isEmpty()) "Merhaba! Ben Nexo, NEXORA'nın robotu. Sunucuya bağlanınca işe koyuluyorum."
+    NexoKonusuyor(if (hata.isEmpty()) "Merhaba! Ben Nexo, NEXORA'nın yapay zekâ robotu. Sunucuya bağlanınca işe koyuluyorum."
                   else "Sunucuya ulaşamadım. Tailscale açık mı? Adresi ve anahtarı bir kontrol edelim.",
-                  if (hata.isEmpty()) NexoHal.MUTLU else NexoHal.DUSUNUYOR, Modifier.fillMaxWidth().padding(bottom = 12.dp), selam = hata.isEmpty())
+                  if (hata.isEmpty()) NexoIfade.KIRPMA else NexoIfade.DUSUN, Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                  poz = if (hata.isEmpty()) NexoPoz.SELAM else NexoPoz.SERBEST)
     NeonKart(Modifier.fillMaxWidth(), kenar = Nx.KenarParlak, dolgu = Nx.DolguMor) {
         Text("Sunucuya bağlan", color = Nx.Metin, fontSize = 20.sp, fontWeight = FontWeight.Bold)
         Text("Bakiye, bot ve işlemler sunucudan gelir. Telefonda Tailscale açık olmalı.", color = Nx.Soluk, fontSize = 13.sp)
@@ -326,7 +333,7 @@ fun BaglanKarti(url: String, key: String, hata: String, kaydet: (String, String)
             shape = RoundedCornerShape(14.dp), visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation())
         Button({ kaydet(u.trim(), k.trim()) }, enabled = u.isNotBlank() && k.isNotBlank(), colors = NxButonRenk(),
             modifier = Modifier.fillMaxWidth().height(52.dp), shape = RoundedCornerShape(14.dp)) {
-            Text("Bağlan", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+            NexoYuz(30.dp, NexoIfade.KIRPMA); Text(" Bağlan", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
         }
         if (hata.isNotEmpty()) Text(hata, color = Nx.Kirmizi, fontSize = 13.sp)
         Text("Anahtar sunucuda: sudo grep NEXORA_API_KEY /etc/nexora.env", color = Nx.Soluk, fontSize = 11.sp)

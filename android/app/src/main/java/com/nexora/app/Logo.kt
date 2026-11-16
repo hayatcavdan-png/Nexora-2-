@@ -3,7 +3,16 @@ package com.nexora.app
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Text
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import androidx.compose.ui.graphics.graphicsLayer
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -32,26 +41,26 @@ val Orbitron = FontFamily(
     Font(R.font.orbitron_bold, FontWeight.SemiBold),
 )
 
-private val AmblemRenk = listOf(Color(0xFFC4A8FF), Color(0xFF8B5CF6), Color(0xFF5B5BF6), Color(0xFF3B82F6), Color(0xFF22D3EE))
-
-/** N amblemi: öne eğik, keskin kenarlı, mor→mavi→turkuaz degrade, hafif parıltı. */
+/** N amblemi: sinir ağı düğümleriyle çizilmiş N; nane→gök→lila→pembe geçişi. ilerleme<1 ise çizgi baştan o orana kadar çizilir. */
 @Composable
-fun Amblem(boyut: Dp, modifier: Modifier = Modifier) {
+fun Amblem(boyut: Dp, modifier: Modifier = Modifier, ilerleme: Float = 1f) {
     Canvas(modifier.size(boyut)) {
-        val w = size.width; val h = size.height
-        fun p(x: Float, y: Float) = Offset(x * w / 100f, y * h / 100f)
-        val yol = Path().apply {
-            moveTo(p(6f, 94f).x, p(6f, 94f).y)
-            listOf(p(24f, 6f), p(42f, 6f), p(63.5f, 62f), p(73f, 6f), p(94f, 6f), p(76f, 94f), p(58f, 94f), p(36.5f, 38f), p(27f, 94f))
-                .forEach { lineTo(it.x, it.y) }
-            close()
+        val k = size.width / 100f
+        fun p(x: Float, y: Float) = Offset(x * k, y * k)
+        val tam = Path().apply { moveTo(22f * k, 84f * k); lineTo(22f * k, 16f * k); lineTo(78f * k, 84f * k); lineTo(78f * k, 16f * k) }
+        val yol = if (ilerleme >= 1f) tam else Path().also { hedef ->
+            val olcu = androidx.compose.ui.graphics.PathMeasure(); olcu.setPath(tam, false)
+            olcu.getSegment(0f, olcu.length * ilerleme.coerceIn(0f, 1f), hedef, true)
         }
-        val firca = Brush.linearGradient(AmblemRenk, start = p(0f, 0f), end = p(100f, 100f))
-        drawPath(yol, firca, alpha = 0.16f, style = Stroke(width = w * 0.22f, join = StrokeJoin.Round))
-        drawPath(yol, firca, alpha = 0.30f, style = Stroke(width = w * 0.12f, join = StrokeJoin.Round))
-        drawPath(yol, firca, alpha = 0.50f, style = Stroke(width = w * 0.05f, join = StrokeJoin.Round))
-        drawPath(yol, firca)
-        drawPath(yol, Color.White.copy(alpha = 0.45f), style = Stroke(width = w * 0.012f, join = StrokeJoin.Miter))
+        val firca = Brush.linearGradient(Nx.AiRenkler, start = p(10f, 10f), end = p(90f, 90f))
+        drawPath(yol, firca, alpha = 0.22f, style = Stroke(width = 26f * k, cap = StrokeCap.Round, join = StrokeJoin.Round))
+        drawPath(yol, firca, style = Stroke(width = 15f * k, cap = StrokeCap.Round, join = StrokeJoin.Round))
+        val dugumler = listOf(p(22f, 84f) to 0f, p(22f, 16f) to 0.28f, p(50f, 50f) to 0.5f, p(78f, 84f) to 0.72f, p(78f, 16f) to 1f)
+        for ((o, esik) in dugumler) if (ilerleme >= esik) {
+            val orta = o == dugumler[2].first
+            drawCircle(Nx.Zemin, (if (orta) 4f else 5f) * k, o)
+            drawCircle(Color.White, (if (orta) 1.8f else 2.4f) * k, o)
+        }
     }
 }
 
@@ -89,34 +98,64 @@ private fun DrawScope.bicak(a: Offset, b: Offset, kalinlik: Float, darbe: Float)
     drawLine(Color(0xFFFFF1C2).copy(alpha = 0.8f), c0, c1, strokeWidth = W * 0.12f, cap = StrokeCap.Round)
 }
 
-/** NEXORA yazısı (X ateş kızılı) ve altında COMMAND X. */
+/** NEXORA yazısı: N harfi amblemin kendisi, X ateş kızılı kılıç darbesi. altYazi=true ise altında yapay zekâ sloganı. */
 @Composable
-fun NexoraYazi(boy: TextUnit = 30.sp, altYazi: Boolean = true, modifier: Modifier = Modifier, amblemliN: Boolean = false) {
+fun NexoraYazi(boy: TextUnit = 30.sp, altYazi: Boolean = true, modifier: Modifier = Modifier, amblemliN: Boolean = true) {
     val yogunluk = LocalDensity.current
-    val harf = TextStyle(fontFamily = Orbitron, fontWeight = FontWeight.Black, fontSize = boy, color = Color.White,
+    val harf = TextStyle(fontFamily = Orbitron, fontWeight = FontWeight.Black, fontSize = boy, color = Nx.Metin,
                          letterSpacing = (boy.value * 0.06f).sp)
-    val xYuk = with(yogunluk) { (boy * (if (amblemliN) 1.12f else 0.78f)).toDp() }
-    val xGen = with(yogunluk) { (boy * (if (amblemliN) 1.18f else 0.86f)).toDp() }
-    Column(modifier, horizontalAlignment = Alignment.Start) {
+    val xYuk = with(yogunluk) { (boy * 1.12f).toDp() }
+    val xGen = with(yogunluk) { (boy * 1.18f).toDp() }
+    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             if (amblemliN) {
-                // N harfi yerine amblem: harf yüksekliğine göre boyutlanır
-                Amblem(with(yogunluk) { (boy * 1.32f).toDp() }, Modifier.padding(end = with(yogunluk) { (boy * 0.02f).toDp() }))
+                Amblem(with(yogunluk) { (boy * 1.22f).toDp() }, Modifier.padding(end = with(yogunluk) { (boy * 0.10f).toDp() }))
                 Text("E", style = harf)
             } else Text("NE", style = harf)
             AtesX(xGen, xYuk, Modifier.padding(horizontal = with(yogunluk) { (boy * 0.04f).toDp() }))
             Text("ORA", style = harf)
         }
-        if (altYazi) Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("COMMAND", style = TextStyle(fontFamily = Orbitron, fontWeight = FontWeight.Bold, fontSize = boy * 0.36f,
-                letterSpacing = (boy.value * 0.22f).sp,
-                brush = Brush.linearGradient(listOf(Color(0xFF22D3EE), Color(0xFF3B82F6), Color(0xFF8B5CF6)))))
-            Text("X", style = TextStyle(fontFamily = Orbitron, fontWeight = FontWeight.Black, fontSize = boy * 0.56f,
-                fontStyle = FontStyle.Italic, brush = Brush.linearGradient(listOf(Color(0xFF6D5BFF), Color(0xFFB45CFF), Color(0xFF8B5CF6)))))
-        }
+        if (altYazi) AiYazi("YAPAY ZEKÂ DESTEKLİ KOPYA TİCARET", boy * 0.3f, FontWeight.Bold)
     }
 }
 
-/** Logo: N harfi amblemin kendisidir (N amblemi + E + ateş X + ORA), altında COMMAND X. */
+/** Logo: sinir ağı N amblemi + E + ateş X + ORA + akan "AI" rozeti. */
 @Composable
-fun Logo(boy: TextUnit = 22.sp) = NexoraYazi(boy, altYazi = false, amblemliN = true)
+fun Logo(boy: TextUnit = 22.sp) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        NexoraYazi(boy, altYazi = false)
+        AiRozet("AI", boy * 0.5f)
+    }
+}
+
+/** Açılış: amblem çizilir, yazı belirir, X kılıç darbesi gibi iner, Nexo selam verir. ~1,9 sn sonra bitti() çağrılır. */
+@Composable
+fun AcilisEkrani(bitti: () -> Unit) {
+    val cizim = remember { Animatable(0f) }
+    val yazi = remember { Animatable(0f) }
+    val nexo = remember { Animatable(0f) }
+    LaunchedEffect(Unit) {
+        launch { nexo.animateTo(1f, spring(dampingRatio = 0.5f, stiffness = 180f)) }
+        cizim.animateTo(1f, tween(700, easing = FastOutSlowInEasing))
+        yazi.animateTo(1f, tween(450, easing = FastOutSlowInEasing))
+        delay(750)
+        bitti()
+    }
+    Box(Modifier.fillMaxSize()) {
+        AiArkaplan()
+        Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(18.dp, Alignment.CenterVertically)) {
+            Nexo(150.dp, NexoIfade.KIRPMA, NexoPoz.SELAM, Modifier.graphicsLayer { scaleX = nexo.value; scaleY = nexo.value; alpha = nexo.value.coerceIn(0f, 1f) })
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Amblem(46.dp, Modifier.padding(end = 4.dp), ilerleme = cizim.value)
+                val harf = TextStyle(fontFamily = Orbitron, fontWeight = FontWeight.Black, fontSize = 36.sp, color = Nx.Metin, letterSpacing = 2.sp)
+                Text("E", style = harf, modifier = Modifier.graphicsLayer { alpha = yazi.value })
+                AtesX(42.dp, 40.dp, Modifier.padding(horizontal = 2.dp).graphicsLayer {
+                    val o = 3f - 2f * yazi.value; scaleX = o; scaleY = o; alpha = yazi.value; rotationZ = -40f * (1f - yazi.value) })
+                Text("ORA", style = harf, modifier = Modifier.graphicsLayer { alpha = yazi.value })
+            }
+            Box(Modifier.graphicsLayer { alpha = yazi.value; translationY = 20f * (1f - yazi.value) }) {
+                AiYazi("YAPAY ZEKÂ DESTEKLİ KOPYA TİCARET", 12.sp, FontWeight.Bold)
+            }
+        }
+    }
+}

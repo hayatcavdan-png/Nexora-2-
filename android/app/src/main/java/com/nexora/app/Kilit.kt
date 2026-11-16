@@ -67,7 +67,7 @@ fun KilitEkrani(sp: SharedPreferences, acildi: () -> Unit) {
     var bekle by remember { mutableLongStateOf(0L) }
     Column(Modifier.fillMaxSize().padding(32.dp), verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
            horizontalAlignment = Alignment.CenterHorizontally) {
-        Nexo(120.dp, NexoHal.UYKU)
+        Nexo(120.dp, NexoIfade.UYKU, NexoPoz.SERBEST)
         Logo()
         Icon(Icons.Filled.Lock, null, tint = Nx.Camgobegi, modifier = Modifier.size(40.dp))
         Text("PIN girin", color = Nx.Metin, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)

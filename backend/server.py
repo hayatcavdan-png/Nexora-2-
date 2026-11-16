@@ -72,6 +72,16 @@ def takip_ozeti(limit=50):
     finally:
         c.close()
 
+def _yz_ozet():
+    """Uygulamadaki Yapay Zekâ Çekirdeği kartı için: etiketlenen sinyal sayısı ve hedef."""
+    try:
+        from nexora.etiket import ozet
+        o = ozet(os.getenv("ETIKET_DB", "nexora_etiket.db"))
+        return None if o is None else {k: o[k] for k in ("etiketli", "hedef", "ilerleme_pct", "izleniyor")}
+    except Exception:
+        return None
+
+
 class H(BaseHTTPRequestHandler):
     def _send(self, code, obj):
         b = json.dumps(obj).encode()
@@ -120,7 +130,7 @@ class H(BaseHTTPRequestHandler):
             return
         if self.path == "/durum":
             self._send(200, dict(mod="PAPER", gercek_islem="KAPALI", acil_durdurma=paper.killed(), ayarlar=paper.ayarlar()["gecerli"],
-                                 takip_nabiz=paper.son_nabiz(), model_filtre=model_kapisi.ModelKapisi().durum()))
+                                 takip_nabiz=paper.son_nabiz(), model_filtre=model_kapisi.ModelKapisi().durum(), yz=_yz_ozet()))
         elif self.path == "/portfoy": self._send(200, paper.portfolio())
         elif self.path == "/islemler": self._send(200, paper.trades())
         elif self.path == "/takip": self._send(200, takip_ozeti())

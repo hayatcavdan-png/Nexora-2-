@@ -22,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
@@ -65,9 +66,9 @@ fun BilgiKutusu(metin: String) {
 
 @Composable
 fun Hap(metin: String, secili: Boolean, modifier: Modifier = Modifier, secRenk: Color = Nx.MorKoyu, tikla: () -> Unit) {
-    Box(modifier.clip(RoundedCornerShape(50)).background(if (secili) secRenk else Nx.Yuzey2).clickable(onClick = tikla)
+    Box(modifier.tiklaZipla(tikla = tikla).clip(RoundedCornerShape(50)).background(if (secili) secRenk else Nx.Yuzey2)
         .padding(horizontal = 14.dp, vertical = 9.dp), contentAlignment = Alignment.Center) {
-        Text(metin, color = if (secili) Color.White else Nx.Soluk, fontSize = 13.sp, fontWeight = if (secili) FontWeight.SemiBold else FontWeight.Normal,
+        Text(metin, color = if (secili) Nx.UstMetin else Nx.Soluk, fontSize = 13.sp, fontWeight = if (secili) FontWeight.SemiBold else FontWeight.Normal,
              maxLines = 1)
     }
 }
@@ -106,17 +107,17 @@ private val ARALIKLAR = listOf("1S" to 3600.0, "4S" to 14400.0, "1G" to 86400.0,
 
 // ------------------------------------------------------------------ Ana Sayfa
 
-/** Nexo'nun ruh hali ve söylediği: bot durumu ve son 24 saatin sonucuna göre. */
-fun nexoDurum(v: Veri, d24: Double, kz24: Double): Pair<NexoHal, String> {
+/** Nexo'nun ifadesi, duruşu ve söylediği: bot durumu ve son 24 saatin sonucuna göre. */
+fun nexoDurum(v: Veri, d24: Double, kz24: Double): Triple<NexoIfade, NexoPoz, String> {
     val saat = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
     val selam = when (saat) { in 5..11 -> "Günaydın!"; in 12..17 -> "İyi günler!"; in 18..22 -> "İyi akşamlar!"; else -> "Gece nöbetindeyim." }
     val cz = v.takipCuzdanlar.count { it.durum == "aktif" }
     val poz = v.pozisyonlar.size
     return when {
-        v.acilDurdurma -> NexoHal.UYKU to "Bot durduruldu, biraz kestiriyorum. Başlatınca hemen nöbete dönerim."
-        d24 > 0.5 -> NexoHal.HEYECAN to "Bugün ${isaretli(kz24)} USDC öndeyiz! $poz pozisyonu yakından izliyorum."
-        d24 < -0.5 -> NexoHal.ENDISE to "Bugün biraz geri düştük (${isaretli(kz24)} USDC). Risk sınırları devrede, sakinim."
-        else -> NexoHal.MUTLU to "$selam Ben Nexo. $cz öncü cüzdanı izliyorum" + (if (poz > 0) ", $poz pozisyon açık." else "; uygun sinyal bekliyorum.")
+        v.acilDurdurma -> Triple(NexoIfade.UYKU, NexoPoz.SERBEST, "Bot durduruldu, biraz kestiriyorum. Başlatınca hemen nöbete dönerim.")
+        d24 > 0.5 -> Triple(NexoIfade.SEVINC, NexoPoz.SEVINC, "Bugün ${isaretli(kz24)} USDC öndeyiz! $poz pozisyonu yakından izliyorum.")
+        d24 < -0.5 -> Triple(NexoIfade.ENDISE, NexoPoz.SERBEST, "Bugün biraz geri düştük (${isaretli(kz24)} USDC). Risk sınırları devrede, sakinim.")
+        else -> Triple(NexoIfade.GULUS, NexoPoz.SELAM, "$selam $cz öncü cüzdanın her hamlesini yapay zekâ ile tartıyorum" + (if (poz > 0) "; $poz pozisyon açık." else "; uygun sinyal bekliyorum."))
     }
 }
 
@@ -125,8 +126,8 @@ fun LazyListScope.anaSayfa(v: Veri, gizle: Boolean, gizleDegis: () -> Unit, aral
     item(key = "nexo") {
         val simdi = System.currentTimeMillis() / 1000.0
         val ref = degerAni(v.gecmis, simdi - 86400, v.baslangic)
-        val (hal, metin) = nexoDurum(v, if (ref > 0) (v.toplam - ref) / ref * 100 else 0.0, v.toplam - ref)
-        NexoKonusuyor(metin, hal, Modifier.fillMaxWidth())
+        val (ifade, poz, metin) = nexoDurum(v, if (ref > 0) (v.toplam - ref) / ref * 100 else 0.0, v.toplam - ref)
+        NexoKonusuyor(metin, ifade, Modifier.fillMaxWidth(), poz = poz)
     }
     item(key = "demo") { DemoHap() }
     item(key = "bakiye") {
@@ -178,7 +179,7 @@ fun LazyListScope.anaSayfa(v: Veri, gizle: Boolean, gizleDegis: () -> Unit, aral
     item(key = "autopilot") {
         NeonKart(Modifier.fillMaxWidth(), kenar = Nx.KenarParlak, dolgu = Nx.DolguMor) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Nexo(70.dp, if (v.acilDurdurma) NexoHal.UYKU else NexoHal.MUTLU)
+                Nexo(68.dp, if (v.acilDurdurma) NexoIfade.UYKU else NexoIfade.ODAK, NexoPoz.SERBEST)
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text("AutoPilot X", color = Nx.Metin, fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
@@ -187,27 +188,28 @@ fun LazyListScope.anaSayfa(v: Veri, gizle: Boolean, gizleDegis: () -> Unit, aral
                     Text("Öncü cüzdanları paper modda kopyalar", color = Nx.Soluk, fontSize = 12.sp)
                     Button(botAc, colors = NxButonRenk(), modifier = Modifier.fillMaxWidth().height(40.dp),
                            contentPadding = PaddingValues(horizontal = 12.dp)) {
-                        Icon(Icons.Filled.PlayArrow, null, modifier = Modifier.size(18.dp))
-                        Text(" Botu Yönet  ›", fontSize = 14.sp)
+                        NexoYuz(24.dp, NexoIfade.KIRPMA)
+                        Text(" Botu Yönet  ›", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                     }
                 }
             }
         }
     }
+    item(key = "ai_cekirdek") { AiCekirdekKarti(v.yz, v.modelFiltre) }
     item(key = "kisayol") {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Kisayol2("Token Radar", "Fırsatları Keşfet", { IkonRadar(Nx.Camgobegi, 30.dp) }, Modifier.weight(1f)) { kesfetSekme(0); git("kesfet") }
-            Kisayol2("Wallet DNA", "Cüzdan Analizi", { IkonDna(Nx.MorAcik, 30.dp) }, Modifier.weight(1f)) { kesfetSekme(1); git("kesfet") }
-            Kisayol2("Portföy", "Sanal İşlemler", { IkonCubuk(Nx.Camgobegi, 30.dp) }, Modifier.weight(1f)) { git("portfoy") }
+            Kisayol2("Token Radar", "Fırsatları Keşfet", { NexoYuz(44.dp, NexoIfade.MERAK) }, Modifier.weight(1f)) { kesfetSekme(0); git("kesfet") }
+            Kisayol2("Wallet DNA", "Cüzdan Analizi", { NexoYuz(44.dp, NexoIfade.DUSUN) }, Modifier.weight(1f)) { kesfetSekme(1); git("kesfet") }
+            Kisayol2("Portföy", "Sanal İşlemler", { NexoYuz(44.dp, NexoIfade.YILDIZ) }, Modifier.weight(1f)) { git("portfoy") }
         }
     }
     item(key = "kalkan") {
         val sekil = RoundedCornerShape(20.dp)
-        Row(Modifier.fillMaxWidth().clip(sekil)
-            .background(Brush.linearGradient(listOf(Color(0xFF3A0D1A), Color(0xFF1A0B1E))))
+        Row(Modifier.fillMaxWidth().belir().clip(sekil)
+            .background(Brush.linearGradient(listOf(Color(0xFF3A0D1A), Color(0xFF160B18))))
             .border(1.dp, Nx.Kirmizi.copy(alpha = 0.6f), sekil).padding(16.dp),
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            IkonKalkan(Nx.Kirmizi, 36.dp)
+            NexoYuz(48.dp, if (v.acilDurdurma) NexoIfade.UYKU else NexoIfade.HAVALI)
             Column(Modifier.weight(1f)) {
                 Text("NEXORA Shield", color = Nx.Metin, fontSize = 17.sp, fontWeight = FontWeight.Bold)
                 Text(if (v.acilDurdurma) "Bot durduruldu · yeni alım yok" else "Acil Durdurma (Tüm Botları Durdur)", color = Nx.Soluk, fontSize = 12.sp)
@@ -222,8 +224,8 @@ fun LazyListScope.anaSayfa(v: Veri, gizle: Boolean, gizleDegis: () -> Unit, aral
 
 @Composable
 fun Kisayol2(baslik: String, alt: String, ikon: @Composable () -> Unit, modifier: Modifier, tikla: () -> Unit) {
-    Column(modifier.clip(RoundedCornerShape(18.dp)).background(Nx.Yuzey).border(1.dp, Nx.Cizgi, RoundedCornerShape(18.dp))
-        .clickable(onClick = tikla).padding(vertical = 14.dp, horizontal = 6.dp),
+    Column(modifier.belir().tiklaZipla(tikla = tikla).clip(RoundedCornerShape(18.dp)).background(Nx.Yuzey.copy(alpha = 0.92f))
+        .border(1.dp, Nx.Cizgi, RoundedCornerShape(18.dp)).padding(vertical = 12.dp, horizontal = 6.dp),
         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
         ikon()
         Text(baslik, color = Nx.Metin, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
@@ -236,7 +238,7 @@ fun Kisayol2(baslik: String, alt: String, ikon: @Composable () -> Unit, modifier
 fun LazyListScope.tokenRadar(v: Veri, arama: String, aramaDegis: (String) -> Unit, sirala: Int, siralaSec: (Int) -> Unit,
                              favoriler: Set<String>, favoriDegis: (String) -> Unit, tokenSec: (RadarToken) -> Unit) {
     item(key = "radar_bas") {
-        SayfaBasligi("Token Radar", "Takip edilen cüzdanların aldığı token'lar", ikon = { IkonRadar(Nx.MorAcik, 32.dp) })
+        SayfaBasligi("Token Radar", "Takip edilen cüzdanların aldığı token'lar", ikon = { NexoYuz(48.dp, NexoIfade.MERAK) })
     }
     item(key = "radar_ara") {
         OutlinedTextField(arama, aramaDegis, placeholder = { Text("Token ara… (sembol, ad ya da adres)") }, singleLine = true,
@@ -304,7 +306,7 @@ fun RadarSatiri(t: RadarToken, favori: Boolean, favoriDegis: () -> Unit, tikla: 
 
 fun LazyListScope.walletDna(v: Veri, adres: String, adresDegis: (String) -> Unit, yukleniyor: Boolean, sonuc: JSONObject?,
                             hata: String, analiz: () -> Unit) {
-    item(key = "dna_bas") { SayfaBasligi("Wallet DNA", "Cüzdan analizi ve risk profili", ikon = { IkonDna(Nx.MorAcik, 32.dp) }) }
+    item(key = "dna_bas") { SayfaBasligi("Wallet DNA", "Cüzdan analizi ve risk profili", ikon = { NexoYuz(48.dp, NexoIfade.DUSUN) }) }
     item(key = "dna_giris") {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             OutlinedTextField(adres, adresDegis, placeholder = { Text("Cüzdan adresi (Solana)") }, singleLine = true,
@@ -402,7 +404,7 @@ fun LazyListScope.autoPilot(v: Veri, geri: () -> Unit, ayarla: (JSONObject) -> U
     item(key = "ap_kahraman") {
         NeonKart(Modifier.fillMaxWidth(), kenar = Nx.KenarParlak, dolgu = Nx.DolguMor) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Nexo(92.dp, if (v.acilDurdurma) NexoHal.UYKU else NexoHal.MUTLU)
+                Nexo(92.dp, if (v.acilDurdurma) NexoIfade.UYKU else NexoIfade.ODAK, if (v.acilDurdurma) NexoPoz.SERBEST else NexoPoz.KAVUS)
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text("AutoPilot X", color = Nx.Metin, fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
@@ -449,10 +451,10 @@ fun LazyListScope.autoPilot(v: Veri, geri: () -> Unit, ayarla: (JSONObject) -> U
     item(key = "ap_dugme") {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             Button(baslat, enabled = v.acilDurdurma, colors = NxYesilButon(), modifier = Modifier.weight(1f).height(54.dp), shape = RoundedCornerShape(14.dp)) {
-                Icon(Icons.Filled.PlayArrow, null); Text(" Başlat", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                NexoYuz(30.dp, NexoIfade.SEVINC); Text(" Başlat", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
             }
             Button(durdurIste, enabled = !v.acilDurdurma, colors = NxGriButon(), modifier = Modifier.weight(1f).height(54.dp), shape = RoundedCornerShape(14.dp)) {
-                Icon(Icons.Filled.Close, null); Text(" Durdur", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                NexoYuz(30.dp, NexoIfade.UYKU); Text(" Durdur", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
             }
         }
     }
@@ -484,7 +486,7 @@ fun LazyListScope.autoPilot(v: Veri, geri: () -> Unit, ayarla: (JSONObject) -> U
 // ------------------------------------------------------------------ Portföy
 
 fun LazyListScope.portfoy(v: Veri, geri: () -> Unit, sekme: Int, sekmeSec: (Int) -> Unit, islemFormu: @Composable () -> Unit) {
-    item(key = "pf_bas") { SayfaBasligi("Portföy", "Sanal portföyünü yönet", geri = geri) }
+    item(key = "pf_bas") { SayfaBasligi("Portföy", "Sanal portföyünü yönet", ikon = { NexoYuz(44.dp, NexoIfade.YILDIZ) }, geri = geri) }
     item(key = "pf_deger") {
         val simdi = System.currentTimeMillis() / 1000.0
         val ref = degerAni(v.gecmis, simdi - 86400, v.baslangic)
@@ -628,24 +630,24 @@ data class Sekme(val id: String, val ad: String, val ikon: @Composable (Color) -
 
 @Composable
 fun AltMenu2(secili: String, sec: (String) -> Unit) {
+    // Her sekmede Nexo'nun ayrı bir ifadesi: seçilen büyür, parlar ve altında ışık yanar.
     val sekmeler = listOf(
-        Sekme("ana", "Ana Sayfa", ikon = { r -> Icon(Icons.Filled.Home, null, tint = r) }),
-        Sekme("kesfet", "Keşfet", ikon = { r -> Icon(Icons.Filled.Search, null, tint = r) }),
-        Sekme("bot", "Bot", ikon = { r -> IkonRobot(r) }),
-        Sekme("portfoy", "Portföy", ikon = { r -> IkonCanta(r) }),
-        Sekme("profil", "Profil", ikon = { r -> Icon(Icons.Filled.Person, null, tint = r) }),
+        Triple("ana", "Ana Sayfa", NexoIfade.GULUS), Triple("kesfet", "Keşfet", NexoIfade.MERAK), Triple("bot", "Bot", NexoIfade.ODAK),
+        Triple("portfoy", "Portföy", NexoIfade.YILDIZ), Triple("profil", "Profil", NexoIfade.HAVALI),
     )
-    Column(Modifier.fillMaxWidth().background(Nx.Zemin)) {
-        Box(Modifier.fillMaxWidth().height(1.dp).background(Nx.Cizgi))
-        Row(Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 8.dp)) {
-            sekmeler.forEach { (id, ad, ikon) ->
+    Column(Modifier.fillMaxWidth().background(Nx.Zemin.copy(alpha = 0.94f))) {
+        Box(Modifier.fillMaxWidth().height(1.dp).background(Nx.KenarParlak))
+        Row(Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 6.dp)) {
+            sekmeler.forEach { (id, ad, ifade) ->
                 val s = id == secili
-                val renk = if (s) Nx.MorAcik else Nx.Soluk
-                Column(Modifier.weight(1f).clip(RoundedCornerShape(14.dp)).clickable { sec(id) }.padding(vertical = 4.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                    Box(Modifier.size(34.dp).clip(CircleShape).background(if (s) Nx.Mor.copy(alpha = 0.22f) else Color.Transparent),
-                        contentAlignment = Alignment.Center) { ikon(renk) }
-                    Text(ad, color = renk, fontSize = 11.sp, fontWeight = if (s) FontWeight.SemiBold else FontWeight.Normal, maxLines = 1)
+                val olcek by androidx.compose.animation.core.animateFloatAsState(if (s) 1.22f else 0.86f,
+                    androidx.compose.animation.core.spring(dampingRatio = 0.42f, stiffness = 380f), label = "sekme")
+                val solukluk by androidx.compose.animation.core.animateFloatAsState(if (s) 1f else 0.5f, label = "sekmeA")
+                Column(Modifier.weight(1f).tiklaZipla { sec(id) }.padding(vertical = 2.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                    NexoYuz(34.dp, ifade, Modifier.graphicsLayer { scaleX = olcek; scaleY = olcek; alpha = solukluk; translationY = if (s) -4f else 0f })
+                    Text(ad, color = if (s) Nx.Nane else Nx.Soluk, fontSize = 11.sp, fontWeight = if (s) FontWeight.Bold else FontWeight.Normal, maxLines = 1)
+                    Box(Modifier.size(width = if (s) 18.dp else 0.dp, height = 3.dp).clip(RoundedCornerShape(50)).background(Nx.KenarParlak))
                 }
             }
         }
