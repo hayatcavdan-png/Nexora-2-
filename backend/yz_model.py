@@ -1,0 +1,35 @@
+"""N18 · Seçim modeli: zamana göre eğit/sına, maliyet sonrası 'hepsini kopyala' ile karşılaştır.
+Çalıştır (backend klasöründe): python yz_model.py
+En az 500 etiketli örnek gerekir (YZ_ZORLA=1 yalnızca deneme içindir; sonucu karar için kullanılmaz).
+Kabul edilirse model yz_model.json'a yazılır (N19 gölge kararı bunu kullanır). İşlem kuralını DEĞİŞTİRMEZ."""
+import os
+
+from nexora.ozellik import veri_seti
+from nexora.model import degerlendir
+
+
+def calistir(db, ufuk="kaynak", zorla=False, yol="yz_model.json"):
+    v = veri_seti(db, ufuk)
+    s, m = degerlendir(v, zorla=zorla)
+    if s["karar"] == "yetersiz veri":
+        return f"Yetersiz veri: {s['n']}/{s['gerekli']} etiketli örnek. N16 veri topladıkça yeniden deneyin."
+    L = [f"Karar: {s['karar'].upper()}" + ("  (DENEME: örnek sayısı yetersiz)" if zorla and s["n"] < 500 else ""),
+         f"Örnek {s['n']} (eğitim {s['egitim']}, sınama {s['sinama']} · zamana göre bölündü)",
+         f"Sınamada 'hepsini kopyala' ortalaması %{s['sinama_hepsi_ort']:+.2f}",
+         f"Model seçtiklerinin ({s['secilen']}) ortalaması " + ("—" if s["sinama_secili_ort"] is None else f"%{s['sinama_secili_ort']:+.2f}"),
+         f"Farkın %95 güven aralığı: {s['fark_guven_araligi']}",
+         f"Olasılık doğruluğu (Brier, düşük iyi): model {s['brier']} · sabit tahmin {s['brier_taban']}",
+         "", "En etkili özellikler (standart etki; + kârlılık olasılığını artırır):"]
+    L += [f"  {k:<16} {w:+.3f}" for k, w in s["agirliklar"]]
+    L += ["", "Kalibrasyon (tahmin edilen / gerçekleşen kazanma oranı):"]
+    L += [f"  {x['aralik']}  n={x['n']:<4} tahmin {x['tahmin']:.2f}  gerçek {x['gercek']:.2f}" for x in s["kalibrasyon"]]
+    if m is not None and not zorla:
+        m.kaydet(yol, dict(ufuk=ufuk, esik=s["esik"], sonuc={k: s[k] for k in ("n", "sinama_hepsi_ort", "sinama_secili_ort", "fark_guven_araligi")}))
+        L.append(f"\nModel kaydedildi: {yol} (sıradaki adım N19: gölge karar)")
+    elif s["karar"] != "avantaj var":
+        L.append("\nModel kaydedilmedi: avantaj kanıtlanmadı. Bu geçerli bir sonuçtur; gerçek parayı korur.")
+    return "\n".join(L)
+
+
+if __name__ == "__main__":
+    print(calistir(os.getenv("ETIKET_DB", "nexora_etiket.db"), os.getenv("YZ_UFUK", "kaynak"), os.getenv("YZ_ZORLA") == "1"))

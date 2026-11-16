@@ -157,19 +157,19 @@
    "kod": "N17",
    "ad": "Özellik seti ve veri kalitesi",
    "grup": "Yapay zekâ",
-   "durum": "baslamadi",
-   "yuzde": 0,
-   "yapilan": "Planlandı",
-   "eksik": "Sızıntı testleri; temel çizgiler (hepsini kopyala, N10 kuralları, rastgele); veri raporu"
+   "durum": "devam",
+   "yuzde": 60,
+   "yapilan": "Özellik seti sabitlendi (20 özellik, yalnızca alım anı bilgisi); sızıntı testleri (izinli sütun listesi, sonuçlar değişince özelliklerin değişmemesi); veri kalitesi raporu; temel çizgiler (hepsini kopyala, botun kararı, iki basit kural); CSV dışa aktarım (yz_veri.py)",
+   "eksik": "Gerçek veriyle rapor (N16 verisi birikince)"
   },
   {
    "kod": "N18",
    "ad": "Seçim modeli",
    "grup": "Yapay zekâ",
-   "durum": "baslamadi",
-   "yuzde": 0,
-   "yapilan": "Planlandı",
-   "eksik": "Açıklanabilir model, zamana göre doğrulama. Kabul: maliyet sonrası 'hepsini kopyala'dan iyi, güven aralığı sıfırın üstünde; değilse 'avantaj yok' raporu"
+   "durum": "devam",
+   "yuzde": 50,
+   "yapilan": "Açıklanabilir lojistik regresyon (ek paket yok), zamana göre eğit/sına, eşik yalnızca eğitimde seçilir, bootstrap güven aralığı, kalibrasyon ve Brier skoru, özellik etkileri; yapay veride gerçek işareti buldu, işaretsiz veride sahte avantaj üretmedi (yz_model.py)",
+   "eksik": "≥500 etiketli gerçek örnekle çalıştırma ve karar"
   },
   {
    "kod": "N19",
@@ -202,7 +202,7 @@
  "meta": [
   {
    "label": "Kaynak",
-   "value": "Claude'un proje değerlendirmesi, 16.11.2026 04:15. Yüzdeler tahmini; hiçbir aşama kabul kriterleri karşılanmadan tamamlandı sayılmaz. N16–N21: yapay zekâ seçim hattı (ana yol haritasından bağımsız)."
+   "value": "Claude'un proje değerlendirmesi, 16.11.2026 04:35. Yüzdeler tahmini; hiçbir aşama kabul kriterleri karşılanmadan tamamlandı sayılmaz. N16–N21: yapay zekâ seçim hattı (ana yol haritasından bağımsız)."
   }
  ]
 }
