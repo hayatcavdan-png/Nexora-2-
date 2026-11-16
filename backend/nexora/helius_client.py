@@ -23,6 +23,7 @@ class HeliusClient:
         "getTransaction",
         "getBlock",
         "getSignatureStatuses",
+        "simulateTransaction",   # N11: yalnızca simülasyon, zincire hiçbir şey göndermez (sendTransaction yok)
     }
 
     def __init__(self, rpc_url=None, timeout=None, max_retries=None):
