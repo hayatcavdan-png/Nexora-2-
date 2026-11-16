@@ -12,7 +12,7 @@ ARALIK = int(os.getenv("PIYASA_ARALIK", "60"))
 
 
 def portfoyler():
-    return {st.ad: Paper(f"nexora_strateji_{st.ad}.db", kayma=piyasa.KAYMA, ucret_orani=piyasa.UCRET) for st in piyasa.STRATEJILER}
+    return {st.ad: Paper(f"nexora_strateji_{st.ad}.db", kayma=piyasa.KAYMA, ucret_orani=piyasa.UCRET, ekosistem="borsa") for st in piyasa.STRATEJILER}
 
 
 def main(argv):

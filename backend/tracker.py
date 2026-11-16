@@ -48,6 +48,11 @@ def main():
     for w in [w for w in wallets if w in black]:
         print(f"  {short(w)}: kara listede (bilinen bot), izlenmeyecek", flush=True)
     wallets = [w for w in wallets if w not in black]
+    from nexora import ekosistem as _eko                 # N23: bu takip yalnızca Solana adreslerini izler
+    yanlis = [w for w in wallets if _eko.tespit(w) != "solana"]
+    for w in yanlis:
+        print(f"  {short(w)}: Solana adresi değil, izlenmeyecek (BNB/Base cüzdanları wallets_bnb.txt / wallets_base.txt'e, N24 ile)", flush=True)
+    wallets = [w for w in wallets if w not in yanlis]
     # Platform 2: borsa cüzdanları (wallets_borsa.txt) da izlenir; platform 1'de yalnızca izlenir, alımları kopyalanmaz
     borsa_cuz = [w for w in read_list("wallets_borsa.txt") if w not in black and w not in wallets]
     wallets += borsa_cuz
@@ -91,7 +96,7 @@ def main():
         from nexora.borsa_motor import BorsaMotoru
         bl = borsa_liste.yukle()
         if bl:
-            borsa = BorsaMotoru(Paper(os.getenv("BORSA_DB", "nexora_borsa.db"), kayma=0.0005, ucret_orani=0.001), bl).baslat()
+            borsa = BorsaMotoru(Paper(os.getenv("BORSA_DB", "nexora_borsa.db"), kayma=0.0005, ucret_orani=0.001, ekosistem="borsa"), bl).baslat()
             print(f"  Platform 2 (borsa): {len(bl)} listeli token, {len(borsa_cuz)} borsa cüzdanı (paper)", flush=True)
     tr = LiveTracker(client, paper, os.getenv("TRACKER_DB", "nexora_tracker.db"), wallets, decider=decider, etiketci=etiketci,
                      borsa=borsa)

@@ -78,7 +78,7 @@ STOP_ESIKLERI = (10, 20, 30, 50)
 KESINTI_ESIK_SN = 300          # nabızlar arası bundan uzun boşluk kesinti sayılır (güncelleme yeniden başlatması ~10 sn: sayılmaz)
 
 # Veritabanı şema sürümü. Bu koddan DAHA YENİ bir sürümle oluşturulmuş veritabanı açılmaz (eski kod veriyi bozmasın).
-SEMA_SURUMU = 8
+SEMA_SURUMU = 9
 
 
 def kararlilik_hesapla(bas, son, kesintiler, now):
@@ -100,8 +100,9 @@ class SemaHatasi(RuntimeError):
     pass
 
 class Paper:
-    def __init__(self, path=":memory:", kayma=None, ucret_orani=0.0):
+    def __init__(self, path=":memory:", kayma=None, ucret_orani=0.0, ekosistem="solana"):
         self.path = path
+        self.ekosistem = ekosistem          # N23: bu portföyün işlemleri hangi ekosisteme ait (eski kayıtlar 'solana')
         # Borsa (platform 2): gerçek alış/satış fiyatı kullanıldığı için kayma küçük, ücret yüzdelik (ör. %0.1 = 0.001)
         self.kayma = CFG["base_slippage"] if kayma is None else kayma
         self.ucret_orani = ucret_orani
@@ -125,6 +126,9 @@ class Paper:
             self.db.execute("ALTER TABLE pos_iz ADD COLUMN event_id TEXT")
         if "durum" not in izc:
             self.db.execute("ALTER TABLE pos_iz ADD COLUMN durum TEXT")
+        for tablo in ("trades", "positions"):                   # N23: ekosistem etiketi (şema 9)
+            if "ekosistem" not in {r[1] for r in self.db.execute(f"PRAGMA table_info({tablo})")}:
+                self.db.execute(f"ALTER TABLE {tablo} ADD COLUMN ekosistem TEXT DEFAULT 'solana'")
         self._set("sema_surumu", SEMA_SURUMU)
         if self._get("cash") is None:
             self._set("cash", CFG["start_cash"]); self._set("kill", "0")
@@ -262,8 +266,10 @@ class Paper:
             finally: fcntl.flock(f, fcntl.LOCK_UN)
 
     def _log(self, ev, wallet, token, side, qty, price, fee, pnl, decision, reason):
-        self.db.execute("INSERT INTO trades(ts,event_id,wallet,token,side,qty,price,fee,pnl,decision,reason) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
-                        (time.time(), ev, wallet, token, side, qty, price, fee, pnl, decision, reason))
+        self.db.execute("INSERT INTO trades(ts,event_id,wallet,token,side,qty,price,fee,pnl,decision,reason,ekosistem) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
+                        (time.time(), ev, wallet, token, side, qty, price, fee, pnl, decision, reason, self.ekosistem))
+        if side == "buy" and decision == "KOPYALANDI":
+            self.db.execute("UPDATE positions SET ekosistem=? WHERE token=?", (self.ekosistem, token))
         self.db.commit()
         return dict(decision=decision, reason=reason, qty=qty, price=price, fee=fee, pnl=pnl)
 

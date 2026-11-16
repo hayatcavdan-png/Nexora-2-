@@ -248,7 +248,7 @@ fun App() {
                         item(key = "bot_ayrinti") { Column(verticalArrangement = Arrangement.spacedBy(12.dp)) { BotEkrani(v, { durdurOnay = true }, { komut("/devam") }) } }
                         items(v.sinyaller, key = { "s_" + it.ts + it.token + it.yon }) { SinyalKarti(it) }
                     }
-                    "portfoy" -> portfoy(v, { ekran = "ana" }, portfoySekme, { portfoySekme = it }, { t -> manuelIslem(t, "sell", null); mesaj("Kapatma isteği gönderildi") }) {
+                    "portfoy" -> portfoy(v, { ekran = "ana" }, portfoySekme, { portfoySekme = it }, { t -> manuelIslem(t, "sell", null); mesaj("Kapatma isteği gönderildi") }, eko) {
                         IslemFormu(v, seciliToken, { seciliToken = it }, { t, y, u -> manuelIslem(t, y, u) }, islemSonuc, islemMesgul)
                     }
                     "profil" -> profil(v, { ekran = it }) {

@@ -55,6 +55,8 @@ class LiveTracker:
         if "kesinlik" not in cols:
             self.db.execute("ALTER TABLE tracker_signals ADD COLUMN kesinlik TEXT")
             self.db.execute("ALTER TABLE tracker_signals ADD COLUMN kesinlik_ts REAL")
+        if "ekosistem" not in {r[1] for r in self.db.execute("PRAGMA table_info(tracker_signals)")}:   # N23
+            self.db.execute("ALTER TABLE tracker_signals ADD COLUMN ekosistem TEXT DEFAULT 'solana'")
         for w in wallets:
             self.db.execute("INSERT OR IGNORE INTO tracker_wallets(wallet) VALUES(?)", (w.strip(),))
         self.db.commit()

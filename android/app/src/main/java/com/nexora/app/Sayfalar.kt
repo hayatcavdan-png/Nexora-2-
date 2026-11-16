@@ -445,7 +445,10 @@ fun LazyListScope.autoPilot(v: Veri, geri: () -> Unit, ayarla: (JSONObject) -> U
 
 // ------------------------------------------------------------------ Portföy
 
-fun LazyListScope.portfoy(v: Veri, geri: () -> Unit, sekme: Int, sekmeSec: (Int) -> Unit, kapat: (String) -> Unit = {}, islemFormu: @Composable () -> Unit) {
+fun LazyListScope.portfoy(v: Veri, geri: () -> Unit, sekme: Int, sekmeSec: (Int) -> Unit, kapat: (String) -> Unit = {}, eko: String = "tumu",
+                          islemFormu: @Composable () -> Unit) {
+    val poz = if (eko == "tumu") v.pozisyonlar else v.pozisyonlar.filter { it.eko == eko }
+    val isl = if (eko == "tumu") v.islemler else v.islemler.filter { it.eko == eko }
     item(key = "pf_bas") { SayfaBasligi("Portföy", "Sanal portföyünü yönet", ikon = { NexoYuz(44.dp, NexoIfade.YILDIZ) }, geri = geri) }
     item(key = "pf_deger") {
         val simdi = System.currentTimeMillis() / 1000.0
@@ -484,17 +487,17 @@ fun LazyListScope.portfoy(v: Veri, geri: () -> Unit, sekme: Int, sekmeSec: (Int)
     }
     item(key = "pf_sekme") {
         Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(50)).background(Nx.Yuzey2).padding(4.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            listOf("İşlem (Paper)", "Pozisyonlar (${v.pozisyonlar.size})", "Geçmiş").forEachIndexed { i, ad -> Hap(ad, sekme == i, Modifier.weight(1f)) { sekmeSec(i) } }
+            listOf("İşlem (Paper)", "Pozisyonlar (${poz.size})", "Geçmiş").forEachIndexed { i, ad -> Hap(ad, sekme == i, Modifier.weight(1f)) { sekmeSec(i) } }
         }
     }
     when (sekme) {
         0 -> item(key = "pf_form") { islemFormu() }
         1 -> {
-            if (v.pozisyonlar.isEmpty()) item(key = "pf_bos") { Text("Açık pozisyon yok.", color = Nx.Soluk) }
-            items(v.pozisyonlar, key = { "p_" + it.token }) { p -> PozisyonKarti(p) { kapat(p.token) } }
+            if (poz.isEmpty()) item(key = "pf_bos") { Text("Açık pozisyon yok.", color = Nx.Soluk) }
+            items(poz, key = { "p_" + it.token }) { p -> PozisyonKarti(p) { kapat(p.token) } }
             item(key = "pf_perf") { PerformansOzeti(v) }
         }
-        else -> items(v.islemler, key = { "i_" + it.ts + it.token + it.yon }) { IslemSatiri(it) }
+        else -> items(isl, key = { "i_" + it.ts + it.token + it.yon }) { IslemSatiri(it) }
     }
 }
 

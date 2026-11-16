@@ -211,10 +211,10 @@
    "kod": "N23",
    "ad": "Ekosistem çekirdeği",
    "grup": "Faz 2 · Çoklu platform",
-   "durum": "baslamadi",
-   "yuzde": 0,
-   "yapilan": "",
-   "eksik": "Tüm kayıtlara (sinyal, işlem, cüzdan, token) ekosistem ve kaynak alanı; Solana mevcut haliyle ilk bağdaştırıcı. Kabul: tüm testler geçer, Solana sonuçları değişmez. Önkoşul: yok."
+   "durum": "ileri",
+   "yuzde": 85,
+   "yapilan": "Ekosistem kaydı (Solana, BNB Chain, Base, TON, Borsalar; zincir kimliği, cüzdan dosyası, aşama); adres biçiminden teknoloji tespiti (Solana/EVM/TON); her ekosistemin cüzdanları ayrı dosyada (wallets.txt geriye uyumlu; wallets_bnb.txt, wallets_base.txt, wallets_ton.txt); paper işlem ve pozisyonlarında ekosistem etiketi (şema 9, eski kayıtlar 'solana'), takip sinyallerinde ekosistem sütunu; Platform 2 portföyleri 'borsa'; Solana takibi Solana olmayan adresi atlar; /ekosistemler özeti; uygulamada ekosistem özeti sunucudan, seçici portföyü süzer. Solana sonuçları değişmedi, tüm testler geçti.",
+   "eksik": "Keşfet ve sinyal ekranlarının da ekosisteme göre süzülmesi; etiket (yapay zekâ) verisine ekosistem özelliği; analiz ve keşif araçlarının ekosistem parametresi (N24 ile birlikte)"
   },
   {
    "kod": "N24",

@@ -29,9 +29,9 @@ fun JSONObject.str(k: String): String = if (isNull(k)) "" else optString(k, "")
 fun JSONObject.dbl(k: String): Double? = if (!has(k) || isNull(k)) null else optDouble(k).takeIf { !it.isNaN() }
 
 data class Pozisyon(val token: String, val cuzdan: String, val maliyet: Double, val deger: Double, val durum: String = "ACIK",
-                    val acilis: Double? = null, val minPct: Double? = null, val maxPct: Double? = null)
+                    val acilis: Double? = null, val minPct: Double? = null, val maxPct: Double? = null, val eko: String = "solana")
 data class Islem(val ts: Double, val yon: String, val token: String, val cuzdan: String, val karar: String,
-                 val neden: String, val kz: Double)
+                 val neden: String, val kz: Double, val eko: String = "solana")
 data class Sinyal(val ts: Double, val yon: String, val token: String, val cuzdan: String,
                   val gecikme: Double, val kaynak: String, val karar: String, val neden: String)
 data class TakipCuzdan(val adres: String, val durum: String, val hata: String)
@@ -87,6 +87,7 @@ class Veri {
     var hazirlik by mutableStateOf<JSONObject?>(null)
     var borsa by mutableStateOf<JSONObject?>(null)
     var strateji by mutableStateOf<JSONObject?>(null)
+    var ekosistemler by mutableStateOf<org.json.JSONArray?>(null)
     var radarOzet by mutableStateOf("")
     var eksikUclar by mutableStateOf(listOf<String>())
 
@@ -109,12 +110,14 @@ class Veri {
         pozisyonlar = (0 until pos.length()).map {
             val x = pos.getJSONObject(it)
             Pozisyon(x.str("token"), x.str("wallet"), x.optDouble("cost", 0.0), x.optDouble("qty", 0.0) * x.optDouble("last_price", 0.0),
-                     x.str("durum").ifEmpty { "ACIK" }, x.dbl("opened_ts"), x.dbl("min_pct"), x.dbl("max_pct"))
+                     x.str("durum").ifEmpty { "ACIK" }, x.dbl("opened_ts"), x.dbl("min_pct"), x.dbl("max_pct"),
+                     x.str("ekosistem").ifEmpty { "solana" })
         }
         val t = JSONArray(api(url, key, "/islemler"))
         islemler = (0 until t.length()).map {
             val x = t.getJSONObject(it)
-            Islem(x.optDouble("ts", 0.0), x.str("side"), x.str("token"), x.str("wallet"), x.str("decision"), x.str("reason"), x.optDouble("pnl", 0.0))
+            Islem(x.optDouble("ts", 0.0), x.str("side"), x.str("token"), x.str("wallet"), x.str("decision"), x.str("reason"), x.optDouble("pnl", 0.0),
+                  x.str("ekosistem").ifEmpty { "solana" })
         }
 
         try {
@@ -174,6 +177,7 @@ class Veri {
         try { hazirlik = JSONObject(api(url, key, "/hazirlik")) } catch (e: Exception) { eksik += "hazırlık" }
         try { borsa = JSONObject(api(url, key, "/borsa")) } catch (e: Exception) { eksik += "borsa" }
         try { strateji = JSONObject(api(url, key, "/strateji")) } catch (e: Exception) { eksik += "strateji" }
+        try { ekosistemler = JSONObject(api(url, key, "/ekosistemler")).optJSONArray("ekosistemler") } catch (e: Exception) { eksik += "ekosistem" }
         try {
             val r = JSONObject(api(url, key, "/radar", zamanAsimi = 15000))
             radarOzet = r.str("ozet")

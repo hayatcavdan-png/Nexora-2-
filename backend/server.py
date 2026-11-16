@@ -146,6 +146,11 @@ class H(BaseHTTPRequestHandler):
             bp = Paper(yol); p = bp.portfolio()
             self._send(200, dict(acik=True, liste=len(borsa_liste.yukle()), nakit=p["cash"], toplam=p["equity"], kz=p["pnl"],
                                  pozisyonlar=p["positions"], islemler=bp.trades(30))); return
+        if parts.path == "/ekosistemler":                  # N23: ekosistem başına özet
+            from nexora import ekosistem, piyasa
+            dbs = [os.getenv("NEXORA_DB", "nexora_paper.db"), os.getenv("BORSA_DB", "nexora_borsa.db")] + \
+                  [f"nexora_strateji_{st.ad}.db" for st in piyasa.STRATEJILER]
+            self._send(200, dict(ekosistemler=ekosistem.ozet(dbs))); return
         if parts.path == "/strateji":                       # Platform 2 · piyasa stratejileri karnesi
             from nexora import piyasa
             out = []

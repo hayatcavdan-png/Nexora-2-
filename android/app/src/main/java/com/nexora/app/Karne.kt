@@ -51,7 +51,7 @@ fun EkosistemSecici(secili: String, sec: (String) -> Unit, bilgi: (String) -> Un
     }
 }
 
-/** Ana sayfa: ekosistemlerin tek bakışta durumu. Dokununca Karne açılır. */
+/** Ana sayfa: ekosistemlerin tek bakışta durumu (sunucudaki /ekosistemler'den; yoksa yerel tahmin). Dokununca Karne açılır. */
 @Composable
 fun EkosistemOzeti(v: Veri, karneyeGit: () -> Unit) {
     NeonKart(Modifier.fillMaxWidth().clickable(onClick = karneyeGit)) {
@@ -59,13 +59,20 @@ fun EkosistemOzeti(v: Veri, karneyeGit: () -> Unit) {
             Text("EKOSİSTEMLER", color = Nx.Soluk, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
             Text("Karne ›", color = Nx.Nane, fontSize = 12.sp)
         }
-        EkoSatir("Solana · öncü cüzdanlar", "aktif", Nx.Nane, "${isaretli(v.kz)} USDC · ${v.pozisyonlar.size} pozisyon")
-        val st = v.strateji?.optJSONArray("stratejiler")
-        val stKz = st?.let { a -> (0 until a.length()).sumOf { a.getJSONObject(it).optDouble("kz", 0.0) } }
-        EkoSatir("Borsalar · tüm coinler", if (st != null) "aktif" else "bekliyor", if (st != null) Nx.Nane else Nx.Soluk,
-                 if (stKz != null) "${isaretli(stKz)} USDC · ${st.length()} strateji" else "sunucu güncellemesi bekleniyor")
-        EkoSatir("BNB Chain · Base", "yakında", Nx.Kehribar, "N24–N25 · paper test sonrası")
-        EkoSatir("TON", "planlı", Nx.Soluk, "N27 · isteğe bağlı")
+        val e = v.ekosistemler
+        if (e == null) {
+            EkoSatir("Solana · öncü cüzdanlar", "aktif", Nx.Nane, "${isaretli(v.kz)} USDC · ${v.pozisyonlar.size} pozisyon")
+            EkoSatir("BNB Chain · Base · TON", "yakında", Nx.Kehribar, "sunucu güncellemesi bekleniyor")
+            return@NeonKart
+        }
+        for (i in 0 until e.length()) {
+            val x = e.getJSONObject(i)
+            val aktif = x.optBoolean("aktif")
+            val alt = if (aktif) "${isaretli(x.optDouble("kz", 0.0))} USDC gerçekleşen · ${x.optInt("kapanan")} kapanan · ${x.optInt("acik")} açık" +
+                                 (if (x.optInt("cuzdan") > 0) " · ${x.optInt("cuzdan")} cüzdan" else "")
+                      else "yol haritasında ${x.optString("asama")} · paper testten sonra"
+            EkoSatir(x.optString("ad"), if (aktif) "aktif" else "yakında", if (aktif) Nx.Nane else Nx.Kehribar, alt)
+        }
     }
 }
 
