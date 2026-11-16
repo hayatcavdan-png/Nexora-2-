@@ -237,7 +237,7 @@ fun App() {
                         when (kesfetSekme) {
                             0 -> tokenRadar(v, radarArama, { radarArama = it }, radarSira, { radarSira = it }, favoriler,
                                     { t -> favoriler = if (t in favoriler) favoriler - t else favoriler + t; sp.edit().putStringSet("favori", favoriler).apply() },
-                                    { t -> seciliToken = t.token; portfoySekme = 0; ekran = "portfoy" })
+                                    { t -> seciliToken = t.token; portfoySekme = 0; ekran = "portfoy" }, eko)
                             1 -> walletDna(v, dnaAdres, { dnaAdres = it; dnaSonuc = null }, dnaYukleniyor, dnaSonuc, dnaHata) { dnaAnaliz() }
                             else -> takipListesi(v)
                         }
@@ -246,7 +246,8 @@ fun App() {
                     "bot" -> {
                         autoPilot(v, { ekran = "profil" }, { riskKaydet(it) }, { komut("/devam") }, { durdurOnay = true }, { modelKapat() })
                         item(key = "bot_ayrinti") { Column(verticalArrangement = Arrangement.spacedBy(12.dp)) { BotEkrani(v, { durdurOnay = true }, { komut("/devam") }) } }
-                        items(v.sinyaller, key = { "s_" + it.ts + it.token + it.yon }) { SinyalKarti(it) }
+                        if (ekosistemKapsamDisi(eko)) item(key = "sinyal_eko") { BilgiKutusu("Sinyal akışı şimdilik yalnızca Solana öncü cüzdanlarındandır. Bu ekosistemin sinyalleri ayrı izlenir; sonuçları Karne sekmesinde.") }
+                        else items(v.sinyaller, key = { "s_" + it.ts + it.token + it.yon }) { SinyalKarti(it) }
                     }
                     "portfoy" -> portfoy(v, { ekran = "ana" }, portfoySekme, { portfoySekme = it }, { t -> manuelIslem(t, "sell", null); mesaj("Kapatma isteği gönderildi") }, eko) {
                         IslemFormu(v, seciliToken, { seciliToken = it }, { t, y, u -> manuelIslem(t, y, u) }, islemSonuc, islemMesgul)

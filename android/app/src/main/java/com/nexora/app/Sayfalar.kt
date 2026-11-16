@@ -195,8 +195,15 @@ fun Kisayol2(baslik: String, alt: String, ikon: @Composable () -> Unit, modifier
 
 // ------------------------------------------------------------------ Keşfet: Token Radar
 
+/** Solana dışı ekosistemlerde radar ve sinyal verisi yok: karışık göstermek yerine açıklama. */
+fun ekosistemKapsamDisi(eko: String): Boolean = eko != "tumu" && eko != "solana"
+
 fun LazyListScope.tokenRadar(v: Veri, arama: String, aramaDegis: (String) -> Unit, sirala: Int, siralaSec: (Int) -> Unit,
-                             favoriler: Set<String>, favoriDegis: (String) -> Unit, tokenSec: (RadarToken) -> Unit) {
+                             favoriler: Set<String>, favoriDegis: (String) -> Unit, tokenSec: (RadarToken) -> Unit, eko: String = "tumu") {
+    if (ekosistemKapsamDisi(eko)) {
+        item(key = "radar_eko") { BilgiKutusu("Token radarı şimdilik yalnızca Solana öncü cüzdanlarından beslenir. Bu ekosistemin sonuçları için Karne sekmesine bakın.") }
+        return
+    }
     item(key = "radar_bas") {
         SayfaBasligi("Token Radar", "Takip edilen cüzdanların aldığı token'lar", ikon = { NexoYuz(48.dp, NexoIfade.MERAK) })
     }
