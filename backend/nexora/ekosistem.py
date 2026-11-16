@@ -9,7 +9,7 @@ EKOSISTEMLER = [
     dict(id="solana", ad="Solana", tur="solana", zincir_id=None, cuzdan_dosyasi="wallets.txt", aktif=True, asama="N0–N22"),
     dict(id="bnb", ad="BNB Chain", tur="evm", zincir_id=56, cuzdan_dosyasi="wallets_bnb.txt", aktif=True, asama="N24 (paper)"),
     dict(id="base", ad="Base", tur="evm", zincir_id=8453, cuzdan_dosyasi="wallets_base.txt", aktif=True, asama="N25 (paper)"),
-    dict(id="ton", ad="TON", tur="ton", zincir_id=None, cuzdan_dosyasi="wallets_ton.txt", aktif=False, asama="N27"),
+    dict(id="ton", ad="TON", tur="ton", zincir_id=None, cuzdan_dosyasi="wallets_ton.txt", aktif=False, asama="rafta (kapsam donduruldu)"),
     dict(id="borsa", ad="Borsalar (Binance, OKX, KuCoin, MEXC)", tur="borsa", zincir_id=None, cuzdan_dosyasi=None, aktif=True, asama="N22"),
 ]
 KIMLIKLER = {e["id"] for e in EKOSISTEMLER}

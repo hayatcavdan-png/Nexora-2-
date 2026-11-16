@@ -163,7 +163,7 @@ class H(BaseHTTPRequestHandler):
             from nexora import ekosistem, piyasa
             dbs = [os.getenv("NEXORA_DB", "nexora_paper.db"), os.getenv("BORSA_DB", "nexora_borsa.db")] + \
                   [f"nexora_strateji_{st.ad}.db" for st in piyasa.STRATEJILER] + ["nexora_bnb.db", "nexora_base.db"]
-            self._send(200, dict(ekosistemler=ekosistem.ozet(dbs))); return
+            self._send(200, dict(ekosistemler=[e for e in ekosistem.ozet(dbs) if e["aktif"]])); return   # TON rafta
         if parts.path == "/strateji":                       # Platform 2 · piyasa stratejileri karnesi
             from nexora import piyasa
             out = []
@@ -174,6 +174,9 @@ class H(BaseHTTPRequestHandler):
             try: durum = json.load(open("piyasa_durum.json"))
             except (OSError, ValueError): durum = None
             self._send(200, dict(stratejiler=out, durum=durum)); return
+        if parts.path == "/kanit":                         # kanıt karnesi: hangi kaynak gerçekten kazandırıyor
+            from nexora.kanit import karne as _kanit
+            self._send(200, _kanit(yon_db=os.getenv("YONLENDIRICI_DB", "nexora_yonlendirici.db"))); return
         if parts.path == "/yonlendirici":                  # N28: kaynak ağırlıklı yönlendirici (paper)
             from nexora.yonlendirici import Yonlendirici, kaynaklar
             self._send(200, Yonlendirici(os.getenv("YONLENDIRICI_DB", "nexora_yonlendirici.db")).durum(kaynaklar())); return

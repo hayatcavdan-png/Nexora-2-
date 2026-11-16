@@ -238,19 +238,19 @@
    "kod": "N26",
    "ad": "DeFi etiketi ve filtresi",
    "grup": "Faz 2 · Çoklu platform",
-   "durum": "baslamadi",
+   "durum": "rafta",
    "yuzde": 0,
    "yapilan": "",
-   "eksik": "Tüm ekosistemlerde DeFi token'larını işaretleyen etiket; uygulamada filtre. Kabul: etiket listesi elle kontrol edilmiş örneklerle uyumlu. Önkoşul: N23."
+   "eksik": "Rafa kaldırıldı (16.11.2026): kapsam donduruldu; önce mevcut kaynakların kanıtı. Ölçüm sonrası yeniden değerlendirilecek."
   },
   {
    "kod": "N27",
    "ad": "TON ekosistemi (isteğe bağlı)",
    "grup": "Faz 2 · Çoklu platform",
-   "durum": "baslamadi",
+   "durum": "rafta",
    "yuzde": 0,
    "yapilan": "",
-   "eksik": "Ayrı veri sağlayıcı, TON swap çözücü, STON.fi/DeDust teklifi; güvenlik kontrolü belirsiz. Yalnızca N24–N25 paper'da başarılıysa başlanır. Önkoşul: N24, N25."
+   "eksik": "Rafa kaldırıldı (16.11.2026): kapsam donduruldu; önce mevcut kaynakların kanıtı. Ölçüm sonrası yeniden değerlendirilecek."
   },
   {
    "kod": "N28",
@@ -311,9 +311,9 @@
    "ad": "Karne ve şeffaflık",
    "grup": "Faz 2 · Çoklu platform",
    "durum": "devam",
-   "yuzde": 45,
-   "yapilan": "Hazırlık Karnesi, strateji karnesi ve BTC kıyası, cüzdan kalite puanı. Karne sekmesi: tüm kaynakların sonucu tek yerde ve risk bildirimi.",
-   "eksik": "Ekosistem ve sinyal kaynağı karnesi tek sekmede; zararlar dahil gerçek paper sonuçları; kullanıcıya gösterilecek risk bildirimi. Önkoşul: N33."
+   "yuzde": 65,
+   "yapilan": "Hazırlık Karnesi, strateji karnesi ve BTC kıyası, cüzdan kalite puanı. Karne sekmesi: tüm kaynakların sonucu tek yerde ve risk bildirimi. Kanıt karnesi: her kaynak için işlem başına getiri, kazanma oranı, kâr faktörü, ortalama getirinin %95 güven alt sınırı, portföy getirisi ve en büyük düşüş; kanıt düzeyi (yetersiz veri / zararda / umut verici / güçlü). Karne sekmesinin en üstünde (uygulama 5.14.0); her pazartesi otomatik rapor (kanit_raporlari/).",
+   "eksik": "Kullanıcıya gösterilecek risk bildirimi metni (N36 hukuk görüşüyle); 3 haftalık veriyle ilk gerçek değerlendirme."
   },
   {
    "kod": "N35",

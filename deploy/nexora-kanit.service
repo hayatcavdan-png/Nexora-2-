@@ -1,0 +1,10 @@
+[Unit]
+Description=NEXORA haftalik kanit karnesi (salt okunur)
+
+[Service]
+Type=oneshot
+User=nexora
+WorkingDirectory=/opt/nexora/backend
+EnvironmentFile=/etc/nexora.env
+ExecStart=/usr/bin/python3 -u kanit_raporu.py
+TimeoutStartSec=300

@@ -26,8 +26,6 @@ val EKOSISTEMLER = listOf(
     Ekosistem("solana", "Solana", true, ""),
     Ekosistem("bnb", "BNB", true, ""),
     Ekosistem("base", "Base", true, ""),
-    Ekosistem("ton", "TON", false, "N27"),
-    Ekosistem("defi", "DeFi", false, "N26"),
 )
 
 /** Ana sayfanın üstünde tek sıra: açık olmayan ekosistemler soluk ve "yakında"; dokununca aşaması söylenir. */
@@ -118,6 +116,7 @@ fun LazyListScope.karne(v: Veri, git: (String) -> Unit) {
             }
         }
     }
+    item(key = "kr_kanit") { KanitKarti(v) }
     item(key = "kr_yon") { YonlendiriciKarti(v) }
     item(key = "kr_strateji") { StratejiKarti(v) }
     item(key = "kr_borsa") { BorsaKarti(v) }

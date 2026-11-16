@@ -180,3 +180,39 @@ fun YonlendiriciKarti(v: Veri) {
              color = Nx.Soluk, fontSize = 11.sp, lineHeight = 14.sp)
     }
 }
+
+
+/** Kanıt karnesi: hangi kaynak GERÇEKTEN kazandırıyor (güven alt sınırıyla; şans eseri kısa seriler ayıklanır). */
+@Composable
+fun KanitKarti(v: Veri) {
+    val j = v.kanit ?: return
+    NeonKart(Modifier.fillMaxWidth(), kenar = Nx.KenarParlak) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("KANIT KARNESİ", color = Nx.Soluk, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+            Etiket("paper", Nx.Gok)
+        }
+        Text(j.optString("ozet"), color = Nx.Metin, fontSize = 13.sp, lineHeight = 17.sp)
+        val a = j.optJSONArray("kaynaklar") ?: return@NeonKart
+        for (i in 0 until a.length()) {
+            val x = a.getJSONObject(i)
+            val d = x.optString("duzey")
+            val renk = when (d) { "güçlü" -> Nx.Nane; "umut verici" -> Nx.Gok; "zararda" -> Nx.Kirmizi; else -> Nx.Soluk }
+            val ist = x.optJSONObject("islem")
+            val n = ist?.optInt("n") ?: 0
+            val g = if (x.isNull("portfoy_getiri_pct")) null else x.optDouble("portfoy_getiri_pct")
+            Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(x.optString("ad"), color = Nx.Metin, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                    Text(buildString {
+                        append("${x.optDouble("gun")} gün")
+                        if (n > 0) append(" · $n kapanan · kazanma ${yuzde(ist!!.optDouble("kazanma_pct"), 0)} · ort. ${yuzde(ist.optDouble("ort"), 2)}")
+                        if (g != null) append(" · portföy " + (if (g >= 0) "+" else "") + yuzde(g, 2))
+                    }, color = Nx.Soluk, fontSize = 11.sp)
+                }
+                Etiket(d, renk)
+            }
+        }
+        Text("Güçlü = en az 30 kapanan işlem, 14 gün, ortalama getirinin %95 güven alt sınırı sıfırın üstünde ve kâr faktörü ≥ 1,3. " + j.optString("not_"),
+             color = Nx.Soluk, fontSize = 11.sp, lineHeight = 14.sp)
+    }
+}
