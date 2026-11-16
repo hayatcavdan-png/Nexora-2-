@@ -43,7 +43,9 @@ class Test(unittest.TestCase):
                     sat("0x6", 990, "0x" + "a3" * 20, 3, 5)])                               # alışı pencerede yok
         isl["0x7"] = (500, [tr(USDT, W, R, 10**18, 500, "0x7")])                           # yalnızca USDT transferi: swap değil
         rpc = Rpc(isl)
-        sw = A.swaplar(rpc, W, "bnb", 0, 1000)
+        sy = {}
+        sw = A.swaplar(rpc, W, "bnb", 0, 1000, sayac=sy)
+        self.assertEqual(sy, dict(islem=6, cozulemeyen=0))                                  # yalnızca USDT hareketi işlem sayılmaz
         self.assertEqual([(s["yon"], s["blok"]) for s in sw], [("buy", 100), ("sell", 200), ("buy", 300), ("sell", 900), ("sell", 950), ("sell", 990)])
         m = A.analiz(sw, rpc, "bnb", 600.0, W)
         self.assertEqual((m["kapanan"], m["satis"], m["eslesmeyen_satis"]), (3, 4, 1))

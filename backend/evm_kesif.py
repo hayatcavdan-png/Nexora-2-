@@ -50,12 +50,15 @@ def main(argv, rpc=None, s=None):
     sonuc = []
     for i, w in enumerate(secilen, 1):
         try:
-            m = A.analiz(A.swaplar(rpc, w, z, son - blok, son), rpc, z, yerel, w)
+            sy = {}
+            m = A.analiz(A.swaplar(rpc, w, z, son - blok, son, sayac=sy), rpc, z, yerel, w)
+            m.update(islem=sy.get("islem", 0), cozulemeyen=sy.get("cozulemeyen", 0))
         except Exception as ex:
             m = dict(wallet=w, karar="hata", gerekce=f"{type(ex).__name__}: {str(ex)[:60]}", kapanan=0, gerceklesen_usd=0.0)
         sonuc.append(m)
         print(f"  {i:>2}/{len(secilen)} {w[:6]}…{w[-4:]}  {m['karar']:<15} K/Z {m.get('gerceklesen_usd', 0):+.0f}$  "
-              f"{m.get('kapanan', 0)} kapanan  kazanma %{100 * (m.get('kazanma_orani') or 0):.0f}  kalite {m.get('kalite_puani', '—')}", flush=True)
+              f"{m.get('kapanan', 0)} kapanan  kazanma %{100 * (m.get('kazanma_orani') or 0):.0f}  kalite {m.get('kalite_puani', '—')}"
+              f"  [işlem {m.get('islem', 0)}, swap {m.get('swap', 0)} (alım {m.get('alis', 0)}, satım {m.get('satis', 0)}), çözülemeyen {m.get('cozulemeyen', 0)}]", flush=True)
     iyi = sorted((m for m in sonuc if m["karar"] == "kopyalanabilir"), key=lambda m: -m.get("skor", 0))
     with open(f"wallets_{z}_onerilen.txt", "w") as f:
         f.write("# Kârlılık analizinden geçen cüzdanlar (en iyisi önce)\n"); f.writelines(m["wallet"] + "\n" for m in iyi)

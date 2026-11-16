@@ -46,7 +46,7 @@ class Test(unittest.TestCase):
         oz = {x["id"]: x for x in E.ozet([a, b, os.path.join(d, "yok.db")])}
         self.assertEqual((oz["solana"]["kopya"], oz["solana"]["acik"]), (1, 1))
         self.assertEqual((oz["borsa"]["kopya"], oz["borsa"]["kapanan"], oz["borsa"]["acik"]), (1, 1, 0)); self.assertGreater(oz["borsa"]["kz"], 0)
-        self.assertEqual((oz["bnb"]["aktif"], oz["bnb"]["kopya"]), (False, 0))
+        self.assertEqual((oz["bnb"]["aktif"], oz["bnb"]["kopya"], oz["base"]["aktif"]), (True, 0, False))
 
     def test_takip_tablosu(self):
         tr = LiveTracker(None, Paper(), ":memory:", [SOL])

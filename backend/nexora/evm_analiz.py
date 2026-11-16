@@ -13,21 +13,24 @@ from nexora.wallet_analysis import saglamlik, verdict, score
 BLOK_SURESI = {"bnb": 0.75, "base": 2.0}            # yaklaşık saniye/blok (tutma süresi tahmini için)
 
 
-def swaplar(rpc, cuzdan, zincir, bas, son, en_fazla_islem=150):
-    """Cüzdanın [bas, son] bloklarındaki swap'ları, blok sırasıyla: [dict(blok, yon, token, miktar_raw, karsi, karsi_raw)]."""
+def swaplar(rpc, cuzdan, zincir, bas, son, en_fazla_islem=150, sayac=None):
+    """Cüzdanın [bas, son] bloklarındaki swap'ları, blok sırasıyla: [dict(blok, yon, token, miktar_raw, karsi, karsi_raw)].
+    `sayac` verilirse: islem (token hareketli işlem), cozulemeyen (swap olarak çözülemeyen) sayıları yazılır."""
     w = cuzdan.lower(); karsi = ZINCIRLER[zincir]["karsi"]
     islemler = {}
     for konular in ([TRANSFER, None, _konu(w)], [TRANSFER, _konu(w)]):
         for l in _loglar(rpc, {"topics": konular}, bas, son):
             if (l.get("address") or "").lower() in karsi: continue      # yalnızca karşı varlık hareketi: swap adayı değil
             islemler.setdefault(l["transactionHash"], int(l["blockNumber"], 16))
-    out = []
-    for karma, blok in sorted(islemler.items(), key=lambda x: x[1])[-en_fazla_islem:]:
+    out = []; secili = sorted(islemler.items(), key=lambda x: x[1])[-en_fazla_islem:]
+    if sayac is not None: sayac.update(islem=len(islemler), cozulemeyen=0)
+    for karma, blok in secili:
         try:
             s = coz_tam(rpc, rpc.call("eth_getTransactionByHash", [karma]) or {}, rpc.call("eth_getTransactionReceipt", [karma]) or {}, w, zincir, blok)
         except EvmHatasi:
             continue
         if s: out.append(dict(s, blok=blok))
+        elif sayac is not None: sayac["cozulemeyen"] += 1
     return out
 
 
