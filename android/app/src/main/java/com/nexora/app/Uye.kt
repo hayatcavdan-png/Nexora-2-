@@ -187,6 +187,10 @@ fun UyeEkrani(url: String, key: String, sp: SharedPreferences) {
                     borsalar = JSONObject(it).optJSONArray("borsalar"); gercek = null; mesaj = "Bağlandı: para çekme izni kapalı doğrulandı."; bitti() } },
                 sil = { b -> cagri("/uye/borsa", true, JSONObject().put("borsa", b).put("sil", true)) { borsalar = JSONObject(it).optJSONArray("borsalar"); gercek = null } },
                 oku = { cagri("/uye/borsa?bakiye=1") { gercek = JSONObject(it) } })
+            GuvenlikKarti(mesgul,
+                parolaDegistir = { eski, yeni -> cagri("/uye/parola", true, JSONObject().put("eski", eski).put("yeni", yeni)) {
+                    oturum = JSONObject(it).optString("oturum"); Kasa.yaz(sp, "oturum", oturum); mesaj = "Parola değişti. Diğer tüm cihazlarda oturum kapandı." } },
+                tumOturumlar = { cagri("/uye/oturumlari-kapat", true) { oturum = ""; sp.edit().remove("oturum").apply(); profil = null; bakiye = null; mesaj = "Tüm oturumlar kapatıldı. Tekrar giriş yapın." } })
             BilgiKutusu("Sistem sunucuları (Helius, Jupiter) sizin adınıza ayrı anahtar gerektirmez. Borsa anahtarınızla şu an yalnızca bakiye okunur; uygulama emir göndermez ve para çekemez.")
         }
     }
@@ -213,6 +217,32 @@ private fun BaglantiKarti(b: JSONObject, mesgul: Boolean, kaydet: (String) -> Un
                 Button({ kaydet(adres) }, Modifier.fillMaxWidth(), enabled = !mesgul && adres.length >= 32, colors = NxButonRenk()) { Text("Adresi kaydet") }
             }
         }
+    }
+}
+
+/** N35: parola değiştirme ve tüm oturumları kapatma. Parola değişince diğer cihazların oturumu kapanır. */
+@Composable
+private fun GuvenlikKarti(mesgul: Boolean, parolaDegistir: (String, String) -> Unit, tumOturumlar: () -> Unit) {
+    var acik by remember { mutableStateOf(false) }
+    var eski by remember { mutableStateOf("") }
+    var yeni by remember { mutableStateOf("") }
+    Text("Güvenlik", color = Nx.Metin, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+    NeonKart(Modifier.fillMaxWidth()) {
+        if (!acik) {
+            Button({ acik = true }, Modifier.fillMaxWidth(), enabled = !mesgul, colors = NxGriButon()) { Text("Parolamı değiştir") }
+        } else {
+            OutlinedTextField(eski, { eski = it }, label = { Text("Mevcut parola") }, singleLine = true,
+                visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(yeni, { yeni = it }, label = { Text("Yeni parola (en az 8 karakter)") }, singleLine = true,
+                visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth())
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button({ acik = false; eski = ""; yeni = "" }, Modifier.weight(1f), colors = NxGriButon()) { Text("Vazgeç") }
+                Button({ parolaDegistir(eski, yeni); eski = ""; yeni = ""; acik = false }, Modifier.weight(1f),
+                    enabled = !mesgul && eski.isNotEmpty() && yeni.length >= 8, colors = NxButonRenk()) { Text("Değiştir") }
+            }
+        }
+        TextButton(tumOturumlar, enabled = !mesgul) { Text("Tüm cihazlardaki oturumları kapat", color = Nx.Kirmizi) }
+        Text("Kayıp bir cihazınız varsa oturumları kapatın. Borsa anahtarlarınız silinmez.", color = Nx.Soluk, fontSize = 11.sp)
     }
 }
 

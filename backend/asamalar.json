@@ -320,9 +320,9 @@
    "ad": "Güvenlik sertleştirme",
    "grup": "Faz 2 · Çoklu platform",
    "durum": "devam",
-   "yuzde": 60,
-   "yapilan": "Anahtarlar loglarda maskeleniyor; karar izi değiştirilemez; pilot anahtarı sunucudan çıkmıyor. 5.9: telefonda sunucu ve oturum anahtarları Android Keystore (AES-256-GCM) ile şifreli; eski düz metin ilk açılışta otomatik şifrelenir. Sunucu kasası (nexora/kasa.py): standart kütüphaneyle önce-şifrele-sonra-doğrula, kayıt bağlamına bağlı etiket, anahtar dosyası 600 izinli ve yedek dışı; kullanıcı borsa anahtarları (N29) için hazır. anahtar_dondur.sh: NEXORA API anahtarını tek komutla yeniler.",
-   "eksik": "Bağımsız bir güvenlik denetimi (dış göz); kasa ana anahtarının ayrı ve güvenli yedeği; oturum ve hesap güvenliğinin gözden geçirilmesi (parola değiştirme, oturumları kapatma)"
+   "yuzde": 75,
+   "yapilan": "Anahtarlar loglarda maskeleniyor; karar izi değiştirilemez; pilot anahtarı sunucudan çıkmıyor. 5.9: telefonda sunucu ve oturum anahtarları Android Keystore (AES-256-GCM) ile şifreli; eski düz metin ilk açılışta otomatik şifrelenir. Sunucu kasası (nexora/kasa.py): standart kütüphaneyle önce-şifrele-sonra-doğrula, kayıt bağlamına bağlı etiket, anahtar dosyası 600 izinli ve yedek dışı; kullanıcı borsa anahtarları (N29) için hazır. anahtar_dondur.sh: NEXORA API anahtarını tek komutla yeniler. Parola değiştirme (eski parola doğrulanır, tüm oturumlar kapanır, bu cihaza yeni oturum verilir) ve tüm oturumları kapatma (borsa anahtarlarına dokunmadan); uygulama 5.16.0, Profil › Güvenlik. Kasa anahtarı ve borsa anahtarları şifreli, üye+borsa bağlamlı.",
+   "eksik": "Bağımsız güvenlik denetimi (dış göz); kasa ana anahtarının çevrimdışı ayrı yedeği (sizin tarafınızda yapılacak, sunucu dosyasını yalnızca güvenli bir yere kopyalayarak); kayıtlı e-posta doğrulaması ve parola sıfırlama (sonraki sürüm)."
   },
   {
    "kod": "N36",

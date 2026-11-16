@@ -131,6 +131,11 @@ class H(BaseHTTPRequestHandler):
             if yol == "/uye/cikis": uyelik.cikis((self.headers.get("X-Oturum") or "").strip()); self._send(200, {"ok": True}); return
             u = self._uye()
             if not u: return
+            if yol == "/uye/parola":                         # N35: parola değiştir; tüm oturumlar kapanır, bu cihaza yeni oturum verilir
+                tok = uyelik.parola_degistir(u["id"], d.get("eski"), d.get("yeni"))
+                self._send(200, {"oturum": tok}); return
+            if yol == "/uye/oturumlari-kapat":               # N35: tüm oturumları kapat (kayıp cihaz için)
+                uyelik.tum_oturumlari_kapat(u["id"]); self._send(200, {"ok": True}); return
             if yol == "/uye/portfoy":
                 uyelik.portfoy_baslat(u["id"], d.get("baslangic"), paper.equity())
                 self._send(200, uyelik.uye_bakiye(u["id"], paper.equity(), KOMISYON_PCT)); return

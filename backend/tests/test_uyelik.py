@@ -57,6 +57,26 @@ class Test(unittest.TestCase):
         self.assertEqual([b for b in u.baglantilar(me["id"]) if b["tur"] == "phantom"][0]["durum"], "bağlı değil")
         self.assertEqual({b["tur"]: b["durum"] for b in u.baglantilar(me["id"])}["borsa"], "bağlı değil")
 
+    def test_parola_degistir_oturumlari_kapatir(self):
+        u = Uyelik(); tok1 = u.kayit("g@b.co", "eski-parola-1"); me = u.uye(tok1)
+        tok2 = u.giris("g@b.co", "eski-parola-1")
+        self.assertIsNotNone(u.uye(tok2))
+        with self.assertRaises(UyelikHatasi): u.parola_degistir(me["id"], "yanlis-parola", "yeni-parola-2")
+        with self.assertRaises(UyelikHatasi): u.parola_degistir(me["id"], "eski-parola-1", "kisa")
+        with self.assertRaises(UyelikHatasi): u.parola_degistir(me["id"], "eski-parola-1", "eski-parola-1")
+        yeni = u.parola_degistir(me["id"], "eski-parola-1", "yeni-parola-2")
+        self.assertIsNone(u.uye(tok1)); self.assertIsNone(u.uye(tok2))          # her iki eski oturum kapandı
+        self.assertIsNotNone(u.uye(yeni))                                      # bu cihaz yeni oturumla içeride
+        with self.assertRaises(UyelikHatasi): u.giris("g@b.co", "eski-parola-1")
+        self.assertIsNotNone(u.giris("g@b.co", "yeni-parola-2"))
+
+    def test_tum_oturumlari_kapat_borsa_anahtarina_dokunmaz(self):
+        u = Uyelik(); tok = u.kayit("h@b.co", "parola-1234"); me = u.uye(tok)
+        u.db.execute("INSERT INTO borsa_anahtar VALUES(?,?,?,?,?,?)", (me["id"], "okx", "v1:x", "••1", "{}", 0)); u.db.commit()
+        u.tum_oturumlari_kapat(me["id"])
+        self.assertIsNone(u.uye(tok))
+        self.assertEqual(u.db.execute("SELECT COUNT(*) FROM borsa_anahtar").fetchone()[0], 1)
+
     def test_komisyon(self):
         k = komisyon_hesapla(100, 10, 20)
         self.assertEqual((k["komisyon"], k["net_kar"], k["net_bakiye"]), (2.0, 8.0, 108.0))

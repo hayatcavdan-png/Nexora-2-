@@ -124,6 +124,24 @@ class Uyelik:
                             (hashlib.sha256(oturum.encode()).hexdigest(), now)).fetchone()
         return dict(r) if r else None
 
+    def parola_degistir(self, uye_id, eski, yeni, now=None):
+        """Parolayı değiştirir (eski parola doğrulanır), TÜM oturumları kapatır ve bu kullanıcı için yeni bir oturum döner."""
+        now = now or time.time()
+        if not isinstance(yeni, str) or not 8 <= len(yeni) <= 128: raise UyelikHatasi("yeni parola 8-128 karakter olmalı")
+        if yeni == (eski or ""): raise UyelikHatasi("yeni parola eskisiyle aynı olamaz")
+        r = self.db.execute("SELECT * FROM uye WHERE id=?", (uye_id,)).fetchone()
+        if r is None or not hmac.compare_digest(_ozet(eski if isinstance(eski, str) else "", r["tuz"]), r["ozet"]):
+            raise UyelikHatasi("mevcut parola hatalı")
+        tuz = secrets.token_bytes(16)
+        self.db.execute("UPDATE uye SET tuz=?, ozet=? WHERE id=?", (tuz, _ozet(yeni, tuz), uye_id))
+        self.db.execute("DELETE FROM oturum WHERE uye=?", (uye_id,))
+        self.db.commit()
+        return self._oturum(uye_id, now)
+
+    def tum_oturumlari_kapat(self, uye_id, now=None):
+        """Bu hesabın tüm oturumlarını kapatır; bu cihaz dahil yeniden giriş gerekir. Borsa anahtarlarına dokunmaz."""
+        self.db.execute("DELETE FROM oturum WHERE uye=?", (uye_id,)); self.db.commit()
+
     def cikis(self, oturum):
         self.db.execute("DELETE FROM oturum WHERE ozet=?", (hashlib.sha256((oturum or "").encode()).hexdigest(),)); self.db.commit()
 
