@@ -39,7 +39,7 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {   // BiometricPr
 }
 
 private val ANA_SEKMELER = setOf("ana", "kesfet", "bot", "portfoy", "profil")
-private val ALT_EKRAN = mapOf("rapor" to "Günlük Rapor", "yol" to "Yol Haritası", "takip" to "Takip Edilen Cüzdanlar", "uye" to "Hesabım")
+private val ALT_EKRAN = mapOf("rapor" to "Günlük Rapor", "yol" to "Yol Haritası", "takip" to "Takip Edilen Cüzdanlar", "uye" to "Hesabım", "hazir" to "Hazırlık Karnesi")
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -211,7 +211,7 @@ fun App() {
             ) {
                 if (ekran == "ana") item(key = "ust") { AnaUstBaslik({ ekran = it }) }
                 if (ekran in ALT_EKRAN) item(key = "alt_bas") {
-                    SayfaBasligi(ALT_EKRAN[ekran]!!, when (ekran) { "takip" -> "Analiz ve takip durumu"; "uye" -> "Üyelik, davet ve bağlantılar"; else -> "NEXORA" }, geri = { ekran = "profil" })
+                    SayfaBasligi(ALT_EKRAN[ekran]!!, when (ekran) { "takip" -> "Analiz ve takip durumu"; "uye" -> "Üyelik, davet ve bağlantılar"; "hazir" -> "Gerçek paraya geçiş ölçütleri"; else -> "NEXORA" }, geri = { ekran = "profil" })
                 }
                 val bagliDegil = !v.bagli && v.guncelleme == 0.0
                 if (v.hata.isNotEmpty() && !(bagliDegil && ekran == "ana")) item(key = "hata") { Text(v.hata, color = Nx.Kirmizi, fontSize = 13.sp) }
@@ -262,6 +262,7 @@ fun App() {
                         }
                         KilitAyari(sp)
                     }
+                    "hazir" -> item(key = "hazir") { HazirlikEkrani(v) }
                     "uye" -> item(key = "uye") { UyeEkrani(url, key, sp) }
                     "rapor" -> item(key = "rapor") { Column(verticalArrangement = Arrangement.spacedBy(12.dp)) { RaporEkrani(v) } }
                     "yol" -> {

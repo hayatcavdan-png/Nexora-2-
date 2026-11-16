@@ -135,6 +135,10 @@ class H(BaseHTTPRequestHandler):
         if not self._ok(): return
         parts = urlsplit(self.path)
         if parts.path == "/yedek/son": self._yedek_gonder(); return
+        if parts.path == "/hazirlik":
+            from nexora import hazirlik as _hz
+            from nexora.etiket import ozet as _et
+            self._send(200, _hz.hazirlik(os.getenv("NEXORA_DB", "nexora_paper.db"), _et(os.getenv("ETIKET_DB", "nexora_etiket.db")))); return
         if parts.path == "/uye/ben":
             u = self._uye()
             if u: self._send(200, uyelik.profil(u))

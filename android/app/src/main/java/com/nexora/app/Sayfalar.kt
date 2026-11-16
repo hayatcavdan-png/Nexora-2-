@@ -606,6 +606,7 @@ fun LazyListScope.profil(v: Veri, git: (String) -> Unit, ayarlar: @Composable ()
     item(key = "pr_menu") {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             ProfilSatiri("Hesabım · Davet · Bağlantılar", { Icon(Icons.Filled.AccountCircle, null, tint = Nx.MorAcik) }) { git("uye") }
+            ProfilSatiri("Gerçek Para Hazırlık Karnesi", { Icon(Icons.Filled.CheckCircle, null, tint = Nx.MorAcik) }) { git("hazir") }
             ProfilSatiri("Günlük Rapor", { Icon(Icons.Filled.DateRange, null, tint = Nx.MorAcik) }) { git("rapor") }
             ProfilSatiri("Yol Haritası", { Icon(Icons.Filled.List, null, tint = Nx.MorAcik) }) { git("yol") }
             ProfilSatiri("Sistem Sağlığı ve Sinyaller", { IkonRobot(Nx.MorAcik) }) { git("bot") }
