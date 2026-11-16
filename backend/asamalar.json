@@ -221,9 +221,9 @@
    "ad": "EVM bağdaştırıcısı + BNB Chain",
    "grup": "Faz 2 · Çoklu platform",
    "durum": "devam",
-   "yuzde": 45,
-   "yapilan": "EVM bağdaştırıcısı (BNB Chain ve Base ortak): salt okunur JSON-RPC (gönderim yöntemi yok), blok aralığında cüzdan transferlerini tarama, makbuzdan swap çözücü (ERC-20, yerel coin ile alım, sarılı coin açılarak satım), KyberSwap alış ve geri satış teklifi, GoPlus güvenlik kontrolü (honeypot, %5 üstü vergi, satılamama, kara liste, likidite); platform 1 ile aynı risk kurallarıyla ayrı paper portföy (nexora_bnb.db); nexora-bnb servisi (cüzdan yoksa bekler); evm_dene.py canlı doğrulama aracı.",
-   "eksik": "Sunucuda evm_dene.py ile KyberSwap ve GoPlus yanıt biçimlerinin doğrulanması; BNB cüzdan keşfi (öncü cüzdan bulma) ve wallets_bnb.txt'in doldurulması; 1 hafta ölçüm (≥%95 doğru çözüm, satılamayan token'a giriş yok); isteğe bağlı kendi düğüm anahtarı (BNB_RPC_URL)"
+   "yuzde": 60,
+   "yapilan": "EVM bağdaştırıcısı (BNB Chain ve Base ortak): salt okunur JSON-RPC (gönderim yöntemi yok), blok aralığında cüzdan transferlerini tarama, makbuzdan swap çözücü (ERC-20, yerel coin ile alım, sarılı coin açılarak satım), KyberSwap alış ve geri satış teklifi, GoPlus güvenlik kontrolü (honeypot, %5 üstü vergi, satılamama, kara liste, likidite); platform 1 ile aynı risk kurallarıyla ayrı paper portföy (nexora_bnb.db); nexora-bnb servisi (cüzdan yoksa bekler); evm_dene.py canlı doğrulama aracı. Sunucuda doğrulandı (16.11): düğüm (zincir 56), KyberSwap teklifi, GoPlus güvenliği, DexScreener likidite yedeği çalışıyor; nexora-bnb servisi aktif. Cüzdan keşfi 1. yarı (evm_kesif.py): DexScreener yükselen token'ları, çiftten ilk ~30 dakikada token alan gerçek kullanıcı cüzdanları (sözleşmeler ayıklanır), birden çok token'ı erken alanlar aday.",
+   "eksik": "Keşif 2. yarı: adayların kârlılık analizi (cüzdan işlem geçmişi; Etherscan BNB/Base'i ücretli yaptığı için NodeReal ücretsiz anahtarı); keşfin sunucuda ilk çalıştırılması ve wallets_bnb.txt'in doldurulması; 1 hafta ölçüm (≥%95 doğru çözüm, satılamayan token'a giriş yok)"
   },
   {
    "kod": "N25",
