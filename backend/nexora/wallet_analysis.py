@@ -7,7 +7,7 @@ USD karşılığı tek bir SOL fiyatıyla hesaplanır; bu bir yaklaşıklıktır
 Sınırlar (rapora yansır):
 - Yalnızca incelenen pencere (son N işlem) görülür; pencereden önce alınıp
   pencerede satılan token'lar 'eşleşmeyen satış' olur ve K/Z'ye katılmaz.
-- Açık pozisyonlar değerlenmez (gerçekleşmemiş K/Z yok).
+- Açık pozisyonlar analyze() içinde değerlenmez; gerceklesmemis() güncel teklifle ayrıca değerler (N4).
 - Kaynak cüzdanın getirisi, takipçinin elde edeceği getiri değildir: takipçi
   gecikmeli girer ve al-sat kaybı öder. Eşikler bu yüzden sıkı tutulur."""
 from collections import Counter, defaultdict
@@ -95,6 +95,14 @@ def analyze(transactions, wallet, sol_usd):
     for c in sorted(closed, key=lambda c: c["ts"]):
         birikim += c["pnl"]; zirve = max(zirve, birikim); dd = max(dd, zirve - birikim)
     buy_usd = [to_usd(Decimal(e["quote_amount_raw"]) / 10 ** e["quote_decimals"], e["quote_mint"]) for e in buys]
+    ondalik = {e["token_mint"]: e["token_decimals"] for e in events}
+    lotlar = defaultdict(lambda: dict(miktar=Decimal(0), maliyet_usd=0.0))
+    for o in res["open_positions"]:
+        kalan = Decimal(o["remaining_quantity"])
+        lot = lotlar[o["token_mint"]]
+        lot["miktar"] += kalan; lot["maliyet_usd"] += to_usd(kalan * Decimal(o["unit_cost_quote"]), o["quote_mint"])
+    acik_lotlar = [dict(token=t, miktar_raw=int(v["miktar"] * 10 ** ondalik.get(t, 0)), maliyet_usd=round(v["maliyet_usd"], 4))
+                   for t, v in lotlar.items() if v["miktar"] > 0]
 
     return dict(
         wallet=wallet,
@@ -114,7 +122,24 @@ def analyze(transactions, wallet, sol_usd):
         tek_token_tur=max(per_token_sells.values()) if per_token_sells else 0,
         max_dusus_usd=round(dd, 2),
         dusus_kazanc_orani=round(dd / gains, 3) if gains > 0 else (1.0 if dd > 0 else 0.0),  # düşüş / toplam kazanç
+        acik_lotlar=acik_lotlar,   # CSV'ye yazılmaz; gerceklesmemis() için
     )
+
+
+def gerceklesmemis(acik_lotlar, fiyatla, en_fazla=15):
+    """N4: açık pozisyonları güncel satış teklifiyle değerler. fiyatla(token, miktar_raw) -> USD ya da None (teklif yok).
+    Teklif alınamayan token değersiz sayılır (çoğunlukla ölü/likiditesiz token: iyimser olmamak için).
+    En büyük maliyetli en_fazla token değerlenir; kalanların maliyeti 'değerlenmeyen' olarak ayrıca yazılır."""
+    sirali = sorted((l for l in acik_lotlar if l["miktar_raw"] > 0), key=lambda l: -l["maliyet_usd"])
+    deger = maliyet = 0.0; teklifsiz = 0
+    for l in sirali[:en_fazla]:
+        usd = fiyatla(l["token"], l["miktar_raw"])
+        if usd is None: teklifsiz += 1; usd = 0.0
+        deger += usd; maliyet += l["maliyet_usd"]
+    kalan_maliyet = sum(l["maliyet_usd"] for l in sirali[en_fazla:])
+    return dict(acik_token=len(sirali), acik_maliyet_usd=round(maliyet, 2), acik_deger_usd=round(deger, 2),
+                gerceklesmemis_usd=round(deger - maliyet, 2), teklifsiz_token=teklifsiz,
+                degerlenmeyen_maliyet_usd=round(kalan_maliyet, 2))
 
 def verdict(m, t=THRESHOLDS):
     """(karar, gerekçeler). Karar: kopyalanabilir / zayıf / zararda / bot şüphesi / çok hızlı / eksik veri / yetersiz veri / swap yok."""

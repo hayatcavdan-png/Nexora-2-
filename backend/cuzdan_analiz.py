@@ -12,7 +12,7 @@ import csv, os, re, sys, time
 from nexora.helius_client import HeliusClient, HeliusRPCError
 from nexora.market import JupiterQuoter, QuoteError
 from nexora.constants import WSOL_MINT, USDC_MINT
-from nexora.wallet_analysis import analyze, verdict, score, THRESHOLDS
+from nexora.wallet_analysis import analyze, verdict, score, THRESHOLDS, gerceklesmemis
 from nexora import hesap_turu
 
 LIMIT = int(os.getenv("ANALIZ_LIMIT", "200"))
@@ -21,7 +21,8 @@ ADDR = re.compile(r"^[1-9A-HJ-NP-Za-km-z]{32,44}$")
 FIELDS = ["wallet", "karar", "gerekce", "gerceklesen_usd", "kapanan", "kazanma_orani", "kar_faktoru", "ort_getiri",
           "medyan_tutma_sn", "en_buyuk_token_payi", "token_sayisi", "swap", "alis", "satis", "eslesmeyen_satis",
           "acik_pozisyon", "ort_alis_usd", "pencere_gun", "islem", "hesap_ac_kapa", "sifir_tur_orani", "tek_token_tur", "skor",
-          "max_dusus_usd", "dusus_kazanc_orani"]
+          "max_dusus_usd", "dusus_kazanc_orani", "acik_token", "acik_maliyet_usd", "acik_deger_usd", "gerceklesmemis_usd",
+          "toplam_usd", "teklifsiz_token"]
 
 def read_list(path):
     if not os.path.exists(path): return []
@@ -45,6 +46,13 @@ def sol_price(quoter):
     q = quoter.quote(WSOL_MINT, USDC_MINT, 10 ** 9)
     return q["out_amount"] / 10 ** 6
 
+def usd_deger(quoter, token, miktar_raw):
+    """Açık pozisyonun güncel satış değeri (USDC). Teklif yoksa None."""
+    try:
+        return quoter.quote(token, USDC_MINT, int(miktar_raw))["out_amount"] / 10 ** 6
+    except (QuoteError, ValueError, KeyError, TypeError):
+        return None
+
 def fetch(client, wallet):
     res = client.call("getTransactionsForAddress", [wallet, {
         "transactionDetails": "full", "limit": LIMIT, "sortOrder": "desc", "commitment": "confirmed",
@@ -61,7 +69,8 @@ def main(client=None, quoter=None, sleep=time.sleep, list_path=None):
     wallets = [w for w in dict.fromkeys(candidates(list_path)) if ADDR.match(w) and w not in black]
     if not wallets: sys.exit("Analiz edilecek cüzdan yok (önce cuzdan_tarama.py çalıştırın)")
     try:
-        price = sol_price(quoter or JupiterQuoter())
+        quoter = quoter or JupiterQuoter()
+        price = sol_price(quoter)
     except (QuoteError, ValueError) as e:
         sys.exit(f"SOL fiyatı alınamadı ({e}). Elle verin: SOL_USD=140 python cuzdan_analiz.py")
     print(f"{len(wallets)} cüzdan, cüzdan başına son {LIMIT} işlem, SOL ≈ {price:.2f} USD "
@@ -81,6 +90,12 @@ def main(client=None, quoter=None, sleep=time.sleep, list_path=None):
         try:
             m = analyze(fetch(client, w), w, price)
             karar, why = verdict(m)
+            if karar == "kopyalanabilir" and m.get("acik_lotlar"):        # N4: açık pozisyonlarla birlikte hâlâ kârlı mı?
+                g = gerceklesmemis(m["acik_lotlar"], lambda t, raw: usd_deger(quoter, t, raw))
+                m.update(g, toplam_usd=round(m["gerceklesen_usd"] + g["gerceklesmemis_usd"], 2))
+                if m["toplam_usd"] <= 0:
+                    karar, why = "zayıf", [f"açık pozisyonlarla toplam K/Z {m['toplam_usd']} USD "
+                                           f"(gerçekleşmemiş {g['gerceklesmemis_usd']}, {g['acik_token']} açık token)"]
             rows.append(dict(m, karar=karar, gerekce="; ".join(why), skor=round(score(m), 4) if karar == "kopyalanabilir" else 0))
         except (HeliusRPCError, ValueError, OSError) as e:
             rows.append(dict(wallet=w, karar="hata", gerekce=str(e)[:80]))
@@ -111,7 +126,9 @@ def main(client=None, quoter=None, sleep=time.sleep, list_path=None):
     for r in show:
         print(f"  {r['wallet'][:4]}…{r['wallet'][-4:]}  K/Z {r['gerceklesen_usd']:+.0f}$  {r['kapanan']} satış  "
               f"kazanma %{100 * r['kazanma_orani']:.0f}  KF {r['kar_faktoru']}  ort %{100 * r['ort_getiri']:.0f}  "
-              f"tutma {r['medyan_tutma_sn']} sn  [{r['karar']}]")
+              f"tutma {r['medyan_tutma_sn']} sn"
+              + (f"  açık {r['acik_token']} token {r['gerceklesmemis_usd']:+.0f}$" if r.get("acik_token") else "")
+              + f"  [{r['karar']}]")
     if not good: print("  (gerekçeler cuzdan_analiz.csv dosyasında)")
     if disla:
         print(f"\nKullanıcı cüzdanı olmayan adresler ({len(disla)}):")

@@ -41,9 +41,9 @@
    "ad": "Cüzdan kârlılığı",
    "grup": "Seçim",
    "durum": "devam",
-   "yuzde": 70,
-   "yapilan": "FIFO gerçekleşen K/Z, kazanma oranı, kâr faktörü, elde tutma; hesap açma/kapama düzeltmesi; 190 cüzdanda 7 kopyalanabilir; paper portföyde en büyük düşüş (drawdown) ölçümü; kaynak cüzdanlarda gerçekleşen K/Z eğrisinde en büyük düşüş",
-   "eksik": "Kaynak cüzdanlarda gerçekleşmemiş K/Z"
+   "yuzde": 85,
+   "yapilan": "FIFO gerçekleşen K/Z, kazanma oranı, kâr faktörü, elde tutma; hesap açma/kapama düzeltmesi; 190 cüzdanda 7 kopyalanabilir; paper portföyde en büyük düşüş (drawdown) ölçümü; kaynak cüzdanlarda gerçekleşen K/Z eğrisinde en büyük düşüş; gerçekleşmemiş K/Z: kopyalanabilir çıkan cüzdanın açık pozisyonları güncel Jupiter satış teklifiyle değerleniyor (teklifsiz token değersiz sayılır); gerçekleşen + açık toplamı negatifse karar 'zayıf'a düşürülüyor",
+   "eksik": "Uzun dönem (200 işlemden eski) geçmiş; SOL fiyatının işlem anına göre değil tek fiyatla hesaplanması"
   },
   {
    "kod": "N5",
