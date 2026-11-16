@@ -6,7 +6,7 @@ Alım öncesi sıra: güvenlik (GoPlus: honeypot, vergi, satılamama) -> alış 
 Fiyat teklifi zaten kaymayı içerdiği için paper motoruna ek kayma verilmez. Gerçek emir YOK."""
 import json, time
 
-from nexora.evm import EvmHatasi, ZINCIRLER, coz
+from nexora.evm import EvmHatasi, ZINCIRLER, coz_tam
 
 
 class EvmKarar:
@@ -80,7 +80,7 @@ class EvmTakip:
                 mk = self.rpc.call("eth_getTransactionReceipt", [karma]) or {}
             except EvmHatasi:
                 continue
-            s = coz(tx, mk, w, self.zincir)
+            s = coz_tam(self.rpc, tx, mk, w, self.zincir, blok)
             if not s: continue
             yas = max(0.0, self.clock() - self.rpc.blok_zamani(blok))
             r = self.k.karar(f"{self.zincir}:{w}:{karma}", w, s["token"], s["yon"], yas)

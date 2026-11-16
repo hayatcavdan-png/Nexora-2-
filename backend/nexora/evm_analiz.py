@@ -6,7 +6,7 @@ coin = tek bir güncel fiyat: yaklaşıklık), token başına FIFO ile gerçekle
 from collections import defaultdict
 from statistics import median
 
-from nexora.evm import ZINCIRLER, YEREL, EvmHatasi, TRANSFER, _konu, coz
+from nexora.evm import ZINCIRLER, YEREL, EvmHatasi, TRANSFER, _konu, coz_tam
 from nexora.evm_kesif import _loglar
 from nexora.wallet_analysis import saglamlik, verdict, score
 
@@ -24,7 +24,7 @@ def swaplar(rpc, cuzdan, zincir, bas, son, en_fazla_islem=150):
     out = []
     for karma, blok in sorted(islemler.items(), key=lambda x: x[1])[-en_fazla_islem:]:
         try:
-            s = coz(rpc.call("eth_getTransactionByHash", [karma]) or {}, rpc.call("eth_getTransactionReceipt", [karma]) or {}, w, zincir)
+            s = coz_tam(rpc, rpc.call("eth_getTransactionByHash", [karma]) or {}, rpc.call("eth_getTransactionReceipt", [karma]) or {}, w, zincir, blok)
         except EvmHatasi:
             continue
         if s: out.append(dict(s, blok=blok))

@@ -42,7 +42,7 @@ def _konu(adres):
 
 class EvmRpc:
     YONTEMLER = {"eth_chainId", "eth_blockNumber", "eth_getLogs", "eth_getTransactionByHash", "eth_getTransactionReceipt",
-                 "eth_getBlockByNumber", "eth_call", "eth_getCode"}
+                 "eth_getBlockByNumber", "eth_call", "eth_getCode", "eth_getBalance"}
 
     def __init__(self, url, session=None, timeout=15):
         self.url, self.s, self.timeout, self._id = url, session or requests.Session(), timeout, 0
@@ -84,8 +84,24 @@ class EvmRpc:
         return out
 
 
-def coz(tx, makbuz, cuzdan, zincir):
-    """İşlemden cüzdanın swap'ı: dict(yon, token, miktar_raw, karsi, karsi_raw) ya da None (swap değil/belirsiz)."""
+def yerel_fark(rpc, cuzdan, blok, tx, makbuz):
+    """Cüzdanın bu bloktaki yerel coin (BNB/ETH) değişimi, ödenen işlem ücreti geri eklenmiş: olay kaydı bırakmayan
+    yerel coin ödemelerini (ör. PancakeSwap v4'te BNB'ye satış) görmek için. Düğüm eski bakiyeyi veremezse None."""
+    try:
+        once = int(rpc.call("eth_getBalance", [cuzdan, hex(blok - 1)]), 16)
+        sonra = int(rpc.call("eth_getBalance", [cuzdan, hex(blok)]), 16)
+    except (EvmHatasi, TypeError, ValueError):
+        return None
+    fark = sonra - once
+    if (tx.get("from") or "").lower() == cuzdan.lower():
+        try: fark += int(makbuz.get("gasUsed") or "0x0", 16) * int(makbuz.get("effectiveGasPrice") or tx.get("gasPrice") or "0x0", 16)
+        except (TypeError, ValueError): pass
+    return fark
+
+
+def coz(tx, makbuz, cuzdan, zincir, yerel=None):
+    """İşlemden cüzdanın swap'ı: dict(yon, token, miktar_raw, karsi, karsi_raw) ya da None (swap değil/belirsiz).
+    `yerel`: bakiyeden ölçülen yerel coin değişimi (olaylarda karşılık görünmeyen işlemler için, isteğe bağlı)."""
     if not isinstance(makbuz, dict) or makbuz.get("status") not in ("0x1", 1): return None
     w = cuzdan.lower(); karsi = ZINCIRLER[zincir]["karsi"]; sarili = ZINCIRLER[zincir]["sarili"]
     d = {}
@@ -103,6 +119,8 @@ def coz(tx, makbuz, cuzdan, zincir):
         d[YEREL] = d.get(YEREL, 0) - int(tx["value"], 16)
     tokenler = [a for a, v in d.items() if v != 0 and a not in karsi and a != YEREL]
     karsilar = [a for a, v in d.items() if v != 0 and (a in karsi or a == YEREL)]
+    if not karsilar and yerel:                                   # olaylarda karşılık yok: bakiyeden ölçülen yerel coin
+        d[YEREL] = yerel; karsilar = [YEREL]
     if len(tokenler) != 1 or not karsilar: return None
     tk = tokenler[0]; k = max(karsilar, key=lambda a: abs(d[a]))
     if d[tk] > 0 and d[k] < 0: return dict(yon="buy", token=tk, miktar_raw=d[tk], karsi=k, karsi_raw=-d[k])
@@ -180,3 +198,15 @@ class GoPlus:
         sonuc = dict(uygun=not g, gerekceler=g or ["geçti"], likidite_usd=round(lik, 2))
         self._onbellek[token] = (now, sonuc)
         return sonuc
+
+
+def coz_tam(rpc, tx, makbuz, cuzdan, zincir, blok):
+    """coz(); karşılık görünmeyen tek token hareketinde yerel coin bakiyesine bakıp yeniden dener."""
+    r = coz(tx, makbuz, cuzdan, zincir)
+    if r is not None or not isinstance(makbuz, dict) or makbuz.get("status") not in ("0x1", 1): return r
+    w = cuzdan.lower(); karsi = ZINCIRLER[zincir]["karsi"]
+    hareket = {(l.get("address") or "").lower() for l in makbuz.get("logs") or []
+               if (l.get("topics") or [None])[0] == TRANSFER and len(l.get("topics")) == 3 and w in (_adr(l["topics"][1]), _adr(l["topics"][2]))}
+    if len(hareket - karsi) != 1 or hareket & karsi: return None  # tek token, karşı varlık olayı yok: bakiye denemeye değer
+    f = yerel_fark(rpc, cuzdan, blok, tx, makbuz)
+    return coz(tx, makbuz, cuzdan, zincir, yerel=f) if f else None

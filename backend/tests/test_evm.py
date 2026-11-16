@@ -21,6 +21,7 @@ class Rpc:
         self.aralik = (bas, son)
         return {k: (v[2], W) for k, v in self.txler.items() if bas <= v[2] <= son}
     def call(self, y, p):
+        if y == "eth_getBalance": return hex(10**18)                     # bakiye değişmedi: düz transfer swap sayılmaz
         tx, mk, _ = self.txler[p[0]]
         return tx if y == "eth_getTransactionByHash" else mk
 
@@ -53,6 +54,22 @@ class Test(unittest.TestCase):
         self.assertIsNone(E.coz({}, dict(status="0x0", logs=[]), W, "bnb"))                                     # başarısız işlem
         iki = dict(ok, logs=[tr(USDT, W, ROUTER, 5), tr(TOK, ROUTER, W, 1), tr("0x" + "44" * 20, ROUTER, W, 1)])
         self.assertIsNone(E.coz({}, iki, W, "bnb"))                                                               # belirsiz (iki token)
+
+    def test_yerel_bakiye_ile_satim(self):
+        """PancakeSwap v4: token satılır, BNB olay kaydı bırakmadan cüzdana geçer -> bakiye farkından görülür."""
+        tx = {"from": W, "value": "0x0", "gasPrice": hex(10**9)}
+        mk = dict(status="0x1", gasUsed=hex(100000), effectiveGasPrice=hex(10**9), logs=[tr(TOK, W, ROUTER, 500)])
+        class B:
+            def __init__(self, hata=False): self.hata = hata
+            def call(self, y, p):
+                if self.hata: raise E.EvmHatasi("missing trie node")
+                return hex(10**18) if p[1] == hex(99) else hex(10**18 + 5 * 10**16 - 10**14)   # +0.05 BNB, ücret 0.0001 düşülmüş
+        self.assertIsNone(E.coz(tx, mk, W, "bnb"))
+        s = E.coz_tam(B(), tx, mk, W, "bnb", 100)
+        self.assertEqual((s["yon"], s["karsi"], s["karsi_raw"], s["miktar_raw"]), ("sell", E.YEREL, 5 * 10**16, 500))
+        self.assertIsNone(E.coz_tam(B(hata=True), tx, mk, W, "bnb", 100))                         # eski bakiye yoksa tahmin yok
+        duz = dict(status="0x1", logs=[tr(TOK, ROUTER, W, 5), tr(USDT, ROUTER, W, 5)])             # karşı varlık olayı var: bakiyeye bakılmaz
+        self.assertIsNone(E.coz_tam(B(), {"from": W, "value": "0x0"}, duz, W, "bnb", 100))
 
     def test_goplus_ve_likidite_yedegi(self):
         class R:
