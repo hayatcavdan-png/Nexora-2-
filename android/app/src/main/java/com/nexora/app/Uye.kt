@@ -32,7 +32,7 @@ import java.util.Locale
 @Composable
 fun UyeEkrani(url: String, key: String, sp: SharedPreferences) {
     val scope = rememberCoroutineScope()
-    var oturum by remember { mutableStateOf(sp.getString("oturum", "") ?: "") }
+    var oturum by remember { mutableStateOf(Kasa.oku(sp, "oturum")) }
     var profil by remember { mutableStateOf<JSONObject?>(null) }
     var bakiye by remember { mutableStateOf<JSONObject?>(null) }
     var mesaj by remember { mutableStateOf("") }
@@ -59,7 +59,7 @@ fun UyeEkrani(url: String, key: String, sp: SharedPreferences) {
         cagri("/uye/bakiye") { bakiye = JSONObject(it) }
     }
     fun girisBitti(r: String) {
-        oturum = JSONObject(r).optString("oturum"); sp.edit().putString("oturum", oturum).apply(); parola = ""
+        oturum = JSONObject(r).optString("oturum"); Kasa.yaz(sp, "oturum", oturum); parola = ""
         yukle()
     }
     LaunchedEffect(oturum) { if (oturum.isNotEmpty() && profil == null) yukle() }

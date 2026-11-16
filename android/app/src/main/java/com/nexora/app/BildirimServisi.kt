@@ -53,7 +53,7 @@ class BildirimServisi : Service() {
         while (true) {
             try {
                 val url = sp.getString("url", "http://127.0.0.1:8000")!!
-                val key = sp.getString("key", "")!!
+                val key = Kasa.oku(sp, "key")
                 val son = sp.getString("bildirim_son", "0")!!
                 if (key.isNotEmpty()) {
                     val r = JSONObject(api(url, key, "/olaylar?son=$son"))

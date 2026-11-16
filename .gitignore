@@ -31,3 +31,4 @@ backend/wallets_borsa.txt.yedek
 backend/wallets_borsa_kesif.txt
 backend/wallets_borsa_onerilen.txt
 backend/piyasa_durum.json
+backend/kasa.key

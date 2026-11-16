@@ -47,7 +47,7 @@ fun App() {
     val ctx = androidx.compose.ui.platform.LocalContext.current
     val sp = remember { ctx.getSharedPreferences("nx", Context.MODE_PRIVATE) }
     var url by remember { mutableStateOf(sp.getString("url", "http://127.0.0.1:8000")!!) }
-    var key by remember { mutableStateOf(sp.getString("key", "")!!.trim()) }
+    var key by remember { mutableStateOf(Kasa.oku(sp, "key").trim()) }
     var ekran by rememberSaveable { mutableStateOf("ana") }
     var durdurOnay by remember { mutableStateOf(false) }
     var acilis by rememberSaveable { mutableStateOf(true) }
@@ -220,7 +220,7 @@ fun App() {
                 if (bagliDegil && ekran == "ana") item(key = "baglan") {
                     BaglanKarti(url, key, v.hata) { u, k ->
                         url = u; key = k
-                        sp.edit().putString("url", u).putString("key", k).apply()
+                        sp.edit().putString("url", u).apply(); Kasa.yaz(sp, "key", k)
                         cekYenile()
                     }
                 } else when (ekran) {
@@ -260,7 +260,7 @@ fun App() {
                             } else bildirimAyarla(acik)
                         }, { riskKaydet(it) }, { yedekIndir() }) { u, k ->
                             url = u; key = k
-                            sp.edit().putString("url", u).putString("key", k).apply()
+                            sp.edit().putString("url", u).apply(); Kasa.yaz(sp, "key", k)
                             yenile()
                         }
                         KilitAyari(sp)

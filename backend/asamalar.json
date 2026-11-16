@@ -320,9 +320,9 @@
    "ad": "Güvenlik sertleştirme",
    "grup": "Faz 2 · Çoklu platform",
    "durum": "devam",
-   "yuzde": 20,
-   "yapilan": "Anahtarlar loglarda maskeleniyor; karar izi değiştirilemez; pilot anahtarı sunucudan çıkmıyor.",
-   "eksik": "Telefonda şifreli anahtar saklama; sunucuda kullanıcı API anahtarları için şifreleme; NEXORA anahtarı döndürme; hesap ve oturum güvenliği gözden geçirme; dış bir göz tarafından güvenlik denetimi. Önkoşul: yok."
+   "yuzde": 60,
+   "yapilan": "Anahtarlar loglarda maskeleniyor; karar izi değiştirilemez; pilot anahtarı sunucudan çıkmıyor. 5.9: telefonda sunucu ve oturum anahtarları Android Keystore (AES-256-GCM) ile şifreli; eski düz metin ilk açılışta otomatik şifrelenir. Sunucu kasası (nexora/kasa.py): standart kütüphaneyle önce-şifrele-sonra-doğrula, kayıt bağlamına bağlı etiket, anahtar dosyası 600 izinli ve yedek dışı; kullanıcı borsa anahtarları (N29) için hazır. anahtar_dondur.sh: NEXORA API anahtarını tek komutla yeniler.",
+   "eksik": "Bağımsız bir güvenlik denetimi (dış göz); kasa ana anahtarının ayrı ve güvenli yedeği; oturum ve hesap güvenliğinin gözden geçirilmesi (parola değiştirme, oturumları kapatma)"
   },
   {
    "kod": "N36",
