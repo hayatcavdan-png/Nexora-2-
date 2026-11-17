@@ -72,3 +72,23 @@ class TamSayiZamanTests(unittest.TestCase):
                 return R()
         B.indir(S(), ["XUSDT"], 7.0, db=os.path.join(tempfile.mkdtemp(), "m.db"), now=1_000_000.5, uyku=0, yaz=lambda m: None)
         self.assertTrue(gonderilen and all(isinstance(x, int) for x in gonderilen))   # Binance ondalıklı startTime'ı reddeder
+
+
+class GeriDoldurmaTests(unittest.TestCase):
+    def test_eski_gunler_de_indirilir(self):
+        import os, tempfile
+        db = os.path.join(tempfile.mkdtemp(), "m.db"); istek = []
+        class S:
+            def get(self, url, params=None, timeout=None):
+                bas = params["startTime"] // 1000; istek.append(bas)
+                class R:
+                    status_code = 200
+                    def json(_):
+                        return [[(bas + i * 60) * 1000, "0", "0", "0", "1"] for i in range(1000) if bas + i * 60 < 2_000_000]
+                return R()
+        now = 2_000_000
+        B.indir(S(), ["XUSDT"], 1.0, db=db, now=now, uyku=0, yaz=lambda m: None)             # önce 1 gün
+        istek.clear()
+        out = B.indir(S(), ["XUSDT"], 3.0, db=db, now=now, uyku=0, yaz=lambda m: None)       # sonra 3 gün: geriye doldurur
+        self.assertEqual(min(istek), int(now - 3 * 86400) // 60 * 60)
+        self.assertGreaterEqual(len(out["XUSDT"]), 3 * 1440 - 5)

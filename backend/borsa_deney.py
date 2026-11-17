@@ -41,24 +41,27 @@ def indir(s, syms, gun, db=DB, now=None, uyku=0.15, yaz=print):
     c.execute("CREATE TABLE IF NOT EXISTS mum(sembol TEXT, ts INTEGER, kapanis REAL, PRIMARY KEY(sembol, ts))")
     hata_gosterildi = False
     for i, sym in enumerate(syms, 1):
-        son = c.execute("SELECT MAX(ts) FROM mum WHERE sembol=?", (sym,)).fetchone()[0]
-        t = int(max(bas, (son or 0) + 60))
-        while t < now - 60:
-            try:
-                yanit = s.get(KLINE, params=dict(symbol=sym, interval="1m", startTime=t * 1000, limit=1000), timeout=20)
-                r = yanit.json()
-            except (requests.RequestException, ValueError) as e:
-                if not hata_gosterildi: yaz(f"  {sym}: istek başarısız ({type(e).__name__}: {str(e)[:100]})"); hata_gosterildi = True
-                break
-            if not isinstance(r, list):
-                if not hata_gosterildi:
-                    yaz(f"  {sym}: Binance beklenmeyen yanıt verdi (HTTP {getattr(yanit, 'status_code', '?')}): {str(r)[:160]}")
-                    hata_gosterildi = True
-                break
-            if not r: break
-            c.executemany("INSERT OR IGNORE INTO mum VALUES(?,?,?)", [(sym, int(k[0]) // 1000, float(k[4])) for k in r])
-            t = int(r[-1][0]) // 1000 + 60
-            time.sleep(uyku)
+        ilk, son = c.execute("SELECT MIN(ts), MAX(ts) FROM mum WHERE sembol=?", (sym,)).fetchone()
+        araliklar = [(bas, now - 60)] if son is None else \
+            [(bas, ilk)] * (ilk - bas > 120) + [(int(son) + 60, now - 60)]          # geriye eksik günler + yeni dakikalar
+        for t, bitis in araliklar:
+            t = int(t)
+            while t < bitis:
+                try:
+                    yanit = s.get(KLINE, params=dict(symbol=sym, interval="1m", startTime=t * 1000, limit=1000), timeout=20)
+                    r = yanit.json()
+                except (requests.RequestException, ValueError) as e:
+                    if not hata_gosterildi: yaz(f"  {sym}: istek başarısız ({type(e).__name__}: {str(e)[:100]})"); hata_gosterildi = True
+                    break
+                if not isinstance(r, list):
+                    if not hata_gosterildi:
+                        yaz(f"  {sym}: Binance beklenmeyen yanıt verdi (HTTP {getattr(yanit, 'status_code', '?')}): {str(r)[:160]}")
+                        hata_gosterildi = True
+                    break
+                if not r: break
+                c.executemany("INSERT OR IGNORE INTO mum VALUES(?,?,?)", [(sym, int(k[0]) // 1000, float(k[4])) for k in r])
+                t = int(r[-1][0]) // 1000 + 60
+                time.sleep(uyku)
         c.commit()
         if i % 10 == 0: yaz(f"  {i}/{len(syms)} coin indirildi")
     out = {}
