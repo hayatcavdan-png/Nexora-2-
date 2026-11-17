@@ -97,10 +97,6 @@ class H(BaseHTTPRequestHandler):
         b = json.dumps(obj).encode()
         self.send_response(code); self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(b))); self.end_headers(); self.wfile.write(b)
-    def _ok(self):
-        if not KEY or (self.headers.get("X-API-Key") or "").strip() != KEY:
-            self._send(401, {"hata": "yetkisiz"}); return False
-        return True
     def _yedek_gonder(self):
         dosyalar = sorted(glob.glob(os.path.join("yedekler", "nexora_*.tar.gz")))
         if not dosyalar: self._send(404, {"hata": "yedek yok"}); return
@@ -116,6 +112,33 @@ class H(BaseHTTPRequestHandler):
         except ValueError as e: self._send(400, {"hata": str(e)})
         except PermissionError as e: self._send(429, {"hata": str(e)})
         except Exception as e: self._send(502, {"hata": f"analiz yapılamadı: {type(e).__name__}"})
+
+    # ---- Rol ayrımı. kurucu: API anahtarı ya da rolü 'kurucu' olan üye oturumu. uye: herhangi bir geçerli üye oturumu.
+    # Üye yalnızca UYE_GET listesindeki okumaları ve kendi /uye/* işlemlerini yapabilir; geri kalan her şey kurucuya aittir.
+    # Yetki SUNUCUDA denetlenir: uygulama kurcalansa bile üye kurucu işlemi yapamaz.
+    UYE_GET = {"/durum", "/portfoy", "/islemler", "/gecmis", "/olaylar", "/radar", "/uye/ben", "/uye/borsa", "/uye/bakiye"}
+    ACIK_POST = {"/uye/kayit", "/uye/giris", "/uye/sifre-unut", "/uye/sifre-sifirla", "/uye/cikis"}
+
+    def _yetki(self):
+        if KEY and (self.headers.get("X-API-Key") or "").strip() == KEY: return "kurucu"
+        u = uyelik.uye((self.headers.get("X-Oturum") or "").strip())
+        if not u: return None
+        return "kurucu" if u.get("rol") == "kurucu" else "uye"
+
+    def _izin(self, yol, post):
+        """Bu isteğe izin var mı? Yoksa yanıtı gönderir ve (False, None) döner."""
+        if post and yol in self.ACIK_POST: return True, self._yetki()
+        y = self._yetki()
+        if y is None: self._send(401, {"hata": "yetkisiz"}); return False, None
+        if y == "kurucu" or (post and yol.startswith("/uye/")) or (not post and yol in self.UYE_GET): return True, y
+        self._send(403, {"hata": "bu işlem yalnızca kurucu içindir"}); return False, y
+
+    @staticmethod
+    def _cuzdansiz(o):
+        """Üyeye giden veride kaynak cüzdan adresleri gizlenir (takip listesi kurucunundur)."""
+        if isinstance(o, list): return [H._cuzdansiz(x) for x in o]
+        if isinstance(o, dict): return {k: ("gizli" if k == "wallet" and v else H._cuzdansiz(v)) for k, v in o.items()}
+        return o
 
     def _uye(self):
         u = uyelik.uye((self.headers.get("X-Oturum") or "").strip())
@@ -165,8 +188,15 @@ class H(BaseHTTPRequestHandler):
         except ValueError: self._send(500, {"hata": "sunucu kasası okunamadı"})        # ayrıntı (anahtar vb.) yanıta yazılmaz
 
     def do_GET(self):
-        if not self._ok(): return
         parts = urlsplit(self.path)
+        izin, yetki = self._izin(parts.path, False)
+        if not izin: return
+        if yetki == "uye":                                  # üye: sınırlı ve cüzdansız görünüm
+            if parts.path == "/durum":
+                self._send(200, dict(mod="PAPER", gercek_islem="KAPALI", acil_durdurma=paper.killed(), takip_nabiz=paper.son_nabiz(),
+                                     rol="uye")); return
+            if parts.path == "/portfoy": self._send(200, self._cuzdansiz(paper.portfolio())); return
+            if parts.path == "/islemler": self._send(200, self._cuzdansiz(paper.trades())); return
         if parts.path == "/yedek/son": self._yedek_gonder(); return
         if parts.path == "/borsa":                          # Platform 2 (borsa) paper portföyü
             from nexora import borsa_liste
@@ -269,7 +299,8 @@ class H(BaseHTTPRequestHandler):
             self._send(200, build_report(os.getenv("NEXORA_DB", "nexora_paper.db"), os.getenv("TRACKER_DB", "nexora_tracker.db")))
         else: self._send(404, {"hata": "yok"})
     def do_POST(self):
-        if not self._ok(): return
+        izin, _ = self._izin(urlsplit(self.path).path, True)
+        if not izin: return
         n = int(self.headers.get("Content-Length", 0) or 0)
         raw = self.rfile.read(n) if n else b"{}"
         if self.path.startswith("/uye/"): self._uye_islem(self.path, raw); return

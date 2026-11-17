@@ -74,6 +74,23 @@ class Uyelik:
         CREATE TABLE IF NOT EXISTS borsa_anahtar(uye INTEGER NOT NULL, borsa TEXT NOT NULL, sifreli TEXT NOT NULL, maske TEXT NOT NULL,
             izin TEXT NOT NULL, ts REAL NOT NULL, PRIMARY KEY(uye, borsa));
         """)
+        if "rol" not in {r["name"] for r in self.db.execute("PRAGMA table_info(uye)")}:   # rol ayrımı (eski veritabanı)
+            self.db.execute("ALTER TABLE uye ADD COLUMN rol TEXT NOT NULL DEFAULT 'uye'"); self.db.commit()
+
+    ROLLER = ("uye", "kurucu")
+
+    def rol_ata(self, eposta, rol):
+        """Rol yalnızca sunucuda komutla atanır (python3 -m nexora.uyelik kurucu <eposta>); uygulamadan değiştirilemez.
+        Rol değişince o üyenin tüm oturumları kapanır: yeni yetki yeni girişle başlar."""
+        if rol not in self.ROLLER: raise UyelikHatasi(f"rol {self.ROLLER} içinden olmalı")
+        r = self.db.execute("SELECT id FROM uye WHERE eposta=?", ((eposta or "").strip().lower(),)).fetchone()
+        if not r: raise UyelikHatasi("bu e-postayla kayıtlı üye yok")
+        self.db.execute("UPDATE uye SET rol=? WHERE id=?", (rol, r["id"]))
+        self.db.execute("DELETE FROM oturum WHERE uye=?", (r["id"],)); self.db.commit()
+        return True
+
+    def kurucular(self):
+        return [r["eposta"] for r in self.db.execute("SELECT eposta FROM uye WHERE rol='kurucu' ORDER BY id")]
 
     # ---- kayıt / giriş
     def _kod(self):
@@ -81,7 +98,12 @@ class Uyelik:
             k = "".join(secrets.choice(DAVET_ALFABE) for _ in range(8))
             if not self.db.execute("SELECT 1 FROM uye WHERE davet_kodu=?", (k,)).fetchone(): return k
 
-    def kayit(self, eposta, parola, davet=""):
+    KAYIT_SINIRI = 20             # 10 dakikada en fazla bu kadar kayıt denemesi (tüm sunucu; toplu hesap açmaya karşı)
+
+    def kayit(self, eposta, parola, davet="", now=None):
+        now = now or time.time()
+        if self._say("kayit", now) >= self.KAYIT_SINIRI: raise PermissionError("çok fazla kayıt denemesi: biraz sonra tekrar deneyin")
+        self.db.execute("INSERT INTO giris_deneme VALUES('kayit', ?)", (now,)); self.db.commit()
         eposta = (eposta or "").strip().lower()
         if not EPOSTA_RE.match(eposta): raise UyelikHatasi("e-posta geçersiz")
         if not isinstance(parola, str) or not 8 <= len(parola) <= 128: raise UyelikHatasi("parola 8-128 karakter olmalı")
@@ -277,7 +299,7 @@ class Uyelik:
         davetliler = [dict(eposta=maskele(r["eposta"]), ts=r["ts"]) for r in
                       self.db.execute("SELECT eposta, ts FROM uye WHERE davet_eden=? ORDER BY id DESC", (u["id"],))]
         return dict(eposta=u["eposta"], davet_kodu=u["davet_kodu"], davet_sayisi=len(davetliler), davetliler=davetliler[:20],
-                    baglantilar=self.baglantilar(u["id"]))
+                    baglantilar=self.baglantilar(u["id"]), rol=u.get("rol") or "uye")
 
     # ---- üye başına sanal hesap (N15: hesap izolasyonu)
     def portfoy_baslat(self, uye_id, baslangic, sistem_deger, now=None):
@@ -311,3 +333,17 @@ class Uyelik:
         d.update(baslangic=round(baslangic, 2), brut_kar=round(brut_kar, 2), brut_bakiye=round(baslangic + brut_kar, 2),
                  sanal=True, not_="Komisyon yalnızca sanal gösterimdir; para saklanmaz, tahsilat yapılmaz.")
         return d
+
+
+if __name__ == "__main__":                       # sunucuda:  python3 -m nexora.uyelik kurucu <eposta>   |   uye <eposta>   |   liste
+    import sys
+    u = Uyelik(os.getenv("UYELIK_DB", "nexora_uyelik.db"))
+    if len(sys.argv) == 2 and sys.argv[1] == "liste":
+        print("Kurucular:", ", ".join(u.kurucular()) or "yok")
+    elif len(sys.argv) == 3 and sys.argv[1] in Uyelik.ROLLER:
+        try:
+            u.rol_ata(sys.argv[2], sys.argv[1]); print(f"{sys.argv[2]}: rol '{sys.argv[1]}' (oturumları kapandı, yeniden giriş yapın)")
+        except UyelikHatasi as e:
+            sys.exit(f"Hata: {e}")
+    else:
+        sys.exit("Kullanım: python3 -m nexora.uyelik kurucu <eposta> | uye <eposta> | liste")
