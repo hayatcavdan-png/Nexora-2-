@@ -63,6 +63,20 @@ def karar(liste, izle, olc, adaylar=(), kara=()):
                 kopyalanan=len(yeni_liste) - len(yeni_izle), izlenen=len(yeni_izle))
 
 
+KANIT_N, KANIT_ORT = 15, 5.0
+
+
+def seviye(m):
+    """Kadro ölçümünden cüzdan seviyesi (core.SEVIYELER): kanıtlanmış / normal / yeni."""
+    if m and m["n"] >= KANIT_N and m["ort"] >= KANIT_ORT and m["medyan"] > 0: return "kanitlanmis"
+    if m and m["n"] >= TERFI_N: return "normal"
+    return "yeni"
+
+
+def seviyeler(olc):
+    return {w: seviye(m) for w, m in olc.items()}
+
+
 def _oku(path):
     try: return [l.strip() for l in open(path) if l.strip() and not l.lstrip().startswith("#")]
     except OSError: return []
@@ -101,4 +115,4 @@ if __name__ == "__main__":                       # elle:  python3 -m nexora.kadr
     for ad, anahtar in (("Kopyalamaya geçti", "terfi"), ("İzlemeye düştü", "dusur"), ("Listeden çıktı", "cikar"), ("İzlemeye alındı", "eklenen")):
         if oz[anahtar]: print(f"  {ad}: {', '.join(k(w) for w in oz[anahtar])}")
     for w, m in sorted(oz["olcum"].items(), key=lambda x: -x[1]["ort"]):
-        print(f"  {k(w)}  n={m['n']:<3} ort %{m['ort']:+.1f}  medyan %{m['medyan']:+.1f}  pozitif %{100 * m['pozitif']:.0f}")
+        print(f"  {k(w)}  n={m['n']:<3} ort %{m['ort']:+.1f}  medyan %{m['medyan']:+.1f}  pozitif %{100 * m['pozitif']:.0f}  [{seviye(m)}]")

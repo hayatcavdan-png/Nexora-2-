@@ -29,7 +29,8 @@ def read_list(path):
     return [l.strip() for l in open(path) if l.strip() and not l.lstrip().startswith("#")]
 INTERVAL = int(os.getenv("TRACK_INTERVAL", "60" if USE_WS else "20"))
 MARK_EVERY = int(os.getenv("MARK_INTERVAL", "120"))   # açık pozisyonları 2 dakikada bir gerçek teklifle değerle
-KAYNAK_KONTROL = int(os.getenv("KAYNAK_KONTROL_SN", "900"))   # 15 dk'da bir: kaynak token'ı satmadan elden çıkardı mı?
+KAYNAK_KONTROL = int(os.getenv("KAYNAK_KONTROL_SN", "900"))
+SEVIYE_YENILE = 1800                                   # cüzdan seviyeleri (kadro ölçümü) yarım saatte bir yenilenir   # 15 dk'da bir: kaynak token'ı satmadan elden çıkardı mı?
 
 def short(a): return a[:4] + "…" + a[-4:]
 
@@ -129,7 +130,19 @@ def main():
            (", gerçek Jupiter teklifleriyle paper işlem" if PAPER_TRADE else ", paper işlem kapalı")
     print(f"Takip başladı: {len(wallets)} cüzdan, {mode}, yoklama {INTERVAL} sn "
           f"(PAPER, gerçek işlem KAPALI)", flush=True)
-    last_mark = last_kaynak = time.time()
+    def seviye_yenile():
+        if os.getenv("SEVIYE", "1") == "0": return
+        try:
+            from nexora import kadro
+            paper.seviye = kadro.seviyeler(kadro.olcum(os.getenv("ETIKET_DB", "nexora_etiket.db")))
+            say = {}
+            for w in wallets:
+                if paper.seviye: say[paper.cuzdan_seviyesi(w)] = say.get(paper.cuzdan_seviyesi(w), 0) + 1
+            if say: print("  Cüzdan seviyeleri: " + ", ".join(f"{k} {v}" for k, v in sorted(say.items())), flush=True)
+        except Exception as e:
+            print(f"  seviyeler okunamadı ({type(e).__name__}): eski seviyeler geçerli", flush=True)
+    seviye_yenile()
+    last_mark = last_kaynak = last_seviye = time.time()
     liste_izi = {f: (os.path.getmtime(f) if os.path.exists(f) else None) for f in ("wallets.txt", "izle_listesi.txt")}
     try:
         while True:
@@ -150,6 +163,8 @@ def main():
                 if borsa is not None:
                     try: borsa.degerle()
                     except Exception: pass
+            if time.time() - last_seviye >= SEVIYE_YENILE:
+                last_seviye = time.time(); seviye_yenile()
             if decider and time.time() - last_kaynak >= KAYNAK_KONTROL:
                 last_kaynak = time.time()
                 try:

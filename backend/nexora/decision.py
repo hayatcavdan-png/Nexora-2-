@@ -42,7 +42,8 @@ class Decider:
         self.yurutme = yurutme        # isteğe bağlı yürütme gecikmesi ölçer (yalnızca ölçüm)
 
     # Yer/sınır kuralı yüzünden reddedilen alımlar gölgede ölçülür: "sınır olmasaydı ne kazanırdık?" (N8/N10 kararı için).
-    KURAL_GOLGE = ("maks. eşzamanlı pozisyon", "bu cüzdan için pozisyon sınırı dolu", "bu token'a bugünkü giriş sınırı dolu")
+    KURAL_GOLGE = ("maks. eşzamanlı pozisyon", "bu cüzdan için pozisyon sınırı dolu", "bu token'a bugünkü giriş sınırı dolu",
+                   "toplam risk sınırı (%40) dolu")
     KURAL_GOLGE_SAAT = 8              # saatte en fazla bu kadar ölçüm: Jupiter/Helius kotası gerçek sinyallere kalsın
 
     def _kural_golgesi(self, event_id, wallet, token, reason, now=None):
@@ -57,7 +58,7 @@ class Decider:
         try:
             s = self.safety.check(token)
             if s["verdict"] != "UYGUN": return False
-            size = round(p.equity() * p.poz_orani(), 6)
+            size = round(p.equity() * p.poz_orani(wallet), 6)
             amount = int(round(size * 10 ** USDC_DECIMALS))
             q = self.quoter.quote(USDC_MINT, token, amount)
             if q["price_impact_pct"] is not None and q["price_impact_pct"] > p.limit("max_price_impact_pct"): return False

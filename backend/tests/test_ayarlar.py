@@ -134,3 +134,53 @@ class ServerYedekTests(unittest.TestCase):
             srv.shutdown(); srv.server_close()
         finally:
             os.chdir(eski)
+
+
+class SeviyeTests(unittest.TestCase):
+    def setUp(self):
+        self.p = Paper(); self.p.ayar_degistir({"max_positions": 16, "max_pos_pct": 0.025})
+        self.p.seviye = {"K": "kanitlanmis", "N": "normal"}
+
+    def ac(self, wallet, token):
+        r, size = self.p.precheck("buy", token, 1, wallet)
+        if r: return r, size
+        self.p.record_buy(f"e-{token}", wallet, token, size, 1_000_000, 6); return None, size
+
+    def test_seviyeye_gore_boyut_ve_sinir(self):
+        self.assertEqual(self.ac("K", "T1"), (None, 3.5))                    # kanıtlanmış: %3.5
+        r, size = self.ac("N", "T2"); self.assertIsNone(r); self.assertAlmostEqual(size, 2.5, places=2)   # normal: %2.5
+        self.assertAlmostEqual(self.ac("Y", "T3")[1], 1.5, places=2)         # ölçümü olmayan: yeni, %1.5
+        self.assertEqual(self.ac("Y", "T4")[0], "bu cüzdan için pozisyon sınırı dolu")   # yeni: 1 pozisyon
+        for i in range(3): self.assertIsNone(self.ac("K", f"K{i}")[0])     # kanıtlanmış: 4 pozisyona kadar
+        self.assertEqual(self.ac("K", "K9")[0], "bu cüzdan için pozisyon sınırı dolu")
+
+    def test_toplam_risk_acik_maliyetle_korunur(self):
+        self.p.seviye = {f"K{i}": "kanitlanmis" for i in range(20)}
+        acilan = 0
+        for i in range(20):
+            if self.ac(f"K{i}", f"T{i}")[0] is None: acilan += 1
+        self.assertEqual(acilan, 11)                                          # 11 x 3.5 = 38.5; 12. pozisyon %40'ı aşar
+        self.assertEqual(self.p.precheck("buy", "TX", 1, "K19")[0], "toplam risk sınırı (%40) dolu")
+
+    def test_kullanici_sikilastirirsa_seviyeler_kuculur(self):
+        self.p.ayar_degistir({"max_pos_pct": 0.0125, "max_positions_per_wallet": 1})
+        self.assertAlmostEqual(self.p.poz_orani("K"), 0.0175)                 # yarıya iner
+        self.assertEqual(self.p.cuzdan_siniri("K"), 1)                         # sıkılaştırılmış sınır geçerli
+
+    def test_seviye_yoksa_eski_davranis_ve_elle_islem(self):
+        self.p.seviye = {}
+        self.assertEqual(self.p.cuzdan_siniri("X"), CFG["max_positions_per_wallet"])
+        self.assertAlmostEqual(self.p.poz_orani("X"), 0.025)
+        self.p.seviye = {"K": "kanitlanmis"}
+        self.assertIsNone(self.p.cuzdan_seviyesi("MANUEL"))
+
+
+class KadroSeviyeTests(unittest.TestCase):
+    def test_seviye_esikleri(self):
+        from nexora.kadro import seviye
+        m = lambda n, o, md: dict(n=n, ort=o, medyan=md, pozitif=0.5)
+        self.assertEqual(seviye(m(20, 9.3, 4.9)), "kanitlanmis")            # DtVW
+        self.assertEqual(seviye(m(16, 3.5, 8.1)), "normal")                 # 31Z4: ortalama %5'in altında
+        self.assertEqual(seviye(m(20, 9.0, -1.0)), "normal")                # medyan negatif: kanıtlanmış değil
+        self.assertEqual(seviye(m(2, 9.8, 9.8)), "yeni")                    # 6KBN: az ölçüm
+        self.assertEqual(seviye(None), "yeni")

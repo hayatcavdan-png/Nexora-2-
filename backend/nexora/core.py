@@ -41,6 +41,12 @@ AYARLANABILIR = dict(
 
 TOPLAM_RISK = 0.40           # pozisyon büyüklüğü x en fazla pozisyon bunu aşamaz (her ayar bileşiminde)
 
+# Cüzdan seviyeleri (17.11.2026, kullanıcı onayı): kadronun ölçümüne göre cüzdan başına pozisyon ve büyüklük.
+# Büyüklük, kullanıcının max_pos_pct ayarı %2.5'in altına sıkılaştırılırsa aynı oranda küçülür. Toplam açık maliyet
+# portföyün TOPLAM_RISK oranını hiçbir durumda aşamaz.
+SEVIYELER = dict(kanitlanmis=(4, 0.035), normal=(2, 0.025), yeni=(1, 0.015))
+SEVIYE_TABAN = 0.025
+
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS state(k TEXT PRIMARY KEY, v TEXT);
 CREATE TABLE IF NOT EXISTS positions(token TEXT PRIMARY KEY, qty REAL, cost REAL, last_price REAL, wallet TEXT);
@@ -109,6 +115,7 @@ class Paper:
         # Borsa (platform 2): gerçek alış/satış fiyatı kullanıldığı için kayma küçük, ücret yüzdelik (ör. %0.1 = 0.001)
         self.kayma = CFG["base_slippage"] if kayma is None else kayma
         self.ucret_orani = ucret_orani
+        self.seviye = {}                    # cüzdan -> seviye adı (takip servisi kadro ölçümünden doldurur); boşsa seviye yok
         self.db = sqlite3.connect(path, check_same_thread=False, timeout=10)
         self.db.row_factory = sqlite3.Row
         self.lock = threading.Lock()
@@ -156,9 +163,22 @@ class Paper:
                 pass
         return CFG[k]
 
-    def poz_orani(self):
-        """Pozisyon büyüklüğü (portföy oranı): ayar, ama toplam risk TOPLAM_RISK'i aşmayacak şekilde kısılır."""
+    def cuzdan_seviyesi(self, wallet):
+        """Seviye adı ya da None (seviye sistemi kapalı / elle işlem)."""
+        if not self.seviye or not wallet or wallet == "MANUEL": return None
+        return self.seviye.get(wallet, "yeni")
+
+    def poz_orani(self, wallet=None):
+        """Pozisyon büyüklüğü (portföy oranı). Seviye varsa seviyenin oranı (kullanıcı ayarı sıkılaştırdıysa orantılı küçülür);
+        yoksa ayar, ama toplam risk TOPLAM_RISK'i aşmayacak şekilde kısılır."""
+        sv = self.cuzdan_seviyesi(wallet)
+        if sv: return round(SEVIYELER[sv][1] * min(1.0, self.limit("max_pos_pct") / SEVIYE_TABAN), 6)
         return min(self.limit("max_pos_pct"), TOPLAM_RISK / self.limit("max_positions"))
+
+    def cuzdan_siniri(self, wallet):
+        sv, ayar = self.cuzdan_seviyesi(wallet), self.limit("max_positions_per_wallet")
+        if not sv: return ayar
+        return SEVIYELER[sv][0] if ayar >= CFG["max_positions_per_wallet"] else min(SEVIYELER[sv][0], ayar)
 
     def ayarlar(self):
         with self.lock:
@@ -362,8 +382,11 @@ class Paper:
             if ng >= self.limit("max_token_entries_per_day"): return "bu token'a bugünkü giriş sınırı dolu", 0
             if wallet is not None:
                 nw = self.db.execute("SELECT COUNT(*) c FROM positions WHERE wallet=?", (wallet,)).fetchone()["c"]
-                if nw >= self.limit("max_positions_per_wallet"): return "bu cüzdan için pozisyon sınırı dolu", 0
-            size = round(eq * self.poz_orani(), 6)
+                if nw >= self.cuzdan_siniri(wallet): return "bu cüzdan için pozisyon sınırı dolu", 0
+            size = round(eq * self.poz_orani(wallet), 6)
+            if self.cuzdan_seviyesi(wallet):
+                acik = self.db.execute("SELECT COALESCE(SUM(cost), 0) c FROM positions").fetchone()["c"]
+                if acik + size > TOPLAM_RISK * eq + 1e-9: return "toplam risk sınırı (%40) dolu", 0
             if size + CFG["net_fee_usd"] + CFG["fee_reserve_usd"] > self.cash():
                 return "yetersiz nakit (ücret rezervi korunuyor)", 0
             return None, size
