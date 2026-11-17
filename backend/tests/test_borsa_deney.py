@@ -57,3 +57,18 @@ class IndirTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TamSayiZamanTests(unittest.TestCase):
+    def test_baslangic_zamani_tam_sayi(self):
+        import os, tempfile
+        gonderilen = []
+        class S:
+            def get(self, url, params=None, timeout=None):
+                gonderilen.append(params["startTime"])
+                class R:
+                    status_code = 200
+                    def json(_): return []
+                return R()
+        B.indir(S(), ["XUSDT"], 7.0, db=os.path.join(tempfile.mkdtemp(), "m.db"), now=1_000_000.5, uyku=0, yaz=lambda m: None)
+        self.assertTrue(gonderilen and all(isinstance(x, int) for x in gonderilen))   # Binance ondalıklı startTime'ı reddeder

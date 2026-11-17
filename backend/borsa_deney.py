@@ -36,13 +36,13 @@ def semboller(s, n):
 def indir(s, syms, gun, db=DB, now=None, uyku=0.15, yaz=print):
     """Eksik dakikaları indirir; {sembol: [(ts_sn, kapanış)]} döner."""
     now = int(now or time.time())
-    bas = (now - gun * 86400) // 60 * 60
+    bas = int(now - gun * 86400) // 60 * 60
     c = sqlite3.connect(db)
     c.execute("CREATE TABLE IF NOT EXISTS mum(sembol TEXT, ts INTEGER, kapanis REAL, PRIMARY KEY(sembol, ts))")
     hata_gosterildi = False
     for i, sym in enumerate(syms, 1):
         son = c.execute("SELECT MAX(ts) FROM mum WHERE sembol=?", (sym,)).fetchone()[0]
-        t = max(bas, (son or 0) + 60)
+        t = int(max(bas, (son or 0) + 60))
         while t < now - 60:
             try:
                 yanit = s.get(KLINE, params=dict(symbol=sym, interval="1m", startTime=t * 1000, limit=1000), timeout=20)
