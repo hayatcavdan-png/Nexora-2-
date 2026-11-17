@@ -10,7 +10,7 @@ import csv, os, re, shutil, sys, time
 
 ADDR = re.compile(r"^[1-9A-HJ-NP-Za-km-z]{32,44}$")
 EN_FAZLA = int(os.getenv("EKLE_EN_FAZLA", "5"))
-TAKIP_SINIRI = int(os.getenv("TAKIP_SINIRI", "25"))
+TAKIP_SINIRI = int(os.getenv("TAKIP_SINIRI", "40"))
 
 
 def oku(path):

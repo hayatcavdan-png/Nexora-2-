@@ -24,7 +24,7 @@ SESSIZ_GUN = 7
 # "olcum" = eski davranış (izle -> terfi -> düşür). Veri biriktikçe deney masası yeniden karşılaştırır.
 MOD = os.getenv("KADRO_MOD", "herkes")
 YENI_GUNLUK = 5
-LISTE_SINIRI = int(os.getenv("TAKIP_SINIRI", "25"))
+LISTE_SINIRI = int(os.getenv("TAKIP_SINIRI", "40"))   # 17.11.2026: 25 -> 40 (havuz analizi, kullanıcı onayı)
 
 
 def olcum(etiket_db, now=None, gun=PENCERE_GUN):
