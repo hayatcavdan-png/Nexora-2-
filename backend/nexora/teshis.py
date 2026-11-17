@@ -158,6 +158,16 @@ def rapor(now=None, GUN=3.0):
                 L.append(f"      {r['islem']:>4} işlem {r['kacan']:>4} kaçan  {r['kz']:+7.2f}$  %{r['kazanan']:<3} düşüş {r['dusus']:.2f}$")
     except Exception as ex:
         L.append(f"[10] deney masası hesaplanamadı: {type(ex).__name__}")
+    try:                                   # 10b) ALPHA HUNTER X fikirleri: çoklu cüzdan teyidi ve geri çekilmede giriş
+        from nexora import deney
+        m = deney.modeller(os.getenv("ETIKET_DB", "nexora_etiket.db"), now, gun=14)
+        if m["sinyal"]:
+            L.append(f"[10b] Giriş modelleri (son 14 gün, 10x%4, al-sat <= %3): model / aday / işlem / K/Z / kazanan / düşüş")
+            for r in m["sonuclar"]:
+                L.append(f"    {r['ad']}")
+                L.append(f"      {r['aday']:>4} aday {r['islem']:>4} işlem  {r['kz']:+7.2f}$  %{r['kazanan']:<3} düşüş {r['dusus']:.2f}$")
+    except Exception as ex:
+        L.append(f"[10b] giriş modelleri hesaplanamadı: {type(ex).__name__}")
 
     # 6b) Kısmi satış ölçümü
     km = _q(p, "SELECT * FROM kismi_olcum WHERE acilis_ts>=?", (bas,))

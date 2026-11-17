@@ -124,3 +124,70 @@ def masa(etiket_db=None, now=None, gun=14, deneyler=DENEYLER, aktif=None):
         if cfg.get("aktif") == "liste": cfg["aktif"] = aktif
         out.append(dict(ad=ad, **simule(s, **cfg)))
     return dict(sinyal=len(s), gun=gun, sonuclar=out)
+
+
+# ---------------------------------------------------------------- Model A / Model B (ALPHA HUNTER X fikirleri, yalnızca ölçüm)
+TEYIT_SN = 900          # Model A: aynı token'ı son 15 dakikada alan farklı cüzdan sayısı
+GERI_SN = 300           # Model B: sinyalden 5 dakika sonra (etiket motorunun 5 dk ölçümü)
+UCRET_PAY = 2 * 0.01 / 5.0   # iki bacak ağ ücreti / 5 $ (etiket getirisindeki ile aynı)
+
+
+def sinyaller_detay(etiket_db, now=None, gun=14):
+    """Kaynak sonucu olan her sinyal: giriş/çıkış zamanı, cüzdan, token, getiri, al-sat kaybı, 5 dk ve kaynak çıkış tutarı,
+    ve 15 dk içinde aynı token'ı alan farklı cüzdan sayısı (teyit)."""
+    now = now if now is not None else time.time()
+    if not etiket_db or not os.path.exists(etiket_db): return []
+    c = sqlite3.connect(f"file:{etiket_db}?mode=ro", uri=True, timeout=10)
+    try:
+        rows = c.execute("""SELECT o.ts, k.ts, o.wallet, o.token, k.getiri_pct, o.al_sat_kaybi_pct, o.giris_usdc, k.cikis_usdc,
+                f.cikis_usdc FROM etiket_olay o
+                JOIN etiket_sonuc k ON k.event_id=o.event_id AND k.ufuk='kaynak' AND k.getiri_pct IS NOT NULL
+                LEFT JOIN etiket_sonuc f ON f.event_id=o.event_id AND f.ufuk='5dk' AND f.getiri_pct IS NOT NULL
+                WHERE o.ts >= ? ORDER BY o.ts""", (now - gun * 86400,)).fetchall()
+        alim = c.execute("SELECT ts, wallet, token FROM etiket_olay WHERE ts >= ?", (now - gun * 86400 - TEYIT_SN,)).fetchall()
+    except sqlite3.OperationalError:
+        rows, alim = [], []
+    finally:
+        c.close()
+    tok = {}
+    for ts, w, t in alim: tok.setdefault(t, []).append((ts, w))
+    out = []
+    for gts, cts, w, t, g, rt, giris, ck, c5 in rows:
+        n = len({ww for ts, ww in tok.get(t, ()) if gts - TEYIT_SN <= ts <= gts})
+        out.append(dict(giris=gts, cikis=max(gts, cts), w=w, t=t, g=float(g), rt=rt, usd=giris or 5.0, ck=ck, c5=c5, teyit=max(n, 1)))
+    return out
+
+
+def model_a(detay, en_az):
+    """Yalnızca en az `en_az` farklı cüzdanın 15 dk içinde aldığı token'larda, teyidi tamamlayan sinyalle gir."""
+    return [(d["giris"], d["cikis"], d["w"], d["t"], d["g"], d["rt"]) for d in detay if d["teyit"] >= en_az]
+
+
+def model_b(detay, dusus_pct):
+    """Sinyalden 5 dk sonra, fiyat sinyal anına göre en az `dusus_pct` düştüyse gir; kaynak satınca çık.
+    Fiyat değişimi ve getiri aynı miktarın satış teklifleriyle (5 dk ve kaynak) yaklaşık hesaplanır."""
+    out = []
+    for d in detay:
+        if not d["c5"] or not d["ck"] or d["cikis"] < d["giris"] + GERI_SN: continue
+        rt = d["rt"] or 0.0
+        anlik = d["usd"] * (1 - rt / 100)                  # sinyal anında hemen satış değeri
+        hareket = (d["c5"] / anlik - 1) * 100 if anlik > 0 else 0.0
+        if hareket > -dusus_pct: continue
+        g = ((d["ck"] / d["c5"]) * (1 - rt / 100) - 1 - UCRET_PAY) * 100   # 5. dakikada al, kaynak satınca sat
+        out.append((d["giris"] + GERI_SN, d["cikis"], d["w"], d["t"], g, rt))
+    return out
+
+
+MODELLER = [
+    ("Taban: her sinyal (10x%4, %3)", lambda d: model_a(d, 1)),
+    ("Model A: 15 dk'da 2+ cüzdan", lambda d: model_a(d, 2)),
+    ("Model A: 15 dk'da 3+ cüzdan", lambda d: model_a(d, 3)),
+    ("Model B: 5 dk sonra %3+ düştüyse gir", lambda d: model_b(d, 3.0)),
+    ("Model B: 5 dk sonra %8+ düştüyse gir", lambda d: model_b(d, 8.0)),
+]
+MODEL_AYAR = dict(max_poz=10, oran=0.04, rt_max=3.0)
+
+
+def modeller(etiket_db=None, now=None, gun=14):
+    d = sinyaller_detay(etiket_db or os.getenv("ETIKET_DB", "nexora_etiket.db"), now, gun)
+    return dict(sinyal=len(d), sonuclar=[dict(ad=ad, aday=len(f(d)), **simule(f(d), **MODEL_AYAR)) for ad, f in MODELLER])

@@ -64,3 +64,40 @@ class SimuleTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ModelTests(unittest.TestCase):
+    def db(self, satirlar):
+        d = tempfile.mkdtemp(); yol = os.path.join(d, "e.db")
+        c = sqlite3.connect(yol); c.executescript(SEMA)
+        for i, (ts, w, t, k_ts, g, ck, c5, rt) in enumerate(satirlar):
+            c.execute("INSERT INTO etiket_olay(event_id, ts, wallet, token, al_sat_kaybi_pct, giris_usdc) VALUES(?,?,?,?,?,5.0)",
+                      (f"e{i}", ts, w, t, rt))
+            if g is not None:
+                c.execute("INSERT INTO etiket_sonuc(event_id, ufuk, ts, getiri_pct, cikis_usdc) VALUES(?, 'kaynak', ?, ?, ?)",
+                          (f"e{i}", k_ts, g, ck))
+            if c5 is not None:
+                c.execute("INSERT INTO etiket_sonuc(event_id, ufuk, ts, getiri_pct, cikis_usdc) VALUES(?, '5dk', ?, 0, ?)",
+                          (f"e{i}", ts + 300, c5))
+        c.commit(); c.close(); return yol
+
+    def test_teyit_sayisi_ve_model_a(self):
+        yol = self.db([(1000, "A", "T", 9000, 10.0, 5.5, None, 1.0), (1300, "B", "T", 9000, 12.0, 5.6, None, 1.0),
+                       (1500, "C", "T", 9000, 8.0, 5.4, None, 1.0), (5000, "A", "U", 9000, -5.0, 4.7, None, 1.0)])
+        d = D.sinyaller_detay(yol, now=10_000)
+        self.assertEqual([x["teyit"] for x in d], [1, 2, 3, 1])
+        self.assertEqual([x[3] for x in D.model_a(d, 2)], ["T", "T"])
+        self.assertEqual(len(D.model_a(d, 3)), 1)
+
+    def test_model_b_geri_cekilme(self):
+        # rt %2: anlık satış değeri 4.90; 5 dk'da 4.50 (%-8.2) -> giriş; kaynakta 5.40
+        yol = self.db([(1000, "A", "T", 9000, 8.0, 5.40, 4.50, 2.0),
+                       (2000, "B", "U", 9000, 8.0, 5.40, 4.85, 2.0),        # %-1: geri çekilme yok
+                       (3000, "C", "V", 3100, 8.0, 5.40, 4.50, 2.0)])       # kaynak 5 dk dolmadan sattı: girilemez
+        d = D.sinyaller_detay(yol, now=10_000)
+        b = D.model_b(d, 3.0)
+        self.assertEqual(len(b), 1); self.assertEqual(b[0][0], 1300)
+        self.assertAlmostEqual(b[0][4], ((5.40 / 4.50) * 0.98 - 1 - D.UCRET_PAY) * 100)
+        self.assertEqual(len(D.model_b(d, 10.0)), 0)
+        m = D.modeller(yol, now=10_000)
+        self.assertEqual(m["sinyal"], 3); self.assertEqual(len(m["sonuclar"]), len(D.MODELLER))
