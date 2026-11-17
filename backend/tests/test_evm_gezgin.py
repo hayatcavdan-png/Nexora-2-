@@ -119,3 +119,15 @@ class SwaplarGezginTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ZamanAsimiTest(unittest.TestCase):
+    def test_blockscout_bir_kez_yeniden_dener(self):
+        import requests
+        class G:
+            n = 0
+            def get(self, url, params=None, timeout=None, headers=None):
+                G.n += 1
+                if G.n == 1: raise requests.Timeout("yavaş")
+                return R({"items": [{"block_number": 120, "transaction_hash": "0xa"}], "next_page_params": None})
+        self.assertEqual(gezgin_islemleri(G(), "base", W, 100), {"0xa": 120})

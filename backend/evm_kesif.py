@@ -39,7 +39,7 @@ def main(argv, rpc=None, s=None, ekle_en_fazla=EKLE, liste_siniri=None):
     if c.get("gezgin"):                                  # düğüm geçmiş sorgusunu kısıtlıyorsa (Alchemy ücretsiz: 10 blok) gezgin şart
         gz = lambda w_, b_: gezgin_islemleri(s, z, w_, b_)
         tani = {}
-        if havuz and gezgin_islemleri(s, z, havuz[0], son - gun1, en_cok_sayfa=1, tani=tani) is None:
+        if havuz and all(gezgin_islemleri(s, z, w_, son - gun1, en_cok_sayfa=1, tani=tani) is None for w_ in havuz[:3]):
             sys.exit("Cüzdan geçmişi okunamadı: ücretsiz gezginler yanıt vermedi (" +
                      ", ".join(f"{k}: {v}" for k, v in tani.items()) + "). Düğüm kotasını korumak için analiz yapılmadı.")
     for w in havuz:

@@ -245,7 +245,11 @@ _BASLIK = {"User-Agent": "Mozilla/5.0 (NEXORA salt-okunur analiz)", "Accept": "a
 def _blockscout(s, taban, w, bas_blok, en_cok_sayfa, timeout):
     out, params = {}, {"type": "ERC-20"}
     for _ in range(en_cok_sayfa):
-        r = s.get(f"{taban}/api/v2/addresses/{w}/token-transfers", params=params, timeout=timeout, headers=_BASLIK)
+        for deneme in range(2):                              # Blockscout yoğun adreslerde ara sıra zaman aşımına düşer: bir kez daha dene
+            try:
+                r = s.get(f"{taban}/api/v2/addresses/{w}/token-transfers", params=params, timeout=timeout, headers=_BASLIK); break
+            except requests.Timeout:
+                if deneme: raise
         if r.status_code == 404: return out                 # gezgin adresi hiç görmemiş: geçmiş boş
         if r.status_code != 200: raise EvmHatasi(f"HTTP {r.status_code}")
         d = r.json()
