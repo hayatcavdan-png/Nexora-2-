@@ -17,6 +17,21 @@ def kaynak_bakiyesi(client, wallet, mint):
         return None
 
 
+def satis_orani(tx, wallet, mint):
+    """Kaynağın bu satışta elindeki token'ın ne kadarını sattığı (0-1), işlemin kendi öncesi/sonrası bakiyelerinden.
+    Ek RPC yok. Bilinmiyorsa None."""
+    try:
+        meta = tx.get("meta") or {}
+        def top(alan):
+            return sum(int(b["uiTokenAmount"]["amount"]) for b in meta.get(alan) or []
+                       if b.get("owner") == wallet and b.get("mint") == mint)
+        once, sonra = top("preTokenBalances"), top("postTokenBalances")
+        if once <= 0 or sonra > once: return None
+        return round((once - sonra) / once, 6)
+    except (KeyError, TypeError, ValueError, AttributeError):
+        return None
+
+
 def _q(q):
     """Denetim izi için teklifin özeti."""
     return dict(giris=q.get("in_amount"), cikis=q.get("out_amount"), etki=q.get("price_impact_pct"),
@@ -93,14 +108,45 @@ class Decider:
             out.append((t, r.get("decision"), r.get("reason")))
         return out
 
-    def decide(self, event_id, wallet, token, side, signal_age_s, boyut_usd=None, neden=None):
+    KISMI_ESIK = 0.95             # kaynak bundan azını sattıysa "kısmi satış" sayılır
+    KISMI_SURE_SN = 86400         # ölçüm en geç 24 saatte kalan gerçek teklifle kapanır
+
+    def _kismi_isle(self, event_id, wallet, token, oran):
+        """Açık kısmi ölçümlerde, kaynağın yeni satışıyla orantılı payı gerçek teklifle 'satar'. Paper defterine dokunmaz."""
+        for k in self.paper.kismi_acik(wallet, token):
+            kalan = int(k["kalan_raw"])
+            pay = kalan if (oran is None or oran >= self.KISMI_ESIK) else int(kalan * oran)
+            try:
+                usd = self.quoter.quote(token, USDC_MINT, pay)["out_amount"] / 10 ** USDC_DECIMALS if pay > 0 else 0.0
+            except QuoteError as e:
+                self.paper.kismi_guncelle(k["id"], 0, 0.0, status="satilamadi", note=str(e)[:80]); continue
+            kalan -= pay
+            self.paper.kismi_guncelle(k["id"], kalan, usd, status="open" if kalan > 0 else "closed")
+
+    def kismi_zaman_asimi(self, now=None):
+        """24 saati dolan kısmi ölçümleri kalanın gerçek teklifiyle kapatır."""
+        import time as _t
+        now = now if now is not None else _t.time()
+        for k in self.paper.kismi_acik():
+            if now - (k["acilis_ts"] or now) < self.KISMI_SURE_SN: continue
+            kalan = int(k["kalan_raw"])
+            try:
+                usd = self.quoter.quote(k["token"], USDC_MINT, kalan)["out_amount"] / 10 ** USDC_DECIMALS if kalan > 0 else 0.0
+                self.paper.kismi_guncelle(k["id"], 0, usd, status="zaman")
+            except QuoteError as e:
+                self.paper.kismi_guncelle(k["id"], 0, 0.0, status="satilamadi", note=str(e)[:80])
+
+    def decide(self, event_id, wallet, token, side, signal_age_s, boyut_usd=None, neden=None, kaynak_oran=None):
         p = self.paper
         if p.seen(event_id): return dict(decision="ATLANDI", reason="tekrarlanan olay")
         iz = []                       # N1: her adımın girdisi ve sonucu (değiştirilemez kayıt)
         self._yas = signal_age_s
         r = None
         try:
-            if side == "sell": self._close_shadows(event_id, wallet, token)
+            if side == "sell":
+                self._close_shadows(event_id, wallet, token)
+                try: self._kismi_isle(event_id, wallet, token, kaynak_oran)
+                except Exception: pass    # ölçüm hatası kararı etkilemez
             limitler = {k: p.limit(k) for k in ("max_pos_pct", "daily_loss_pct", "max_positions", "max_positions_per_wallet", "max_token_entries_per_day",
                                                 "max_signal_age_s", "max_price_impact_pct", "max_roundtrip_loss_pct")}
             reason, size = p.precheck(side, token, signal_age_s, wallet)
@@ -114,7 +160,7 @@ class Decider:
                 if side == "buy" and reason in self.KURAL_GOLGE and boyut_usd is None:
                     iz.append(dict(adim="kural_golgesi", sonuc="açıldı" if self._kural_golgesi(event_id, wallet, token, reason) else "açılmadı"))
             else:
-                r = self._buy(event_id, wallet, token, size, iz) if side == "buy" else self._sell(event_id, wallet, token, iz, neden)
+                r = self._buy(event_id, wallet, token, size, iz) if side == "buy" else self._sell(event_id, wallet, token, iz, neden, kaynak_oran)
             return r
         except Exception as e:
             iz.append(dict(adim="hata", sonuc=f"{type(e).__name__}: {str(e)[:120]}"))
@@ -197,7 +243,7 @@ class Decider:
                 continue
             self.paper.shadow_close(sh["id"], q["out_amount"] / 10 ** USDC_DECIMALS, event_id)
 
-    def _sell(self, event_id, wallet, token, iz=None, neden=None):
+    def _sell(self, event_id, wallet, token, iz=None, neden=None, oran=None):
         iz = iz if iz is not None else []
         p = self.paper
         pos = p.position(token)
@@ -214,7 +260,13 @@ class Decider:
         iz.append(dict(adim="satis_teklifi", sonuc="alındı", maliyet_usd=pos["cost"], **_q(q)))
         proceeds = q["out_amount"] / 10 ** USDC_DECIMALS
         etki = "etki bilinmiyor" if q["price_impact_pct"] is None else f"etki %{q['price_impact_pct']:.2f}"
-        r = p.record_sell(event_id, wallet, token, proceeds, note=etki + (f"; {neden}" if neden else ""))
+        r = p.record_sell(event_id, wallet, token, proceeds, note=etki + (f"; {neden}" if neden else "")
+                          + (f"; kaynak %{100 * oran:.0f} sattı" if oran is not None else ""))
+        if r.get("decision") == "KOPYALANDI" and oran is not None and oran < self.KISMI_ESIK and not neden:
+            try:                                          # ölçüm: kaynak kadar satsaydık kalan pay
+                p.kismi_ac(wallet, token, oran, int(int(pos["qty_raw"]) * (1 - oran)), round(proceeds * (1 - oran), 6))
+            except Exception:
+                pass
         if r.get("decision") == "KOPYALANDI" and self.yurutme is not None:
             self.yurutme.enqueue(event_id, "sell", token, token, USDC_MINT, int(pos["qty_raw"]), q["out_amount"])
         return r

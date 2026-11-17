@@ -113,6 +113,14 @@ def rapor(now=None):
     except Exception as ex:
         L.append(f"[6] zarar kesme hesaplanamadı: {type(ex).__name__}")
 
+    # 6b) Kısmi satış ölçümü
+    km = _q(p, "SELECT * FROM kismi_olcum WHERE acilis_ts>=?", (bas,))
+    if km:
+        kap = [x for x in km if x["status"] != "open"]
+        sim, son = sum(x["simdi_usd"] or 0 for x in kap), sum(x["sonra_usd"] or 0 for x in kap)
+        L.append(f"[6b] Kısmi satış (kaynak kadar satsaydık): {len(km)} ölçüm, {len(kap)} kapandı; kalan pay ilk satışta "
+                 f"{sim:.2f}$, orantılı satışla {son:.2f}$ (fark {son - sim:+.2f}$)")
+
     # 7) Liste
     w, izle = _liste("wallets.txt"), _liste("izle_listesi.txt")
     sinyal = _q(t, "SELECT wallet, COUNT(*) n FROM tracker_signals WHERE side='BUY' AND ts>=? GROUP BY wallet", (bas,))

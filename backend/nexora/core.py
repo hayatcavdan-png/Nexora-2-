@@ -78,6 +78,8 @@ CREATE TABLE IF NOT EXISTS boyut_olcum(event_id TEXT PRIMARY KEY, wallet TEXT, g
 CREATE TABLE IF NOT EXISTS derinlik_olcum(event_id TEXT PRIMARY KEY, token TEXT, ts REAL, taban_usd REAL,
   kayip_25 REAL, kayip_100 REAL, hata TEXT);
 CREATE TABLE IF NOT EXISTS kesinti(id INTEGER PRIMARY KEY AUTOINCREMENT, bas REAL, bit REAL, sure_sn REAL);
+CREATE TABLE IF NOT EXISTS kismi_olcum(id INTEGER PRIMARY KEY AUTOINCREMENT, wallet TEXT, token TEXT, acilis_ts REAL,
+  oran REAL, kalan_raw TEXT, simdi_usd REAL, sonra_usd REAL DEFAULT 0, adim INTEGER DEFAULT 0, status TEXT, kapanis_ts REAL, note TEXT);
 CREATE TABLE IF NOT EXISTS stop_tetik(iz_id INTEGER, esik REAL, ts REAL, pnl REAL, PRIMARY KEY(iz_id, esik));
 """
 
@@ -542,6 +544,29 @@ class Paper:
                 (event_id, wallet, token, time.time(), size_usd, str(int(qty_raw)), decimals, rt_loss_pct, impact_pct, reason))
             self.db.commit()
             return cur.rowcount == 1
+
+    # --- Kısmi satış ölçümü (yalnızca ölçüm): kaynak pozisyonunun bir kısmını sattığında biz hepsini satarız.
+    # "Kaynak kadar satıp kalanı tutsaydık" sonucu burada izlenir: simdi_usd = kalan payın o anki satış değeri,
+    # sonra_usd = kaynağın sonraki satışlarıyla orantılı satılsaydı toplanan gerçek teklif tutarı.
+    def kismi_ac(self, wallet, token, oran, kalan_raw, simdi_usd):
+        with self.lock:
+            self.db.execute("""INSERT INTO kismi_olcum(wallet,token,acilis_ts,oran,kalan_raw,simdi_usd,status)
+                VALUES(?,?,?,?,?,?,'open')""", (wallet, token, time.time(), oran, str(int(kalan_raw)), simdi_usd))
+            self.db.commit()
+
+    def kismi_acik(self, wallet=None, token=None):
+        with self.lock:
+            if wallet is None:
+                return [dict(r) for r in self.db.execute("SELECT * FROM kismi_olcum WHERE status='open'")]
+            return [dict(r) for r in self.db.execute(
+                "SELECT * FROM kismi_olcum WHERE status='open' AND wallet=? AND token=?", (wallet, token))]
+
+    def kismi_guncelle(self, kid, kalan_raw, ek_usd, status="open", note=None):
+        with self.lock:
+            self.db.execute("""UPDATE kismi_olcum SET kalan_raw=?, sonra_usd=sonra_usd+?, adim=adim+1, status=?,
+                kapanis_ts=CASE WHEN ?='open' THEN NULL ELSE ? END, note=COALESCE(?, note) WHERE id=? AND status='open'""",
+                (str(int(kalan_raw)), ek_usd, status, status, time.time(), note, kid))
+            self.db.commit()
 
     def open_shadows(self, wallet, token):
         with self.lock:

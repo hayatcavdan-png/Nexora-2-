@@ -235,3 +235,52 @@ class KaynakDenetimiTests(unittest.TestCase):
         c.call = Mock(return_value={"value": []}); self.assertEqual(kaynak_bakiyesi(c, "W", TOK), 0)   # hesap kapatılmış
         c.call = Mock(side_effect=RuntimeError("ağ")); self.assertIsNone(kaynak_bakiyesi(c, "W", TOK))
         c.call = Mock(return_value={"value": [{"account": {}}]}); self.assertIsNone(kaynak_bakiyesi(c, "W", TOK))
+
+
+class KismiSatisOlcumTests(unittest.TestCase):
+    def setUp(self):
+        self.p, self.q = Paper(), FakeQuoter()
+        self.d = Decider(self.p, self.q, Safe())
+        self.d.decide("e1", "W", TOK, "buy", 1)                       # 5 USDC = 1e9 ham token
+        self.q.sell_price = 1.0
+
+    def test_kaynak_kademeli_satarsa_kalan_pay_izlenir(self):
+        r = self.d.decide("e2", "W", TOK, "sell", 1, kaynak_oran=0.3)   # kaynak %30 sattı: biz yine hepsini satarız
+        self.assertEqual(r["decision"], "KOPYALANDI"); self.assertIsNone(self.p.position(TOK))
+        self.assertIn("kaynak %30 sattı", [x for x in self.p.trades() if x["side"] == "sell"][0]["reason"])
+        k = self.p.kismi_acik("W", TOK)[0]
+        self.assertEqual((int(k["kalan_raw"]), k["simdi_usd"]), (700_000_000, 3.5))   # kalan %70 o an 3.5 $
+        self.q.sell_price = 2.0
+        self.d.decide("e3", "W", TOK, "sell", 1, kaynak_oran=0.5)       # kaynak kalanın yarısını sattı
+        k = self.p.kismi_acik("W", TOK)[0]
+        self.assertEqual(int(k["kalan_raw"]), 350_000_000); self.assertAlmostEqual(k["sonra_usd"], 3.5)
+        self.q.sell_price = 3.0
+        self.d.decide("e4", "W", TOK, "sell", 1, kaynak_oran=1.0)       # kaynak tamamen çıktı
+        self.assertEqual(self.p.kismi_acik("W", TOK), [])
+        row = dict(self.p.db.execute("SELECT * FROM kismi_olcum").fetchone())
+        self.assertEqual(row["status"], "closed"); self.assertAlmostEqual(row["sonra_usd"], 8.75)   # 3.5 + 5.25 > 3.5
+
+    def test_tam_satis_ve_bilinmeyen_oran_olcum_acmaz(self):
+        self.d.decide("e2", "W", TOK, "sell", 1, kaynak_oran=0.99)
+        self.assertEqual(self.p.kismi_acik(), [])
+        d2 = Decider(Paper(), FakeQuoter(), Safe()); d2.decide("e1", "W", TOK, "buy", 1)
+        d2.decide("e2", "W", TOK, "sell", 1)
+        self.assertEqual(d2.paper.kismi_acik(), [])
+
+    def test_zaman_asimi_kalanla_kapatir(self):
+        self.d.decide("e2", "W", TOK, "sell", 1, kaynak_oran=0.4)
+        k = self.p.kismi_acik()[0]
+        self.d.kismi_zaman_asimi(now=k["acilis_ts"] + 3600); self.assertEqual(len(self.p.kismi_acik()), 1)
+        self.d.kismi_zaman_asimi(now=k["acilis_ts"] + 90_000)
+        row = dict(self.p.db.execute("SELECT * FROM kismi_olcum").fetchone())
+        self.assertEqual(row["status"], "zaman"); self.assertAlmostEqual(row["sonra_usd"], 3.0)
+
+    def test_satis_orani_islemden(self):
+        from nexora.decision import satis_orani
+        b = lambda owner, mint, amt: {"owner": owner, "mint": mint, "uiTokenAmount": {"amount": str(amt)}}
+        tx = {"meta": {"preTokenBalances": [b("W", TOK, 1000), b("X", TOK, 5)], "postTokenBalances": [b("W", TOK, 250)]}}
+        self.assertEqual(satis_orani(tx, "W", TOK), 0.75)
+        tx["meta"]["postTokenBalances"] = []                                   # hesap kapatıldı: hepsi satıldı
+        self.assertEqual(satis_orani(tx, "W", TOK), 1.0)
+        self.assertIsNone(satis_orani({"meta": {}}, "W", TOK))
+        self.assertIsNone(satis_orani({"meta": {"preTokenBalances": [{"owner": "W", "mint": TOK}]}}, "W", TOK))

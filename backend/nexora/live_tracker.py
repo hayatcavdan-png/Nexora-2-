@@ -140,7 +140,11 @@ class LiveTracker:
         age = max(0.0, self.clock() - bt) if bt else 1e9      # algılama gecikmesi (karar öncesi)
         event_id, side = f"{wallet}:{sig}", rec["event_type"].lower()
         if self.decider:                                       # gerçek teklifle paper karar (ağ: kilit dışında)
-            r = self.decider.decide(event_id, wallet, rec["token_mint"], side, age)
+            oran = None
+            if side == "sell":
+                from nexora.decision import satis_orani
+                oran = satis_orani(tx, wallet, rec["token_mint"])
+            r = self.decider.decide(event_id, wallet, rec["token_mint"], side, age, kaynak_oran=oran)
         else:                                                  # fiyat/likidite bilinmiyor -> engellenir
             r = self.paper.handle_signal(event_id, wallet, rec["token_mint"], side, 1.0, 0.0, age)
         if self.borsa is not None:
