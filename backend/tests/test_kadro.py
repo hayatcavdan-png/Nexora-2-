@@ -7,11 +7,20 @@ NOW = 2_000_000_000.0
 W = {k: k * 43 for k in "ABCDEFGH"}
 
 
+class OlcumModu:
+    """Bu testler eski 'olcum' modunu (izle -> terfi -> düşür) doğrular; varsayılan mod artık 'herkes'."""
+    def _olcum(self): self._mod, K.MOD = K.MOD, "olcum"
+    def _geri(self): K.MOD = self._mod
+
+
 def olc(n, ort, medyan=None):
     return dict(n=n, ort=ort, medyan=ort if medyan is None else medyan, pozitif=0.5)
 
 
-class KararTest(unittest.TestCase):
+class KararTest(OlcumModu, unittest.TestCase):
+    def setUp(self): self._olcum()
+    def tearDown(self): self._geri()
+
     def test_terfi_dusur_cikar(self):
         a, b, c, d, e = (W[x] for x in "ABCDE")
         k = K.karar([a, b, c, d, e], [c, d, e], {
@@ -44,8 +53,9 @@ class KararTest(unittest.TestCase):
             K.LISTE_SINIRI = eski
 
 
-class UygulaTest(unittest.TestCase):
+class UygulaTest(OlcumModu, unittest.TestCase):
     def setUp(self):
+        self._olcum()
         self.d = tempfile.mkdtemp(); self.eski = os.getcwd(); os.chdir(self.d)
         db = sqlite3.connect("e.db"); db.executescript(SEMA)
         for i, g in enumerate([5.0] * 6 + [2.0] * 5):                 # A: 11 ölçüm, ort > 3, medyan > 0
@@ -59,7 +69,7 @@ class UygulaTest(unittest.TestCase):
         open("wallets.txt", "w").write(f"# yorum\n{W['A']}\n{W['B']}\n")
         open("izle_listesi.txt", "w").write(f"{W['A']}\n")
 
-    def tearDown(self): os.chdir(self.eski)
+    def tearDown(self): os.chdir(self.eski); self._geri()
 
     def test_olcum_yalnizca_kaynak_ufku_ve_pencere(self):
         o = K.olcum("e.db", NOW)
@@ -84,8 +94,9 @@ if __name__ == "__main__":
     unittest.main()
 
 
-class SessizTests(unittest.TestCase):
+class SessizTests(OlcumModu, unittest.TestCase):
     def setUp(self):
+        self._olcum()
         self.d = tempfile.mkdtemp(); self.eski = os.getcwd(); os.chdir(self.d)
         t = sqlite3.connect("t.db")
         t.execute("CREATE TABLE tracker_signals(id INTEGER PRIMARY KEY, ts REAL, wallet TEXT, side TEXT, token TEXT)")
@@ -95,7 +106,7 @@ class SessizTests(unittest.TestCase):
         open("wallets.txt", "w").write("\n".join(W[x] for x in "ABCD") + "\n")
         open("izle_listesi.txt", "w").write("\n".join(W[x] for x in "BCD") + "\n")
 
-    def tearDown(self): os.chdir(self.eski)
+    def tearDown(self): os.chdir(self.eski); self._geri()
 
     def test_sessiz_izlenen_7_gun_sonra_cikar(self):
         oz = K.uygula([], etiket_db="yok.db", now=NOW, tracker_db="t.db")          # ilk görülme: süre yeni başlar
@@ -109,3 +120,22 @@ class SessizTests(unittest.TestCase):
         K.uygula([], etiket_db="yok.db", now=NOW, tracker_db="yok.db")
         oz = K.uygula([], etiket_db="yok.db", now=NOW + 30 * 86400, tracker_db="yok.db")
         self.assertEqual(oz["sessiz"], []); self.assertFalse(oz["degisti"])
+
+
+class HerkesModuTests(unittest.TestCase):
+    def test_herkes_kopyalanir_performans_elemesi_yok(self):
+        a, b, c, d = (W[x] for x in "ABCD")
+        k = K.karar([a, b, c], [b, c], {a: olc(20, -9.0), b: olc(12, -6.0), c: olc(15, 8.0)}, adaylar=[d], mod="herkes")
+        self.assertEqual(k["liste"], [a, b, c, d]); self.assertEqual(k["izle"], [])       # izlenenler de kopyalanır, aday doğrudan
+        self.assertEqual((k["dusur"], k["eklenen"]), ([], [d]))                          # kötü ölçüm düşürmez
+        self.assertEqual(sorted(k["terfi"]), sorted([b, c])); self.assertEqual((k["kopyalanan"], k["izlenen"]), (4, 0))
+        k = K.karar([a, b], [], {}, sessiz=[b], mod="herkes")
+        self.assertEqual((k["liste"], k["cikar"]), ([a], [b]))                           # sessiz cüzdan yine çıkar
+
+    def test_seviyeler_herkes_modunda_kapali(self):
+        eski = K.MOD
+        try:
+            K.MOD = "herkes"; self.assertEqual(K.seviyeler({W["A"]: olc(20, 9.0)}), {})
+            K.MOD = "olcum"; self.assertEqual(K.seviyeler({W["A"]: olc(20, 9.0)}), {W["A"]: "kanitlanmis"})
+        finally:
+            K.MOD = eski

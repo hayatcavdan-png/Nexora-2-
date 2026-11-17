@@ -32,10 +32,10 @@ class Test(unittest.TestCase):
         self.assertEqual((s["durum"], s["aday"], s["analiz_edilen"]), ("tamam", 2, 2))
         self.assertEqual([c["wallet"] for c in s["kopyalanabilir"]], [A])
         self.assertEqual(set(json.load(open("kesif_gorulen.json"))), {A, B})
-        self.assertEqual(O.cuzdan_ekle.oku("wallets.txt"), ["9" * 43, A])               # yeni aday listeye girer...
-        self.assertEqual(O.cuzdan_ekle.oku("izle_listesi.txt"), [A])                     # ...ama yalnızca izlenir (kopyalanmaz)
+        self.assertEqual(O.cuzdan_ekle.oku("wallets.txt"), ["9" * 43, A])               # yeni aday listeye girer ve
+        self.assertEqual(O.cuzdan_ekle.oku("izle_listesi.txt"), [])                      # ('herkes' modu) doğrudan kopyalanır
         self.assertEqual(s["kadro"]["eklenen"], [A])
-        self.assertEqual(panel.kesif_olayi("kesif_son.json", 0)["baslik"], "Kadro güncellendi: 1 kopyalanan, 1 izlenen cüzdan")
+        self.assertEqual(panel.kesif_olayi("kesif_son.json", 0)["baslik"], "Kadro güncellendi: 2 kopyalanan, 0 izlenen cüzdan")
         # sonraki gün: görülenler kesif_gorulen.txt'e yazılır (keşif bunları aday saymaz); 14 gün sonra unutulur
         self.calis(kesif=lambda: [], now=1000.0 + 86400)
         self.assertIn(A, open("kesif_gorulen.txt").read())

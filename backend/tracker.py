@@ -139,6 +139,7 @@ def main():
             for w in wallets:
                 if paper.seviye: say[paper.cuzdan_seviyesi(w)] = say.get(paper.cuzdan_seviyesi(w), 0) + 1
             if say: print("  Cüzdan seviyeleri: " + ", ".join(f"{k} {v}" for k, v in sorted(say.items())), flush=True)
+            elif kadro.MOD == "herkes": print("  Kadro modu 'herkes': seviyeler kapalı, boyut ve sınır ayarlardan", flush=True)
         except Exception as e:
             print(f"  seviyeler okunamadı ({type(e).__name__}): eski seviyeler geçerli", flush=True)
     seviye_yenile()

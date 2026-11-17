@@ -19,6 +19,10 @@ TERFI_N, TERFI_ORT = 10, 3.0
 DUSUR_N = 8
 CIKAR_N, CIKAR_ORT = 10, -3.0
 SESSIZ_GUN = 7
+# Mod (17.11.2026, kullanıcı onayı, deney masası [10]): "herkes" = listedeki her cüzdan kopyalanır; performansa göre
+# terfi/düşürme/çıkarma YOK (8-20 ölçümle cüzdan sonucu gürültülü, eleme kârı düşürdü). Sessiz cüzdan yine çıkar.
+# "olcum" = eski davranış (izle -> terfi -> düşür). Veri biriktikçe deney masası yeniden karşılaştırır.
+MOD = os.getenv("KADRO_MOD", "herkes")
 YENI_GUNLUK = 5
 LISTE_SINIRI = int(os.getenv("TAKIP_SINIRI", "25"))
 
@@ -41,11 +45,23 @@ def olcum(etiket_db, now=None, gun=PENCERE_GUN):
                     pozitif=round(sum(1 for x in v if x > 0) / len(v), 2)) for w, v in g.items()}
 
 
-def karar(liste, izle, olc, adaylar=(), kara=(), sessiz=()):
+def karar(liste, izle, olc, adaylar=(), kara=(), sessiz=(), mod=None):
     """Saf karar. liste: wallets.txt (kopyalanan + izlenen), izle: izle_listesi.txt. Dönüş: yeni listeler ve değişiklikler."""
+    mod = mod or MOD
     kara = set(kara)
     liste = [w for w in dict.fromkeys(liste) if w not in kara]
     izle = [w for w in dict.fromkeys(izle) if w in liste]
+    if mod == "herkes":
+        cikar = [w for w in liste if w in set(sessiz)]
+        yeni_liste = [w for w in liste if w not in cikar]
+        terfi = [w for w in izle if w not in cikar]                 # izlenenlerin hepsi kopyalamaya geçer
+        eklenen = []
+        for w in dict.fromkeys(adaylar):
+            if len(eklenen) >= YENI_GUNLUK or len(yeni_liste) >= LISTE_SINIRI: break
+            if w in kara or w in yeni_liste: continue
+            yeni_liste.append(w); eklenen.append(w)
+        return dict(liste=yeni_liste, izle=[], terfi=terfi, dusur=[], cikar=cikar, eklenen=eklenen,
+                    kopyalanan=len(yeni_liste), izlenen=0)
     iz = set(izle)
     terfi, dusur, cikar, eklenen = [], [], [], []
     for w in liste:
@@ -77,6 +93,8 @@ def seviye(m):
 
 
 def seviyeler(olc):
+    """Seviye sistemi yalnızca 'olcum' modunda; 'herkes' modunda kapalı (boş sözlük = ayarlardaki tek boyut ve sınır)."""
+    if MOD == "herkes": return {}
     return {w: seviye(m) for w, m in olc.items()}
 
 
@@ -118,7 +136,8 @@ def uygula(adaylar=(), etiket_db=None, now=None, liste_yolu="wallets.txt", izle_
     except (OSError, ValueError): kayit = {}
     for w in liste: kayit.setdefault(w, now)
     aktif = alim_yapanlar(tracker_db or os.getenv("TRACKER_DB", "nexora_tracker.db"), now)
-    sessiz = set() if aktif is None else {w for w in izle if w not in aktif and now - kayit.get(w, now) >= SESSIZ_GUN * 86400}
+    aday_sessiz = liste if MOD == "herkes" else izle
+    sessiz = set() if aktif is None else {w for w in aday_sessiz if w not in aktif and now - kayit.get(w, now) >= SESSIZ_GUN * 86400}
     k = karar(liste, izle, olc, adaylar, _oku(kara_yolu), sessiz)
     for w in k["eklenen"]: kayit[w] = now
     kayit = {w: t for w, t in kayit.items() if w in set(k["liste"])}

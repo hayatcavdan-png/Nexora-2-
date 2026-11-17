@@ -461,7 +461,7 @@ fun RaporEkrani(v: Veri) {
     val bo = r.optJSONObject("boyut")
     if (bo != null && bo.optInt("kapanan") > 0) Kart(Modifier.fillMaxWidth()) {
         Text("Pozisyon büyüklüğü yöntemleri", color = Nx.Metin, fontWeight = FontWeight.SemiBold)
-        Text("${bo.optInt("kapanan")} kapanmış kopya işlem üç yöntemle yeniden hesaplandı. Yalnızca ölçüm; gerçek kural sabit %5.",
+        Text("${bo.optInt("kapanan")} kapanmış kopya işlem üç yöntemle yeniden hesaplandı. Yalnızca ölçüm; gerçek kural ayarlardaki pozisyon büyüklüğüdür.",
              color = Nx.Soluk, fontSize = 12.sp)
         val ys = bo.optJSONArray("yontemler")
         if (ys != null) for (i in 0 until ys.length()) {
