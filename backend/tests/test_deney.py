@@ -29,6 +29,14 @@ class SimuleTests(unittest.TestCase):
         r = D.simule(sig, max_poz=16, seviyeler=D.SEVIYE_SIMDI, rt_max=3.0, kadro=True)
         self.assertEqual(r["islem"], 1)
 
+    def test_aktif_cuzdan_terfi_beklemez(self):
+        sig = [s(i * H, i * H + 60, "A", f"T{i}", 10.0) for i in range(3)]
+        self.assertEqual(D.simule(sig, kadro=True, seviyeler=D.SEVIYE_SIMDI)["islem"], 0)          # yeni: ölçüm bekler
+        self.assertEqual(D.simule(sig, kadro=True, seviyeler=D.SEVIYE_SIMDI, aktif={"A"})["islem"], 3)
+        kotu = [s(i * H, i * H + 60, "A", f"K{i}", -10.0) for i in range(8)] + [s(20 * H, 21 * H, "A", "Z", 10.0)]
+        r = D.simule(kotu, kadro=True, seviyeler=D.SEVIYE_SIMDI, aktif={"A"})
+        self.assertEqual(r["islem"], 8)                                                           # 8 kötü ölçümden sonra düşer
+
     def test_cuzdan_siniri_ve_toplam_risk(self):
         sig = [s(i, 10 * H, "A", f"T{i}", 1.0) for i in range(5)]
         self.assertEqual(D.simule(sig, max_poz=16, oran=0.025, cuzdan_siniri=2)["islem"], 2)
@@ -43,7 +51,7 @@ class SimuleTests(unittest.TestCase):
         c.execute("INSERT INTO etiket_olay(event_id, ts, wallet, token) VALUES('b', 1000, 'W', 'T2')")
         c.execute("INSERT INTO etiket_sonuc(event_id, ufuk, ts, getiri_pct) VALUES('b', '30dk', 5000, 99.0)")   # sayılmaz
         c.commit(); c.close()
-        m = D.masa(db, now=2000)
+        m = D.masa(db, now=2000, aktif=set())
         self.assertEqual(m["sinyal"], 1); self.assertEqual(len(m["sonuclar"]), len(D.DENEYLER))
         self.assertEqual(m["sonuclar"][0]["islem"], 1)
 

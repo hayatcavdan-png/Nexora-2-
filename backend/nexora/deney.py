@@ -30,18 +30,20 @@ def sinyaller(etiket_db, now=None, gun=14):
     return [(a, max(a, b), w, t, float(g), r) for a, b, w, t, g, r in rows]
 
 
-def _seviye(gecmis):
-    """O ana kadar kapanmış ölçümlerden kadro kararı: (kopyalanir_mi, seviye)."""
-    if not gecmis: return False, "yeni"
-    n, ort, med = len(gecmis), sum(gecmis) / len(gecmis), median(gecmis)
+def _seviye(gecmis, aktif=False):
+    """O ana kadar kapanmış ölçümlerden kadro kararı: (kopyalanir_mi, seviye). aktif: başlangıçta kopyalanan cüzdan
+    (gerçekte olduğu gibi terfi beklemez; ortalaması 8 ölçümden sonra eksiye düşerse kopyalanmaz)."""
+    n = len(gecmis)
+    if n == 0: return aktif, "yeni"
+    ort, med = sum(gecmis) / n, median(gecmis)
     m = dict(n=n, ort=ort, medyan=med)
     if n >= K.DUSUR_N and ort < 0: return False, "yeni"
     if n >= K.TERFI_N and ort >= K.TERFI_ORT and med > 0: return True, K.seviye(m)
-    return False, "yeni"
+    return aktif, K.seviye(m)
 
 
 def simule(sinyal, max_poz=16, oran=0.025, seviyeler=None, cuzdan_siniri=2, rt_max=3.0, kadro=False, toplam_risk=0.40,
-           sermaye=100.0):
+           sermaye=100.0, aktif=()):
     """Kural setini oynatır. seviyeler: {seviye: (cüzdan başına poz, oran)} verilirse büyüklük/sınır seviyeden gelir.
     kadro=True: cüzdan yalnızca o ana kadarki ölçümüyle terfi koşulunu sağlıyorsa kopyalanır."""
     nakit, acik, gecmis = sermaye, [], {}
@@ -68,7 +70,7 @@ def simule(sinyal, max_poz=16, oran=0.025, seviyeler=None, cuzdan_siniri=2, rt_m
         olcum.append((cikis, w, g))
         if rt is not None and rt > rt_max: continue
         if kadro:
-            ok, sv = _seviye(gecmis.get(w, []))
+            ok, sv = _seviye(gecmis.get(w, []), w in aktif)
             if not ok: continue
         else:
             sv = "normal"
@@ -86,18 +88,33 @@ def simule(sinyal, max_poz=16, oran=0.025, seviyeler=None, cuzdan_siniri=2, rt_m
 
 
 SEVIYE_SIMDI = dict(kanitlanmis=(4, 0.035), normal=(2, 0.025), yeni=(1, 0.015))
+SEVIYE_BUYUK = dict(kanitlanmis=(3, 0.06), normal=(2, 0.045), yeni=(1, 0.025))
 
+# "aktif" anahtarı: deney, o anki kopyalanan cüzdan listesiyle başlar (masa() doldurur)
 DENEYLER = [
     ("Eski: 8x%5, al-sat<=%6, herkes", dict(max_poz=8, oran=0.05, rt_max=6.0)),
     ("8x%5, al-sat<=%3, herkes", dict(max_poz=8, oran=0.05, rt_max=3.0)),
     ("16x%2.5, al-sat<=%3, herkes", dict(max_poz=16, oran=0.025, rt_max=3.0)),
-    ("Şimdiki: 16 poz, seviye, %3, kadro", dict(max_poz=16, seviyeler=SEVIYE_SIMDI, rt_max=3.0, kadro=True)),
-    ("Şimdiki ama al-sat<=%6", dict(max_poz=16, seviyeler=SEVIYE_SIMDI, rt_max=6.0, kadro=True)),
-    ("Şimdiki ama kadrosuz (herkes)", dict(max_poz=16, oran=0.025, rt_max=3.0, cuzdan_siniri=2)),
+    ("10x%4, al-sat<=%3, herkes", dict(max_poz=10, oran=0.04, rt_max=3.0)),
+    ("Şimdiki: 16 poz, seviye, %3, kadro", dict(max_poz=16, seviyeler=SEVIYE_SIMDI, rt_max=3.0, kadro=True, aktif="liste")),
+    ("Kadro + büyük seviye (6/4.5/2.5), 10 poz", dict(max_poz=10, seviyeler=SEVIYE_BUYUK, rt_max=3.0, kadro=True, aktif="liste")),
+    ("8x%5, %3, kadro", dict(max_poz=8, oran=0.05, rt_max=3.0, kadro=True, aktif="liste")),
     ("Yer sınırsız 40x%1, %3, herkes", dict(max_poz=40, oran=0.01, rt_max=3.0, cuzdan_siniri=40)),
 ]
 
 
-def masa(etiket_db=None, now=None, gun=14, deneyler=DENEYLER):
+def aktif_liste(liste_yolu="wallets.txt", izle_yolu="izle_listesi.txt"):
+    """Şu an kopyalanan cüzdanlar (takip listesi eksi izlenenler)."""
+    iz = set(K._oku(izle_yolu))
+    return {w for w in K._oku(liste_yolu) if w not in iz}
+
+
+def masa(etiket_db=None, now=None, gun=14, deneyler=DENEYLER, aktif=None):
     s = sinyaller(etiket_db or os.getenv("ETIKET_DB", "nexora_etiket.db"), now, gun)
-    return dict(sinyal=len(s), gun=gun, sonuclar=[dict(ad=ad, **simule(s, **cfg)) for ad, cfg in deneyler])
+    aktif = aktif_liste() if aktif is None else set(aktif)
+    out = []
+    for ad, cfg in deneyler:
+        cfg = dict(cfg)
+        if cfg.get("aktif") == "liste": cfg["aktif"] = aktif
+        out.append(dict(ad=ad, **simule(s, **cfg)))
+    return dict(sinyal=len(s), gun=gun, sonuclar=out)
