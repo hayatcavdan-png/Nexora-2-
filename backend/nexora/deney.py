@@ -65,7 +65,9 @@ def simule(sinyal, max_poz=16, oran=0.025, seviyeler=None, cuzdan_siniri=2, rt_m
                 kalan.append(p)
         acik[:] = kalan
 
-    for giris, cikis, w, tok, g, rt in sinyal:
+    for sg in sinyal:
+        giris, cikis, w, tok, g, rt = sg[:6]
+        kat = sg[6] if len(sg) > 6 else 1.0          # güçlendirici: teyitli sinyalde büyüklük çarpanı
         kapat(giris)
         olcum.append((cikis, w, g))
         if rt is not None and rt > rt_max: continue
@@ -78,14 +80,17 @@ def simule(sinyal, max_poz=16, oran=0.025, seviyeler=None, cuzdan_siniri=2, rt_m
             if not ok: continue
         else:
             sv = "normal"
-        if any(p["t"] == tok for p in acik): continue
+        ek = False
+        if any(p["t"] == tok for p in acik):
+            if kat <= 1.0 or any(p["t"] == tok and p.get("ek") for p in acik): continue
+            ek = True                                  # teyit: mevcut pozisyona (kat-1) büyüklüğünde ek parça
         sinir, pay = (seviyeler[sv] if seviyeler else (cuzdan_siniri, oran))
         ozkaynak = nakit + sum(p["maliyet"] for p in acik)
-        boyut = ozkaynak * pay
-        if (len(acik) >= max_poz or sum(1 for p in acik if p["w"] == w) >= sinir
+        boyut = ozkaynak * pay * ((kat - 1.0) if ek else kat)
+        if ((not ek and (len(acik) - sum(1 for p in acik if p.get("ek")) >= max_poz or sum(1 for p in acik if p["w"] == w) >= sinir))
                 or sum(p["maliyet"] for p in acik) + boyut > toplam_risk * ozkaynak + 1e-9 or boyut > nakit):
             kacan += 1; continue
-        nakit -= boyut; acik.append(dict(t=tok, w=w, maliyet=boyut, g=g, cikis=cikis)); islem += 1
+        nakit -= boyut; acik.append(dict(t=tok, w=w, maliyet=boyut, g=g, cikis=cikis, ek=ek)); islem += 1
     kapat(float("inf"))
     return dict(islem=islem, kacan=kacan, kz=round(gercek, 2), kazanan=round(100 * sum(1 for v in sonuc if v > 0) / len(sonuc)) if sonuc else 0,
                 dusus=round(dusus, 2))
@@ -178,8 +183,15 @@ def model_b(detay, dusus_pct):
     return out
 
 
+def guclendirici(detay, kat, en_az=2):
+    """Her sinyale gir; en az `en_az` cüzdanın 15 dk içinde aldığı token'da büyüklük `kat` (tutuluyorsa ek parça)."""
+    return [(d["giris"], d["cikis"], d["w"], d["t"], d["g"], d["rt"], kat if d["teyit"] >= en_az else 1.0) for d in detay]
+
+
 MODELLER = [
     ("Taban: her sinyal (10x%4, %3)", lambda d: model_a(d, 1)),
+    ("Güçlendirici: 2+ cüzdanda 2x", lambda d: guclendirici(d, 2.0)),
+    ("Güçlendirici: 2+ cüzdanda 3x", lambda d: guclendirici(d, 3.0)),
     ("Model A: 15 dk'da 2+ cüzdan", lambda d: model_a(d, 2)),
     ("Model A: 15 dk'da 3+ cüzdan", lambda d: model_a(d, 3)),
     ("Model B: 5 dk sonra %3+ düştüyse gir", lambda d: model_b(d, 3.0)),

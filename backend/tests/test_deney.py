@@ -101,3 +101,21 @@ class ModelTests(unittest.TestCase):
         self.assertEqual(len(D.model_b(d, 10.0)), 0)
         m = D.modeller(yol, now=10_000)
         self.assertEqual(m["sinyal"], 3); self.assertEqual(len(m["sonuclar"]), len(D.MODELLER))
+
+
+class GuclendiriciTests(unittest.TestCase):
+    def test_tutulan_tokena_ek_parca_ve_yeni_girise_kat(self):
+        H = 3600
+        sig = [(0, 10 * H, "A", "T", 10.0, 1.0, 1.0),          # A alır: normal büyüklük
+               (60, 10 * H, "B", "T", 20.0, 1.0, 2.0),         # B teyit eder: ek parça (1x daha)
+               (120, 10 * H, "C", "T", 20.0, 1.0, 2.0),        # ikinci ek parça yok
+               (200, 10 * H, "D", "U", 10.0, 1.0, 2.0)]        # tutulmayan token, teyitli: 2x ile girer
+        r = D.simule(sig, max_poz=10, oran=0.04, rt_max=3.0)
+        self.assertEqual(r["islem"], 3)
+        self.assertAlmostEqual(r["kz"], round(4.0 * 0.10 + 4.0 * 0.20 + 8.0 * 0.10, 2), places=1)
+        self.assertEqual(D.simule([s[:6] for s in sig], max_poz=10, oran=0.04)["islem"], 2)   # çarpansız: ek yok
+
+    def test_ek_parca_yer_saymaz_ama_toplam_risk_sayar(self):
+        sig = [(i, 99999, f"W{i}", f"T{i}", 1.0, 1.0, 1.0) for i in range(10)] + [(50, 99999, "X", "T0", 1.0, 1.0, 2.0)]
+        r = D.simule(sig, max_poz=10, oran=0.04, rt_max=3.0)       # 10 x %4 = %40 dolu: ek parça risk sınırına takılır
+        self.assertEqual((r["islem"], r["kacan"]), (10, 1))
