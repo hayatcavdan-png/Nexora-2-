@@ -575,11 +575,11 @@ fun LazyListScope.profil(v: Veri, git: (String) -> Unit, ayarlar: @Composable ()
     }
     item(key = "pr_menu") {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            ProfilSatiri("Otomatik Pilot · Risk · Acil Durdurma", { IkonRobot(Nx.MorAcik) }) { git("bot") }
+            if (v.kurucu) ProfilSatiri("Otomatik Pilot · Risk · Acil Durdurma", { IkonRobot(Nx.MorAcik) }) { git("bot") }
             ProfilSatiri("Hesabım · Davet · Bağlantılar", { Icon(Icons.Filled.AccountCircle, null, tint = Nx.MorAcik) }) { git("uye") }
             ProfilSatiri("Günlük Rapor", { Icon(Icons.Filled.DateRange, null, tint = Nx.MorAcik) }) { git("rapor") }
             ProfilSatiri("Yol Haritası", { Icon(Icons.Filled.List, null, tint = Nx.MorAcik) }) { git("yol") }
-            ProfilSatiri("Takip Edilen Cüzdanlar", { IkonDna(Nx.MorAcik) }) { git("takip") }
+            if (v.kurucu) ProfilSatiri("Takip Edilen Cüzdanlar", { IkonDna(Nx.MorAcik) }) { git("takip") }
         }
     }
     item(key = "pr_ayar") { Column(verticalArrangement = Arrangement.spacedBy(12.dp)) { ayarlar() } }

@@ -32,7 +32,7 @@ import java.util.Locale
  * Oturum anahtarı yalnızca bu cihazda (SharedPreferences) tutulur.
  */
 @Composable
-fun UyeEkrani(url: String, key: String, sp: SharedPreferences) {
+fun UyeEkrani(url: String, key: String, sp: SharedPreferences, oturumDegisti: () -> Unit = {}) {
     val scope = rememberCoroutineScope()
     var oturum by remember { mutableStateOf(Kasa.oku(sp, "oturum")) }
     var profil by remember { mutableStateOf<JSONObject?>(null) }
@@ -54,7 +54,7 @@ fun UyeEkrani(url: String, key: String, sp: SharedPreferences) {
         catch (e: Exception) {
             val m = e.message ?: ""
             if (m.contains("401") && oturum.isNotEmpty() && m.contains("oturum")) {            // süre doldu
-                oturum = ""; sp.edit().remove("oturum").apply(); profil = null; bakiye = null
+                oturum = ""; Oturum.deger = ""; sp.edit().remove("oturum").apply(); profil = null; bakiye = null
                 mesaj = "Oturum süresi doldu, tekrar giriş yapın."
             } else mesaj = if (m.contains("404")) "Sunucu güncel değil: sudo bash /opt/nexora/deploy/guncelle.sh" else m.removePrefix("HTTP ").substringAfter(": ", m)
         }
@@ -67,6 +67,7 @@ fun UyeEkrani(url: String, key: String, sp: SharedPreferences) {
     }
     fun girisBitti(r: String) {
         oturum = JSONObject(r).optString("oturum"); Kasa.yaz(sp, "oturum", oturum); parola = ""
+        Oturum.deger = oturum; oturumDegisti()
         yukle()
     }
     LaunchedEffect(oturum) { if (oturum.isNotEmpty() && profil == null) yukle() }
@@ -127,7 +128,7 @@ fun UyeEkrani(url: String, key: String, sp: SharedPreferences) {
                     Text(p?.optString("eposta") ?: "…", color = Nx.Metin, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                     Text("Paper hesabı · gerçek işlem kapalı", color = Nx.Soluk, fontSize = 12.sp)
                 }
-                TextButton({ cagri("/uye/cikis", true) { oturum = ""; sp.edit().remove("oturum").apply(); profil = null; bakiye = null } }) {
+                TextButton({ cagri("/uye/cikis", true) { oturum = ""; Oturum.deger = ""; sp.edit().remove("oturum").apply(); profil = null; bakiye = null } }) {
                     Text("Çıkış", color = Nx.Kirmizi)
                 }
             }
@@ -208,8 +209,8 @@ fun UyeEkrani(url: String, key: String, sp: SharedPreferences) {
                 oku = { cagri("/uye/borsa?bakiye=1") { gercek = JSONObject(it) } })
             GuvenlikKarti(mesgul,
                 parolaDegistir = { eski, yeni -> cagri("/uye/parola", true, JSONObject().put("eski", eski).put("yeni", yeni)) {
-                    oturum = JSONObject(it).optString("oturum"); Kasa.yaz(sp, "oturum", oturum); mesaj = "Parola değişti. Diğer tüm cihazlarda oturum kapandı." } },
-                tumOturumlar = { cagri("/uye/oturumlari-kapat", true) { oturum = ""; sp.edit().remove("oturum").apply(); profil = null; bakiye = null; mesaj = "Tüm oturumlar kapatıldı. Tekrar giriş yapın." } })
+                    oturum = JSONObject(it).optString("oturum"); Kasa.yaz(sp, "oturum", oturum); Oturum.deger = oturum; mesaj = "Parola değişti. Diğer tüm cihazlarda oturum kapandı." } },
+                tumOturumlar = { cagri("/uye/oturumlari-kapat", true) { oturum = ""; Oturum.deger = ""; sp.edit().remove("oturum").apply(); profil = null; bakiye = null; mesaj = "Tüm oturumlar kapatıldı. Tekrar giriş yapın." } })
             BilgiKutusu("Sistem sunucuları (Helius, Jupiter) sizin adınıza ayrı anahtar gerektirmez. Borsa anahtarınızla şu an yalnızca bakiye okunur; uygulama emir göndermez ve para çekemez.")
         }
     }

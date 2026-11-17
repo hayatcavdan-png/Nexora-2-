@@ -561,8 +561,8 @@ fun AyarlarEkrani(v: Veri, url: String, key: String, bildirim: Boolean, bildirim
         }
         AyarSatiri(Icons.Filled.Person, "Solana cüzdan bağlantısı", "Gerçek işlem aşamasında (N12), açık onayınızla")
     }
-    if (v.bagli) RiskAyarlari(v.ayarlar, riskKaydet)
-    if (v.bagli) Kart(Modifier.fillMaxWidth()) {
+    if (v.bagli && v.kurucu) RiskAyarlari(v.ayarlar, riskKaydet)
+    if (v.bagli && v.kurucu) Kart(Modifier.fillMaxWidth()) {
         AyarSatiri(Icons.Filled.Done, "Yedek", "Sunucu her gece yedek alır. Bildirimler açıkken uygulama yeni yedeği günde bir " +
             "kez İndirilenler/NEXORA klasörüne kopyalar (son 7 tanesi saklanır). Anahtarlar yedekte yoktur.")
         Button(yedekIndir, colors = NxButonRenk(), modifier = Modifier.fillMaxWidth()) {

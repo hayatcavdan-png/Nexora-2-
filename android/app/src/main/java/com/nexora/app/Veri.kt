@@ -8,11 +8,15 @@ import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 
+/** Üye oturumu (giriş yapılınca dolar). API anahtarı yoksa her istek bu oturumla gider; yetki sunucuda denetlenir. */
+object Oturum { @Volatile var deger: String = "" }
+
 fun api(base: String, key: String, path: String, post: Boolean = false, govde: String = "{}", zamanAsimi: Int = 8000, oturum: String = ""): String {
     val c = URL(base.trim().trimEnd('/') + path).openConnection() as HttpURLConnection
     c.connectTimeout = 8000; c.readTimeout = zamanAsimi
-    c.setRequestProperty("X-API-Key", key.trim())
-    if (oturum.isNotEmpty()) c.setRequestProperty("X-Oturum", oturum)
+    if (key.isNotBlank()) c.setRequestProperty("X-API-Key", key.trim())
+    val o = oturum.ifEmpty { if (key.isBlank()) Oturum.deger else "" }
+    if (o.isNotEmpty()) c.setRequestProperty("X-Oturum", o)
     if (post) {
         c.requestMethod = "POST"; c.doOutput = true
         c.setRequestProperty("Content-Type", "application/json")
@@ -98,9 +102,14 @@ class Veri {
     val kapananlar get() = islemler.filter { it.karar == "KOPYALANDI" && it.yon == "sell" }
     val basariOrani: Double? get() = kapananlar.let { k -> if (k.isEmpty()) null else k.count { it.kz > 0 } * 100.0 / k.size }
 
+    /** "kurucu" (API anahtarı ya da kurucu oturumu) ya da "uye". Üye ekranlarında kurucu kontrolleri gizlenir. */
+    var rol by mutableStateOf("kurucu")
+    val kurucu get() = rol == "kurucu"
+
     fun yukle(url: String, key: String) {
         val eksik = mutableListOf<String>()
         val d = JSONObject(api(url, key, "/durum"))
+        rol = d.optString("rol", "kurucu")
         acilDurdurma = d.optBoolean("acil_durdurma")
         ayarlar = d.optJSONObject("ayarlar") ?: JSONObject()
         modelFiltre = d.optJSONObject("model_filtre") ?: JSONObject()
