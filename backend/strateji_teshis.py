@@ -131,6 +131,22 @@ def rapor(now=None):
                 if g: par.append(f"{et} {len(g)}/{_ort(g):+}/%{round(100 * sum(v > 0 for v in g) / len(g))}")
             if par: L.append(f"    {ad:<12} " + "  ".join(par))
 
+        # 9) Aday filtre kuralları (al-sat kaybı <= %3 olanlar üzerinde; o sınır artık uygulanıyor)
+        taban = [x for x in tk if x["rt"] is not None and x["rt"] <= 3]
+        if taban:
+            genc = lambda x: x["yas"] is not None and x["yas"] < 3600
+            sig = lambda x: x["lik"] is not None and x["lik"] < 1e4
+            org = lambda x: x["org"] is not None and x["org"] < 30
+            kurallar = [("genç (<1 sa)", genc), ("sığ (<10k$)", sig), ("organik<30", org),
+                        ("genç VE sığ", lambda x: genc(x) and sig(x)), ("genç VEYA sığ", lambda x: genc(x) or sig(x)),
+                        ("sığ VEYA org<30", lambda x: sig(x) or org(x)), ("üçünden biri", lambda x: genc(x) or sig(x) or org(x))]
+            tg = [x["g"] for x in taban]
+            L.append(f"[9] Filtre denemesi (al-sat <= %3, n={len(tg)}, ort %{_ort(tg):+}): kural / elenen n ort / kalan n ort poz")
+            for ad, f in kurallar:
+                el = [x["g"] for x in taban if f(x)]; ka = [x["g"] for x in taban if not f(x)]
+                if el and ka:
+                    L.append(f"    {ad:<16} {len(el):>3} %{_ort(el):+6} | {len(ka):>3} %{_ort(ka):+6} %{round(100 * sum(v > 0 for v in ka) / len(ka))}")
+
     # 6b) Kısmi satış ölçümü
     km = _q(p, "SELECT * FROM kismi_olcum WHERE acilis_ts>=?", (bas,))
     if km:
