@@ -203,9 +203,9 @@
    "ad": "Platform 2: borsa (Binance, OKX, KuCoin, MEXC · tüm coinler)",
    "grup": "Genişleme",
    "durum": "devam",
-   "yuzde": 45,
-   "yapilan": "Ölçüm: mevcut cüzdan sinyallerinin %0'ı Binance/OKX/KuCoin'de, %9'u MEXC'de alınabilir (7 gün, 288 sinyal). Borsada listeli Solana token listesi (CoinGecko, adres eşleşmeli, günlük yenileme); borsa cüzdanı keşfi (listeli token'ları son saatlerde alanlar + kârlılık analizi); borsanın gerçek en iyi alış/satış fiyatıyla ayrı paper portföy (nexora_borsa.db), aynı risk kuralları, geniş makas reddi; takip akışına bağlı, platform 1'i etkilemez; uygulamada Platform 2 kartı. Tüm coinler: dört borsadaki tüm USDT çiftleri (her coin en hacimli borsasından, 1M$+ hacim) dakikalık izlenir; iki strateji (momentum, trend) ayrı sanal portföylerde, gerçek alış/satış fiyatı + %0.1 ücret + kayma ile ölçülür; BTC tutma kıyası; nexora-piyasa servisi; uygulamada strateji karnesi.",
-   "eksik": "Stratejilerin haftalarca paper ölçümü ve BTC tutmaya karşı üstünlük kanıtı; borsa cüzdanlarının bulunması; kullanıcı API anahtarıyla gerçek emir (yalnızca işlem yetkili, çekim kapalı) ayrıca açık onay ve hukuki görüş gerektirir"
+   "yuzde": 55,
+   "yapilan": "Ölçüm: mevcut cüzdan sinyallerinin %0'ı Binance/OKX/KuCoin'de, %9'u MEXC'de alınabilir (7 gün, 288 sinyal). Borsada listeli Solana token listesi (CoinGecko, adres eşleşmeli, günlük yenileme); borsa cüzdanı keşfi (listeli token'ları son saatlerde alanlar + kârlılık analizi); borsanın gerçek en iyi alış/satış fiyatıyla ayrı paper portföy (nexora_borsa.db), aynı risk kuralları, geniş makas reddi; takip akışına bağlı, platform 1'i etkilemez; uygulamada Platform 2 kartı. Tüm coinler: dört borsadaki tüm USDT çiftleri (her coin en hacimli borsasından, 1M$+ hacim) dakikalık izlenir; iki strateji (momentum, trend) ayrı sanal portföylerde, gerçek alış/satış fiyatı + %0.1 ücret + kayma ile ölçülür; BTC tutma kıyası; nexora-piyasa servisi; uygulamada strateji karnesi; borsa deney masası (geçmiş 1 dakikalık Binance verisiyle strateji karşılaştırma); 17.11.2026: trend iz %8 / zarar %6, momentum durduruldu, dip alım eklendi, girişler en hacimli 60 coin'de",
+   "eksik": "Yeni ayarlarla haftalarca paper ölçüm ve BTC tutmaya karşı üstünlük kanıtı; deney masasını 14+ günle ve farklı piyasa dönemlerinde tekrar"
   },
   {
    "kod": "N23",
