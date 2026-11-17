@@ -73,3 +73,37 @@ class SifreSifirlaTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class BrevoTest(unittest.TestCase):
+    def test_brevo_anahtari_varsa_api_kullanilir(self):
+        import os
+        class Yanit:
+            def __init__(self, kod): self.status_code = kod
+        class Http:
+            def __init__(self): self.cagrilar = []
+            def post(self, url, timeout=None, headers=None, json=None):
+                self.cagrilar.append((url, headers, json)); return Yanit(201)
+        h = Http(); os.environ["NEXORA_BREVO_API_KEY"] = "test-anahtar"
+        try:
+            E.gonder("a@b.co", "konu", "metin", cfg=dict(host="", port=587, kullanici="", parola="", gonderen="g@x.co"), http=h)
+        finally:
+            del os.environ["NEXORA_BREVO_API_KEY"]
+        url, baslik, govde = h.cagrilar[0]
+        self.assertEqual(url, E.BREVO_URL)
+        self.assertEqual(baslik["api-key"], "test-anahtar")
+        self.assertEqual(govde["to"], [{"email": "a@b.co"}])
+        self.assertEqual(govde["sender"]["email"], "g@x.co")
+
+    def test_brevo_hatasi_ayrinti_sizdirmaz(self):
+        import os
+        class Yanit: status_code = 401
+        class Http:
+            def post(self, *a, **k): return Yanit()
+        os.environ["NEXORA_BREVO_API_KEY"] = "gizli-anahtar"
+        try:
+            with self.assertRaises(E.EpostaHatasi) as c:
+                E.gonder("a@b.co", "k", "m", cfg=dict(host="", port=587, kullanici="", parola="", gonderen="g@x.co"), http=Http())
+        finally:
+            del os.environ["NEXORA_BREVO_API_KEY"]
+        self.assertNotIn("gizli-anahtar", str(c.exception))
