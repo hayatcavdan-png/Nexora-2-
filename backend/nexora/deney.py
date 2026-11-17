@@ -69,7 +69,11 @@ def simule(sinyal, max_poz=16, oran=0.025, seviyeler=None, cuzdan_siniri=2, rt_m
         kapat(giris)
         olcum.append((cikis, w, g))
         if rt is not None and rt > rt_max: continue
-        if kadro:
+        if kadro == "gevsek":                 # herkes kopyalanır; yalnızca ölçülmüş kötüler (8+ ölçüm, ortalama < 0) düşer
+            gg = gecmis.get(w, [])
+            if len(gg) >= K.DUSUR_N and sum(gg) / len(gg) < 0: continue
+            sv = "normal"
+        elif kadro:
             ok, sv = _seviye(gecmis.get(w, []), w in aktif)
             if not ok: continue
         else:
@@ -99,6 +103,8 @@ DENEYLER = [
     ("Şimdiki: 16 poz, seviye, %3, kadro", dict(max_poz=16, seviyeler=SEVIYE_SIMDI, rt_max=3.0, kadro=True, aktif="liste")),
     ("Kadro + büyük seviye (6/4.5/2.5), 10 poz", dict(max_poz=10, seviyeler=SEVIYE_BUYUK, rt_max=3.0, kadro=True, aktif="liste")),
     ("8x%5, %3, kadro", dict(max_poz=8, oran=0.05, rt_max=3.0, kadro=True, aktif="liste")),
+    ("10x%4, %3, kötüler düşer", dict(max_poz=10, oran=0.04, rt_max=3.0, kadro="gevsek")),
+    ("8x%5, %3, kötüler düşer", dict(max_poz=8, oran=0.05, rt_max=3.0, kadro="gevsek")),
     ("Yer sınırsız 40x%1, %3, herkes", dict(max_poz=40, oran=0.01, rt_max=3.0, cuzdan_siniri=40)),
 ]
 

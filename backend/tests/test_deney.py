@@ -37,6 +37,12 @@ class SimuleTests(unittest.TestCase):
         r = D.simule(kotu, kadro=True, seviyeler=D.SEVIYE_SIMDI, aktif={"A"})
         self.assertEqual(r["islem"], 8)                                                           # 8 kötü ölçümden sonra düşer
 
+    def test_gevsek_kadro_kotuyu_dusurur(self):
+        sig = [s(i * H, i * H + 60, "A", f"K{i}", -5.0) for i in range(8)] + [s(20 * H, 21 * H, "A", "Z", 9.0),
+               s(22 * H, 23 * H, "B", "Y", 9.0)]
+        r = D.simule(sig, max_poz=8, oran=0.05, kadro="gevsek")
+        self.assertEqual(r["islem"], 9)                          # A ilk 8'de kopyalanır, sonra düşer; B (ölçümsüz) kopyalanır
+
     def test_cuzdan_siniri_ve_toplam_risk(self):
         sig = [s(i, 10 * H, "A", f"T{i}", 1.0) for i in range(5)]
         self.assertEqual(D.simule(sig, max_poz=16, oran=0.025, cuzdan_siniri=2)["islem"], 2)
