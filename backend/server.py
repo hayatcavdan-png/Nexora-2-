@@ -128,6 +128,18 @@ class H(BaseHTTPRequestHandler):
         try:
             if yol == "/uye/kayit": self._send(200, {"oturum": uyelik.kayit(d.get("eposta"), d.get("parola"), d.get("davet"))}); return
             if yol == "/uye/giris": self._send(200, {"oturum": uyelik.giris(d.get("eposta"), d.get("parola"))}); return
+            if yol == "/uye/sifre-unut":                    # şifre sıfırlama kodu e-postayla gider; hesap var/yok aynı yanıt
+                from nexora import eposta as _ep
+                def _kod_yolla(alici, kod):
+                    try:
+                        _ep.gonder(alici, "NEXORA şifre sıfırlama kodu",
+                                   f"Şifre sıfırlama kodunuz: {kod}\n\n30 dakika geçerlidir. Bu isteği siz yapmadıysanız bu e-postayı yok sayın.")
+                    except (_ep.EpostaHatasi, OSError, RuntimeError) as e:
+                        print(f"[nexora] sıfırlama e-postası gönderilemedi: {type(e).__name__}", flush=True)   # kod ve adres loglanmaz
+                uyelik.sifre_sifirla_iste(d.get("eposta"), _kod_yolla)
+                self._send(200, {"ok": True}); return
+            if yol == "/uye/sifre-sifirla":
+                self._send(200, {"oturum": uyelik.sifre_sifirla(d.get("eposta"), d.get("kod"), d.get("yeni"))}); return
             if yol == "/uye/cikis": uyelik.cikis((self.headers.get("X-Oturum") or "").strip()); self._send(200, {"ok": True}); return
             u = self._uye()
             if not u: return

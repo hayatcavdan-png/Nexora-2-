@@ -45,6 +45,8 @@ fun UyeEkrani(url: String, key: String, sp: SharedPreferences) {
     var davet by remember { mutableStateOf("") }
     var borsalar by remember { mutableStateOf<org.json.JSONArray?>(null) }
     var gercek by remember { mutableStateOf<JSONObject?>(null) }
+    var sifirla by remember { mutableStateOf(false) }                 // şifre sıfırlama: e-postadaki kodla yeni parola
+    var kod by remember { mutableStateOf("") }
 
     fun cagri(yol: String, post: Boolean = false, govde: JSONObject = JSONObject(), basari: (String) -> Unit) = scope.launch {
         mesgul = true; mesaj = ""
@@ -75,24 +77,41 @@ fun UyeEkrani(url: String, key: String, sp: SharedPreferences) {
                           if (kayitModu) NexoIfade.YILDIZ else NexoIfade.GULUS, Modifier.fillMaxWidth(), poz = NexoPoz.SELAM)
             NeonKart(Modifier.fillMaxWidth(), dolgu = Nx.DolguMor) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Hap("Giriş", !kayitModu, Modifier.weight(1f)) { kayitModu = false; mesaj = "" }
-                    Hap("Kayıt ol", kayitModu, Modifier.weight(1f)) { kayitModu = true; mesaj = "" }
+                    Hap("Giriş", !kayitModu, Modifier.weight(1f)) { kayitModu = false; sifirla = false; mesaj = "" }
+                    Hap("Kayıt ol", kayitModu, Modifier.weight(1f)) { kayitModu = true; sifirla = false; mesaj = "" }
                 }
                 Spacer(Modifier.height(10.dp))
                 OutlinedTextField(eposta, { eposta = it.trim() }, label = { Text("E-posta") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
                                   keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email))
-                OutlinedTextField(parola, { parola = it }, label = { Text(if (kayitModu) "Parola (en az 8 karakter)" else "Parola") }, singleLine = true,
+                OutlinedTextField(parola, { parola = it }, label = { Text(if (sifirla) "Yeni parola (en az 8 karakter)" else if (kayitModu) "Parola (en az 8 karakter)" else "Parola") }, singleLine = true,
                                   modifier = Modifier.fillMaxWidth(), visualTransformation = PasswordVisualTransformation(),
                                   keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password))
+                if (sifirla) OutlinedTextField(kod, { kod = it.trim().uppercase(Locale.ROOT) }, label = { Text("E-postadaki 8 karakterli kod") },
+                                  singleLine = true, modifier = Modifier.fillMaxWidth())
                 if (kayitModu) OutlinedTextField(davet, { davet = it.trim().uppercase(Locale.ROOT) }, label = { Text("Davet kodu (isteğe bağlı)") },
                                   singleLine = true, modifier = Modifier.fillMaxWidth())
                 Spacer(Modifier.height(10.dp))
                 Button({
-                    val g = JSONObject().put("eposta", eposta).put("parola", parola)
-                    if (kayitModu) g.put("davet", davet)
-                    cagri(if (kayitModu) "/uye/kayit" else "/uye/giris", true, g) { girisBitti(it) }
-                }, Modifier.fillMaxWidth(), enabled = !mesgul && eposta.isNotEmpty() && parola.isNotEmpty(), colors = NxButonRenk()) {
-                    Text(if (kayitModu) "Hesap oluştur" else "Giriş yap", fontWeight = FontWeight.Bold)
+                    if (sifirla) cagri("/uye/sifre-sifirla", true, JSONObject().put("eposta", eposta).put("kod", kod).put("yeni", parola)) {
+                        sifirla = false; kod = ""; girisBitti(it)
+                    } else {
+                        val g = JSONObject().put("eposta", eposta).put("parola", parola)
+                        if (kayitModu) g.put("davet", davet)
+                        cagri(if (kayitModu) "/uye/kayit" else "/uye/giris", true, g) { girisBitti(it) }
+                    }
+                }, Modifier.fillMaxWidth(),
+                    enabled = !mesgul && eposta.isNotEmpty() && parola.isNotEmpty() && (!sifirla || kod.length >= 8), colors = NxButonRenk()) {
+                    Text(if (sifirla) "Şifreyi sıfırla" else if (kayitModu) "Hesap oluştur" else "Giriş yap", fontWeight = FontWeight.Bold)
+                }
+                if (!kayitModu) {
+                    TextButton({
+                        cagri("/uye/sifre-unut", true, JSONObject().put("eposta", eposta)) {
+                            sifirla = true; kod = ""; mesaj = "Bu e-posta kayıtlıysa 8 karakterli bir kod gönderildi. Kodu girip yeni parolanızı belirleyin."
+                        }
+                    }, enabled = !mesgul && eposta.isNotEmpty()) {
+                        Text(if (sifirla) "Kodu yeniden gönder" else "Şifremi unuttum", color = Nx.Nane)
+                    }
+                    if (sifirla) TextButton({ sifirla = false; kod = ""; mesaj = "" }) { Text("Girişe dön", color = Nx.Soluk) }
                 }
                 if (mesaj.isNotEmpty()) Text(mesaj, color = Nx.Kirmizi, fontSize = 13.sp)
             }

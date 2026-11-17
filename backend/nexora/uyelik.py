@@ -26,6 +26,7 @@ BAGLANTILAR = {
                   aciklama="Kendi hesabınızın API anahtarı. Para çekme izni KAPALI olmalı; şifreli saklanır, şimdilik yalnızca bakiye okunur."),
 }
 BORSA_DENEME, BORSA_PENCERE_SN = 10, 3600
+SIFIRLA_SN, SIFIRLA_TALEP, SIFIRLA_DENEME = 30 * 60, 3, 5     # kod 30 dk geçerli; 10 dk içinde en çok 3 istek, 5 yanlış deneme
 
 
 class UyelikHatasi(ValueError):
@@ -69,6 +70,7 @@ class Uyelik:
         CREATE TABLE IF NOT EXISTS giris_deneme(anahtar TEXT NOT NULL, ts REAL NOT NULL);
         CREATE TABLE IF NOT EXISTS uye_portfoy(uye INTEGER PRIMARY KEY, baslangic REAL NOT NULL, giris_deger REAL NOT NULL,
             zirve REAL NOT NULL, ts REAL NOT NULL);
+        CREATE TABLE IF NOT EXISTS sifirla(uye INTEGER PRIMARY KEY, ozet TEXT NOT NULL, bitis REAL NOT NULL);
         CREATE TABLE IF NOT EXISTS borsa_anahtar(uye INTEGER NOT NULL, borsa TEXT NOT NULL, sifreli TEXT NOT NULL, maske TEXT NOT NULL,
             izin TEXT NOT NULL, ts REAL NOT NULL, PRIMARY KEY(uye, borsa));
         """)
@@ -110,6 +112,46 @@ class Uyelik:
             self.db.execute("INSERT INTO giris_deneme VALUES(?,?)", (eposta, now)); self.db.commit()
             raise UyelikHatasi("e-posta veya parola hatalı")
         return self._oturum(r["id"], now)
+
+    # ---- şifre sıfırlama (e-posta kodu)
+    def _say(self, anahtar, now):
+        self.db.execute("DELETE FROM giris_deneme WHERE ts<?", (now - GIRIS_PENCERE_SN,))
+        return self.db.execute("SELECT COUNT(*) FROM giris_deneme WHERE anahtar=?", (anahtar,)).fetchone()[0]
+
+    def sifre_sifirla_iste(self, eposta, gonder, now=None):
+        """Kod üretir, `gonder(eposta, kod)` ile yollar. Hesap yoksa da AYNI sonuç döner (e-posta varlığı sızmaz)."""
+        now = now or time.time(); eposta = (eposta or "").strip().lower()
+        if self._say(f"sifirla:{eposta}", now) >= SIFIRLA_TALEP:
+            raise PermissionError("çok fazla istek: 10 dakika sonra tekrar deneyin")
+        self.db.execute("INSERT INTO giris_deneme VALUES(?,?)", (f"sifirla:{eposta}", now)); self.db.commit()
+        r = self.db.execute("SELECT id FROM uye WHERE eposta=?", (eposta,)).fetchone()
+        if r is None: return
+        kod = "".join(secrets.choice(DAVET_ALFABE) for _ in range(8))
+        self.db.execute("INSERT OR REPLACE INTO sifirla VALUES(?,?,?)", (r["id"], hashlib.sha256(kod.encode()).hexdigest(), now + SIFIRLA_SN))
+        self.db.commit()
+        gonder(eposta, kod)
+
+    def sifre_sifirla(self, eposta, kod, yeni, now=None):
+        """Kodu doğrular, parolayı değiştirir, tüm oturumları kapatır ve bu cihaza yeni oturum verir. Kod tek kullanımlık."""
+        now = now or time.time(); eposta = (eposta or "").strip().lower()
+        if not isinstance(yeni, str) or not 8 <= len(yeni) <= 128: raise UyelikHatasi("yeni parola 8-128 karakter olmalı")
+        r = self.db.execute("SELECT id FROM uye WHERE eposta=?", (eposta,)).fetchone()
+        hata = UyelikHatasi("kod geçersiz veya süresi dolmuş")
+        if r is None: raise hata
+        uid = r["id"]
+        if self._say(f"kod:{uid}", now) >= SIFIRLA_DENEME: raise PermissionError("çok fazla yanlış kod: 10 dakika sonra deneyin")
+        s = self.db.execute("SELECT ozet, bitis FROM sifirla WHERE uye=?", (uid,)).fetchone()
+        ok = s is not None and s["bitis"] >= now and hmac.compare_digest(
+            s["ozet"], hashlib.sha256(str(kod or "").strip().upper().encode()).hexdigest())
+        if not ok:
+            self.db.execute("INSERT INTO giris_deneme VALUES(?,?)", (f"kod:{uid}", now)); self.db.commit()
+            raise hata
+        tuz = secrets.token_bytes(16)
+        self.db.execute("DELETE FROM sifirla WHERE uye=?", (uid,))
+        self.db.execute("UPDATE uye SET tuz=?, ozet=? WHERE id=?", (tuz, _ozet(yeni, tuz), uid))
+        self.db.execute("DELETE FROM oturum WHERE uye=?", (uid,))
+        self.db.commit()
+        return self._oturum(uid, now)
 
     def _oturum(self, uye, now=None):
         now = now or time.time(); tok = secrets.token_urlsafe(32)
