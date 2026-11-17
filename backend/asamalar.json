@@ -43,7 +43,7 @@
    "durum": "devam",
    "yuzde": 90,
    "yapilan": "FIFO gerçekleşen K/Z, kazanma oranı, kâr faktörü, elde tutma; hesap açma/kapama düzeltmesi; 190 cüzdanda 7 kopyalanabilir; paper portföyde en büyük düşüş (drawdown) ölçümü; kaynak cüzdanlarda gerçekleşen K/Z eğrisinde en büyük düşüş; gerçekleşmemiş K/Z: kopyalanabilir çıkan cüzdanın açık pozisyonları güncel Jupiter satış teklifiyle değerleniyor (teklifsiz token değersiz sayılır); gerçekleşen + açık toplamı negatifse karar 'zayıf'a düşürülüyor. Sağlamlık ölçüleri: kalite puanı (0-100), medyan getiri, %95 güven alt sınırı, en iyi işlem hariç K/Z, iki yarı ve son 10 işlem formu, hızlı satış oranı, kayıp serisi; yeterli örnekte karara dahil. Analiz geçmişi veritabanı (cüzdan başına 60 görüntü) ve eğilim (bozuldu/iyileşti).",
-   "eksik": "Uzun dönem (200 işlemden eski) geçmiş; SOL fiyatının işlem anına göre değil tek fiyatla hesaplanması"
+   "eksik": "Uzun dönem (200 işlemden eski) geçmiş. Not (17.11.2026): tek SOL fiyatı kararları etkilemiyor — getiri, kazanma oranı, kâr faktörü ve K/Z işareti sabit çarpanla değişmez; yalnızca USD tutarları yaklaşık"
   },
   {
    "kod": "N5",
