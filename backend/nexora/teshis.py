@@ -146,6 +146,19 @@ def rapor(now=None, GUN=3.0):
                 if el and ka:
                     L.append(f"    {ad:<16} {len(el):>3} %{_ort(el):+6} | {len(ka):>3} %{_ort(ka):+6} %{round(100 * sum(v > 0 for v in ka) / len(ka))}")
 
+    # 10) Deney masası: aynı sinyaller farklı kurallarla
+    try:
+        from nexora import deney
+        m = deney.masa(os.getenv("ETIKET_DB", "nexora_etiket.db"), now, gun=14)
+        if m["sinyal"]:
+            L.append(f"[10] Deney masası (son 14 gün, {m['sinyal']} ölçülmüş sinyal, 100$ ile yeniden oynatma):")
+            L.append("    kural / işlem / kaçan / K/Z / kazanan / en büyük düşüş")
+            for r in m["sonuclar"]:
+                L.append(f"    {r['ad']}")
+                L.append(f"      {r['islem']:>4} işlem {r['kacan']:>4} kaçan  {r['kz']:+7.2f}$  %{r['kazanan']:<3} düşüş {r['dusus']:.2f}$")
+    except Exception as ex:
+        L.append(f"[10] deney masası hesaplanamadı: {type(ex).__name__}")
+
     # 6b) Kısmi satış ölçümü
     km = _q(p, "SELECT * FROM kismi_olcum WHERE acilis_ts>=?", (bas,))
     if km:
