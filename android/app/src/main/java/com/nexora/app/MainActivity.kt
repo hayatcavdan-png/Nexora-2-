@@ -266,7 +266,9 @@ fun App() {
                         }, { riskKaydet(it) }, { yedekIndir() }) { u, k ->
                             url = u; key = k
                             sp.edit().putString("url", u).apply(); Kasa.yaz(sp, "key", k)
-                            yenile()
+                            if (k.isBlank() && Oturum.deger.isEmpty()) {             // anahtar silindi, oturum yok: giriş ekranına
+                                v.bagli = false; mesaj("API anahtarı yok: hesabınızla giriş yapın"); ekran = "uye"
+                            } else yenile()
                         }
                         KilitAyari(sp)
                         GorunumAyari(sp)
