@@ -267,11 +267,16 @@ class H(BaseHTTPRequestHandler):
             ev = (parse_qs(parts.query).get("olay") or [""])[0]
             d = paper.karar_izi(ev) if ev else None
             self._send(200 if d else 404, d or {"hata": "kayıt yok"}); return
+        if parts.path == "/teshis":                         # strateji teşhisi (yalnızca kurucu; UYE_GET'te yok)
+            from nexora import teshis
+            try: gun = min(14.0, max(1.0, float(parse_qs(parts.query).get("gun", ["3"])[0])))
+            except ValueError: gun = 3.0
+            self._send(200, dict(metin=teshis.rapor(GUN=gun), gun=gun, ozet=teshis.gunluk_ozet(gun=1.0))); return
         if parts.path == "/olaylar":
             try: son = float(parse_qs(parts.query).get("son", ["0"])[0])
             except ValueError: son = 0.0
             self._send(200, panel.olaylar(os.getenv("NEXORA_DB", "nexora_paper.db"), os.getenv("TRACKER_DB", "nexora_tracker.db"), son,
-                                          kesif_path="kesif_son.json"))
+                                          kesif_path="kesif_son.json", ozet=True))
             return
         if self.path == "/durum":
             self._send(200, dict(mod="PAPER", gercek_islem="KAPALI", acil_durdurma=paper.killed(), ayarlar=paper.ayarlar()["gecerli"],

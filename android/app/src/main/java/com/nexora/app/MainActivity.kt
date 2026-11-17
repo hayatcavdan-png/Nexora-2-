@@ -275,7 +275,10 @@ fun App() {
                     }
                     "hazir" -> item(key = "hazir") { HazirlikEkrani(v) }
                     "uye" -> item(key = "uye") { UyeEkrani(url, key, sp) { cekYenile() } }
-                    "rapor" -> item(key = "rapor") { Column(verticalArrangement = Arrangement.spacedBy(12.dp)) { RaporEkrani(v) } }
+                    "rapor" -> {
+                        if (v.kurucu && v.bagli) item(key = "teshis") { TeshisKarti(url, key) }
+                        item(key = "rapor") { Column(verticalArrangement = Arrangement.spacedBy(12.dp)) { RaporEkrani(v) } }
+                    }
                     "yol" -> {
                         item(key = "yol_ozet") {
                             val ort = if (v.asamalar.isEmpty()) 0 else v.asamalar.sumOf { it.yuzde } / v.asamalar.size

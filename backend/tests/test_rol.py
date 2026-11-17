@@ -37,7 +37,7 @@ class RolTests(unittest.TestCase):
         self.assertNotIn("GIZLICUZDAN", json.dumps(self.call("/islemler", oturum=tok)[1]))
         c, d = self.call("/durum", oturum=tok); self.assertEqual((c, d["rol"]), (200, "uye")); self.assertNotIn("ayarlar", d)
         self.assertEqual(self.call("/uye/ben", oturum=tok)[1]["rol"], "uye")
-        for yol in ("/takip", "/cuzdanlar", "/ayarlar", "/rapor", "/karar-izi", "/yedek/son", "/saglik"):
+        for yol in ("/takip", "/cuzdanlar", "/ayarlar", "/rapor", "/karar-izi", "/yedek/son", "/saglik", "/teshis"):
             self.assertEqual(self.call(yol, oturum=tok)[0], 403, yol)
         for yol, govde in (("/acil-durdur", {}), ("/devam", {}), ("/ayarlar", {"max_positions": 1}), ("/manuel", {}), ("/yedek", {})):
             self.assertEqual(self.call(yol, govde, oturum=tok)[0], 403, yol)
@@ -53,6 +53,8 @@ class RolTests(unittest.TestCase):
         self.assertIn("GIZLICUZDAN", json.dumps(self.call("/portfoy", oturum=tok)[1]))
         self.assertEqual(self.call("/ayarlar", {"max_positions": 4}, oturum=tok)[0], 200)
         self.assertEqual(self.call("/ayarlar", anahtar="k")[0], 200)                   # API anahtarı kurucu yetkisi verir
+        c, d = self.call("/teshis?gun=1", oturum=tok)
+        self.assertEqual(c, 200); self.assertIn("STRATEJİ TEŞHİSİ", d["metin"]); self.assertIn("gerceklesen", d["ozet"])
         self.assertEqual(self.call("/ayarlar", anahtar="yanlis")[0], 401)
 
 

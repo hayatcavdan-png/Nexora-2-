@@ -349,7 +349,7 @@ private fun BorsaHesaplari(liste: org.json.JSONArray?, gercek: JSONObject?, mesg
 }
 
 @Composable
-private fun SatirKV(k: String, v: String) {
+fun SatirKV(k: String, v: String) {
     Row(Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
         Text(k, color = Nx.Soluk, fontSize = 13.sp, modifier = Modifier.weight(1f))
         Text(v, color = Nx.Metin, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)

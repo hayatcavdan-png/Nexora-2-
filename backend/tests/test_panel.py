@@ -78,7 +78,8 @@ class PanelTests(unittest.TestCase):
             self.assertIn("noktalar", get("/gecmis"))
             self.assertEqual(get("/cuzdanlar")["ozet"]["takipte"], 2)
             self.assertEqual(get("/asamalar")["rows"][0]["kod"], "N0")
-            self.assertEqual(len(get("/olaylar?son=0")["olaylar"]), 3)
+            ol = get("/olaylar?son=0")["olaylar"]
+            self.assertEqual(len(ol), 4); self.assertEqual([e["tur"] for e in ol].count("ozet"), 1)   # + günlük özet
             self.assertEqual(get("/olaylar?son=9e12")["olaylar"], [])
             with self.assertRaises(urllib.error.HTTPError): get("/gecmis", key="yanlis")
             srv.shutdown(); srv.server_close()
@@ -110,3 +111,19 @@ class DususTests(unittest.TestCase):
         self.assertAlmostEqual(d["max_dusus_pct"], 5.0); self.assertAlmostEqual(d["max_dusus_usd"], 5.2)
         self.assertAlmostEqual(d["zirveden_uzaklik_pct"], round(5 / 104 * 100, 2))
         self.assertEqual(panel.dusus([dict(ts=1, deger=100)], 100)["max_dusus_pct"], 0.0)
+
+
+class GunlukOzetTests(unittest.TestCase):
+    def test_ozet_gunde_bir_kez_ve_metin(self):
+        import tempfile
+        from nexora.core import Paper
+        yol = os.path.join(tempfile.mkdtemp(), "p.db"); p = Paper(yol)
+        p.record_buy("e1", "W", "T1", 2.5, 1_000_000, 6)
+        an = 1_800_000_000 - 1_800_000_000 % 86400 + 6 * 3600                  # o günün 06:00 UTC'si
+        e = [x for x in panel.olaylar(yol, "yok.db", son=0, now=an + 60, ozet=True)["olaylar"] if x["tur"] == "ozet"]
+        self.assertEqual(len(e), 1); self.assertEqual(e[0]["ts"], an)
+        self.assertIn("Açık 1 pozisyon", e[0]["metin"])
+        self.assertEqual([x for x in panel.olaylar(yol, "yok.db", son=an, now=an + 3600, ozet=True)["olaylar"] if x["tur"] == "ozet"], [])
+        e = [x for x in panel.olaylar(yol, "yok.db", son=an, now=an - 60 + 86400, ozet=True)["olaylar"] if x["tur"] == "ozet"]
+        self.assertEqual(e, [])                                                 # ertesi günün özet saati gelmedi
+        self.assertEqual([x for x in panel.olaylar(yol, "yok.db", son=0, now=an + 60)["olaylar"] if x["tur"] == "ozet"], [])  # kapalıysa yok

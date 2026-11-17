@@ -178,7 +178,10 @@ def kesif_olayi(path, son):
                 metin=f"{satir}. Eklemek için sunucuda: sudo bash /opt/nexora/deploy/calistir.sh cuzdan_ekle.py --uygula")
 
 
-def olaylar(paper_path, tracker_path, son=0.0, limit=20, now=None, kesif_path=None):
+OZET_SAAT_UTC = 6     # günlük özet her gün 06:00 UTC'de (09:00 İstanbul) bir kez
+
+
+def olaylar(paper_path, tracker_path, son=0.0, limit=20, now=None, kesif_path=None, ozet=False):
     """Bildirim olayları (ts > son): kopyalanan alım, kapanan pozisyon, günlük zarar sınırı, bot işareti.
     Uygulama son gördüğü ts'yi saklar ve yalnızca yenileri ister."""
     now = now if now is not None else time.time()
@@ -236,6 +239,18 @@ def olaylar(paper_path, tracker_path, son=0.0, limit=20, now=None, kesif_path=No
             tc.close()
     ke = kesif_olayi(kesif_path, son) if kesif_path else None
     if ke: out.append(ke)
+    if ozet:                                   # günlük özet: bugünün özet anı geçtiyse ve uygulama henüz görmediyse
+        an = now - now % 86400 + OZET_SAAT_UTC * 3600
+        if an > now: an -= 86400
+        if an > son:
+            try:
+                from nexora import teshis
+                o = teshis.gunluk_ozet(an, 1.0, paper_path)
+                out.append(dict(id=f"g{int(an)}", ts=an, tur="ozet",
+                                baslik=f"Günlük özet: gerçekleşen {o['gerceklesen']:+.2f}$, açık {o['acik_kz']:+.2f}$",
+                                metin=teshis.ozet_metni(o) + " Ayrıntı: Günlük Rapor › Strateji teşhisi."))
+            except Exception:
+                pass
     out.sort(key=lambda e: e["ts"])
     return dict(olaylar=out[:limit], simdi=now)
 
