@@ -1,6 +1,7 @@
 """Kopyalama karar motoru (N7, ilk sürüm). Paper trading için gerçek Jupiter teklifleriyle doldurma.
 Sıra: kurallar (ağsız) -> token güvenliği -> alış teklifi -> geri satış teklifi -> kayıt.
 Geçmiş/ideal fiyat kullanılmaz; doldurma, sinyal anındaki gerçek teklife göre yapılır."""
+import os
 from nexora.constants import USDC_MINT
 from nexora.core import CFG
 from nexora.market import QuoteError
@@ -136,6 +137,23 @@ class Decider:
             except QuoteError as e:
                 self.paper.kismi_guncelle(k["id"], 0, 0.0, status="satilamadi", note=str(e)[:80])
 
+    # Güçlendirme (17.11.2026, kullanıcı onayı; deney masası [10b]: 2x en iyi, kâr +%17, düşüş azaldı): GUC_SN içinde
+    # 2+ farklı cüzdanın aldığı token "teyitli". Tutuluyorsa bir kez ek parça; tutulmuyorsa GUC_KAT büyüklükle giriş.
+    # Toplam açık maliyet her durumda %40'ı aşamaz. GUCLENDIRME_KAT=1 ile kapatılır.
+    GUC_SN = 900
+    GUC_KAT = float(os.getenv("GUCLENDIRME_KAT", "2"))
+
+    def _teyit(self, wallet, token, now=None):
+        """Bu alımı da sayarak son GUC_SN içinde token'ı alan farklı cüzdan sayısı (bellekte; servis yeniden başlarsa sıfırlanır)."""
+        import time as _t
+        now = now if now is not None else _t.time()
+        kayit = self.__dict__.setdefault("_alimlar", {})
+        d = kayit.setdefault(token, {}); d[wallet] = now
+        for w in [w for w, t in d.items() if now - t > self.GUC_SN]: del d[w]
+        if len(kayit) > 2000:                                         # bellek sınırı: eski token'ları at
+            for t in [t for t, x in kayit.items() if not x or max(x.values()) < now - self.GUC_SN]: del kayit[t]
+        return len(d)
+
     def decide(self, event_id, wallet, token, side, signal_age_s, boyut_usd=None, neden=None, kaynak_oran=None):
         p = self.paper
         if p.seen(event_id): return dict(decision="ATLANDI", reason="tekrarlanan olay")
@@ -150,6 +168,16 @@ class Decider:
             limitler = {k: p.limit(k) for k in ("max_pos_pct", "daily_loss_pct", "max_positions", "max_positions_per_wallet", "max_token_entries_per_day",
                                                 "max_signal_age_s", "max_price_impact_pct", "max_roundtrip_loss_pct")}
             reason, size = p.precheck(side, token, signal_age_s, wallet)
+            ek = False
+            if side == "buy" and boyut_usd is None and wallet != "MANUEL" and wallet not in self.izle and self.GUC_KAT > 1:
+                teyit = self._teyit(wallet, token)
+                if teyit >= 2 and reason == "bu token'da zaten pozisyon var":
+                    reason, size = p.precheck(side, token, signal_age_s, wallet, ek=True); ek = not reason
+                    iz.append(dict(adim="guclendirme", sonuc="ek parça" if ek else f"yok: {reason}", teyit=teyit))
+                elif teyit >= 2 and not reason:
+                    buyuk = round(size * self.GUC_KAT, 6)
+                    if p.risk_uygun(buyuk) and buyuk + 0.01 + 1.0 <= p.cash(): size = buyuk
+                    iz.append(dict(adim="guclendirme", sonuc=f"{self.GUC_KAT:g}x" if size == buyuk else "risk/nakit: 1x", teyit=teyit))
             if not reason and side == "buy" and wallet in self.izle: reason = "cüzdan yalnızca izleniyor"
             if boyut_usd is not None and size: size = round(min(size, max(0.0, float(boyut_usd))), 6)   # elle işlem: sınırı aşamaz
             if boyut_usd is not None and side == "buy" and not reason and size < 0.5: reason = "tutar çok küçük (en az 0.5 USDC)"
@@ -160,7 +188,7 @@ class Decider:
                 if side == "buy" and reason in self.KURAL_GOLGE and boyut_usd is None:
                     iz.append(dict(adim="kural_golgesi", sonuc="açıldı" if self._kural_golgesi(event_id, wallet, token, reason) else "açılmadı"))
             else:
-                r = self._buy(event_id, wallet, token, size, iz) if side == "buy" else self._sell(event_id, wallet, token, iz, neden, kaynak_oran)
+                r = self._buy(event_id, wallet, token, size, iz, ek=ek) if side == "buy" else self._sell(event_id, wallet, token, iz, neden, kaynak_oran)
             return r
         except Exception as e:
             iz.append(dict(adim="hata", sonuc=f"{type(e).__name__}: {str(e)[:120]}"))
@@ -172,7 +200,7 @@ class Decider:
                 except Exception:
                     pass                  # denetim izi yazılamazsa karar geri alınmaz
 
-    def _buy(self, event_id, wallet, token, size, iz=None):
+    def _buy(self, event_id, wallet, token, size, iz=None, ek=False):
         iz = iz if iz is not None else []
         p = self.paper
         s = self.safety.check(token)
@@ -225,7 +253,7 @@ class Decider:
                     return p.reject(event_id, wallet, token, "buy", why)
         etki = "etki bilinmiyor" if q["price_impact_pct"] is None else f"etki %{q['price_impact_pct']:.2f}"
         r = p.record_buy(event_id, wallet, token, size, q["out_amount"], s["decimals"],
-                         note=f"{etki}, al-sat kaybı %{rt:.1f}")
+                         note=f"{etki}, al-sat kaybı %{rt:.1f}" + ("; güçlendirme (2+ cüzdan teyidi)" if ek else ""), ek=ek)
         if r.get("decision") == "KOPYALANDI":
             self._olc(event_id, token)
             skor, w = puan_agirligi(self.puanlar, wallet)

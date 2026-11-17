@@ -361,14 +361,33 @@ class Paper:
             r = self.db.execute("SELECT * FROM positions WHERE token=?", (token,)).fetchone()
             return dict(r) if r else None
 
-    def precheck(self, side, token, signal_age_s, wallet=None):
-        """Ağ isteği yapmadan önce kurallar. (red_gerekçesi | None, pozisyon_büyüklüğü_usd)."""
+    def risk_uygun(self, ek_usd):
+        """Açık maliyet + ek_usd, portföyün TOPLAM_RISK oranını aşmıyor mu?"""
+        acik = self.db.execute("SELECT COALESCE(SUM(cost), 0) c FROM positions").fetchone()["c"]
+        return acik + ek_usd <= TOPLAM_RISK * self.equity() + 1e-9
+
+    def precheck(self, side, token, signal_age_s, wallet=None, ek=False):
+        """Ağ isteği yapmadan önce kurallar. (red_gerekçesi | None, pozisyon_büyüklüğü_usd).
+        ek=True: tutulan token'a güçlendirme (teyit) parçası: yer ve cüzdan sınırı saymaz, toplam risk ve günlük sınırlar sayar."""
         with self.lock:
             self._roll_day()
             if side not in ("buy", "sell"): return "geçersiz sinyal", 0
             if self.killed(): return "acil durdurma aktif", 0
             if signal_age_s > self.limit("max_signal_age_s"): return "sinyal bayat", 0
             has = self.db.execute("SELECT qty_raw FROM positions WHERE token=?", (token,)).fetchone()
+            if ek and side == "buy":
+                if not has: return "güçlendirilecek pozisyon yok", 0
+                if self._get(f"ek:{token}") not in (None, "0"): return "bu pozisyon zaten güçlendirildi", 0
+                eq, ds = self.equity(), float(self._get("day_start"))
+                if ds > 0 and (ds - eq) / ds >= self.limit("daily_loss_pct"): return "günlük zarar limiti", 0
+                gun_bas = time.mktime(time.strptime(time.strftime("%Y-%m-%d"), "%Y-%m-%d"))
+                ng = self.db.execute("""SELECT COUNT(*) c FROM trades WHERE token=? AND side='buy' AND decision='KOPYALANDI'
+                                        AND ts>=?""", (token, gun_bas)).fetchone()["c"]
+                if ng >= self.limit("max_token_entries_per_day"): return "bu token'a bugünkü giriş sınırı dolu", 0
+                size = round(eq * self.poz_orani(wallet), 6)
+                if not self.risk_uygun(size): return "toplam risk sınırı (%40) dolu", 0
+                if size + CFG["net_fee_usd"] + CFG["fee_reserve_usd"] > self.cash(): return "yetersiz nakit (ücret rezervi korunuyor)", 0
+                return None, size
             if side == "sell":
                 if not has: return "sahip olunmayan pozisyon satılamaz", 0
                 if not has["qty_raw"]: return "pozisyon miktarı bilinmiyor", 0
@@ -393,11 +412,24 @@ class Paper:
                 return "yetersiz nakit (ücret rezervi korunuyor)", 0
             return None, size
 
-    def record_buy(self, event_id, wallet, token, size_usd, qty_raw, decimals, note="ok"):
+    def record_buy(self, event_id, wallet, token, size_usd, qty_raw, decimals, note="ok", ek=False):
         with self.lock, self._surec_kilidi():
             if self.db.execute("SELECT 1 FROM trades WHERE event_id=?", (event_id,)).fetchone():
                 return dict(decision="ATLANDI", reason="tekrarlanan olay")
-            if self.db.execute("SELECT 1 FROM positions WHERE token=?", (token,)).fetchone():
+            pos = self.db.execute("SELECT * FROM positions WHERE token=?", (token,)).fetchone()
+            if pos and ek:                                    # güçlendirme: mevcut pozisyona ek parça (ortalama maliyet)
+                if self._get(f"ek:{token}") not in (None, "0"):
+                    return self._log(event_id, wallet, token, "buy", 0, 0, 0, 0, "REDDEDİLDİ", "bu pozisyon zaten güçlendirildi")
+                fee = CFG["net_fee_usd"]
+                if size_usd + fee > self.cash():
+                    return self._log(event_id, wallet, token, "buy", 0, 0, 0, 0, "REDDEDİLDİ", "yetersiz nakit")
+                qty = int(qty_raw) / 10 ** decimals; price = size_usd / qty
+                self._set("cash", self.cash() - size_usd - fee); self._set(f"ek:{token}", 1)
+                self.db.execute("""UPDATE positions SET qty=qty+?, cost=cost+?, last_price=?, qty_raw=? WHERE token=?""",
+                                (qty, size_usd, price, str(int(pos["qty_raw"] or 0) + int(qty_raw)), token))
+                self.db.execute("UPDATE pos_iz SET cost=cost+? WHERE token=? AND status='open'", (size_usd, token))
+                return self._log(event_id, wallet, token, "buy", qty, price, fee, 0, "KOPYALANDI", note)
+            if pos:
                 return self._log(event_id, wallet, token, "buy", 0, 0, 0, 0, "REDDEDİLDİ", "bu token'da zaten pozisyon var")
             fee = CFG["net_fee_usd"]
             if size_usd + fee > self.cash():
@@ -428,7 +460,7 @@ class Paper:
             if self._durum(iz) in (D.ACIK, D.TAKILDI): self._gecis(iz, token, D.KAPANIYOR, "satış")
             self._gecis(iz, token, D.KAPANDI, "satış kaydedildi")
             self.db.execute("DELETE FROM positions WHERE token=?", (token,))
-            self._set(f"teklif_hata:{token}", 0)
+            self._set(f"teklif_hata:{token}", 0); self._set(f"ek:{token}", 0)
             pct = pnl / pos["cost"] * 100 if pos["cost"] else 0.0
             self.db.execute("""UPDATE pos_iz SET status='closed', closed_ts=?, pnl=?, min_pct=MIN(COALESCE(min_pct, ?), ?),
                 max_pct=MAX(COALESCE(max_pct, ?), ?) WHERE id=?""", (time.time(), pnl, pct, pct, pct, pct, iz))

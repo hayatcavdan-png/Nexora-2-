@@ -284,3 +284,47 @@ class KismiSatisOlcumTests(unittest.TestCase):
         self.assertEqual(satis_orani(tx, "W", TOK), 1.0)
         self.assertIsNone(satis_orani({"meta": {}}, "W", TOK))
         self.assertIsNone(satis_orani({"meta": {"preTokenBalances": [{"owner": "W", "mint": TOK}]}}, "W", TOK))
+
+
+class GuclendirmeTests(unittest.TestCase):
+    def setUp(self):
+        self.p, self.q = Paper(), FakeQuoter()
+        self.p.ayar_degistir({"max_positions": 10, "max_pos_pct": 0.04})
+        self.d = Decider(self.p, self.q, Safe())
+
+    def test_tutulan_tokena_bir_kez_ek_parca(self):
+        self.assertEqual(self.d.decide("e1", "W1", TOK, "buy", 1)["decision"], "KOPYALANDI")
+        maliyet = self.p.position(TOK)["cost"]; nakit = self.p.cash()
+        r = self.d.decide("e2", "W2", TOK, "buy", 1)                         # ikinci cüzdan: teyit
+        self.assertEqual(r["decision"], "KOPYALANDI"); self.assertIn("güçlendirme", r["reason"])
+        pos = self.p.position(TOK)
+        self.assertAlmostEqual(pos["cost"], maliyet * 2, places=2)
+        self.assertAlmostEqual(int(pos["qty_raw"]) / (4_000_000 * 200), 2.0, places=3)   # iki parçanın miktarı toplandı
+        self.assertLess(self.p.cash(), nakit)
+        self.assertEqual(self.d.decide("e3", "W3", TOK, "buy", 1)["reason"], "bu pozisyon zaten güçlendirildi")
+        self.q.sell_price = 1.0
+        self.assertEqual(self.d.decide("e4", "W1", TOK, "sell", 1)["decision"], "KOPYALANDI")    # tümü satılır
+        self.assertIsNone(self.p.position(TOK)); self.assertEqual(self.p._get(f"ek:{TOK}"), "0")
+
+    def test_ayni_cuzdan_teyit_sayilmaz_ve_sure(self):
+        self.d.decide("e1", "W1", TOK, "buy", 1)
+        self.assertEqual(self.d.decide("e2", "W1", TOK, "buy", 1)["reason"], "bu token'da zaten pozisyon var")
+        self.d._alimlar[TOK]["W1"] -= 2000                                   # 15 dk'dan eski alım teyit sayılmaz
+        self.assertEqual(self.d.decide("e3", "W2", TOK, "buy", 1)["reason"], "bu token'da zaten pozisyon var")
+
+    def test_tutulmayan_teyitli_tokena_iki_kat(self):
+        self.d._teyit("W0", TOK)                                             # W0'ın alımı reddedilmiş olsun (ör. yer yok)
+        r = self.d.decide("e1", "W1", TOK, "buy", 1)
+        self.assertEqual(r["decision"], "KOPYALANDI"); self.assertAlmostEqual(self.p.position(TOK)["cost"], 8.0, places=2)
+
+    def test_toplam_risk_ek_parcayi_engeller(self):
+        for i in range(10):
+            t = f"TK{i:02d}" + "1" * 28
+            self.assertEqual(self.d.decide(f"a{i}", f"W{i}", t, "buy", 1)["decision"], "KOPYALANDI")
+        r = self.d.decide("b", "X", "TK00" + "1" * 28, "buy", 1)
+        self.assertEqual(r["reason"], "toplam risk sınırı (%40) dolu")
+
+    def test_kapali_ve_elle_islem(self):
+        self.d.GUC_KAT = 1.0
+        self.d.decide("e1", "W1", TOK, "buy", 1)
+        self.assertEqual(self.d.decide("e2", "W2", TOK, "buy", 1)["reason"], "bu token'da zaten pozisyon var")
