@@ -82,3 +82,30 @@ class UygulaTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SessizTests(unittest.TestCase):
+    def setUp(self):
+        self.d = tempfile.mkdtemp(); self.eski = os.getcwd(); os.chdir(self.d)
+        t = sqlite3.connect("t.db")
+        t.execute("CREATE TABLE tracker_signals(id INTEGER PRIMARY KEY, ts REAL, wallet TEXT, side TEXT, token TEXT)")
+        t.execute("INSERT INTO tracker_signals(ts, wallet, side, token) VALUES(?, ?, 'BUY', 'T')", (NOW + 7 * 86400, W["B"]))   # B son 7 günde aldı
+        t.execute("INSERT INTO tracker_signals(ts, wallet, side, token) VALUES(?, ?, 'SELL', 'T')", (NOW - 3600, W["C"]))  # satış sayılmaz
+        t.commit(); t.close()
+        open("wallets.txt", "w").write("\n".join(W[x] for x in "ABCD") + "\n")
+        open("izle_listesi.txt", "w").write("\n".join(W[x] for x in "BCD") + "\n")
+
+    def tearDown(self): os.chdir(self.eski)
+
+    def test_sessiz_izlenen_7_gun_sonra_cikar(self):
+        oz = K.uygula([], etiket_db="yok.db", now=NOW, tracker_db="t.db")          # ilk görülme: süre yeni başlar
+        self.assertFalse(oz["degisti"])
+        oz = K.uygula([], etiket_db="yok.db", now=NOW + 8 * 86400, tracker_db="t.db")
+        self.assertEqual(sorted(oz["sessiz"]), sorted([W["C"], W["D"]]))           # C yalnızca sattı, D hiç işlem yapmadı
+        self.assertNotIn(W["A"], oz["cikar"])                                         # kopyalanan (A) sessiz diye çıkarılmaz
+        self.assertEqual(K._oku("wallets.txt"), [W["A"], W["B"]])
+
+    def test_tracker_yoksa_kimse_cikmaz(self):
+        K.uygula([], etiket_db="yok.db", now=NOW, tracker_db="yok.db")
+        oz = K.uygula([], etiket_db="yok.db", now=NOW + 30 * 86400, tracker_db="yok.db")
+        self.assertEqual(oz["sessiz"], []); self.assertFalse(oz["degisti"])

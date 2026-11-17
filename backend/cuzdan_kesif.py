@@ -10,6 +10,9 @@ Varsayılan 10 token x 100 işlem = yaklaşık 100 kredi. Başlamadan önce tahm
 Çalıştır (backend klasöründe, HELIUS_API_KEY tanımlıyken):  python cuzdan_kesif.py
 Ayarlar: KESIF_TOKEN=10  KESIF_LIMIT=100  KESIF_SAYFA=1  KESIF_PENCERE_SN=3600  KESIF_EN_AZ=2
 Hızlı al-satçılar (aynı token'ı KESIF_MIN_TUTMA_SN içinde satanlar; çoğu sniper bot) aday sayılmaz: kopyalanamazlar.
+Sniperlar (token oluştuktan sonraki KESIF_SNIPER_SN içinde alanlar) da aday sayılmaz: o hızla girilemez.
+Kazanan token'lar: takip edilen bir cüzdanın aldığı ve kopyasının (kaynak satınca çıkış) en az %KAZANAN_ESIK kazandırdığı
+token'lar (etiket ölçümü) ayrıca incelenir (KESIF_KAZANAN=10 token): iyi token'ı erken bulanlar burada aranır.
 Çıktılar: kesif_adaylar.csv (tüm erken alıcılar), wallets_kesif.txt (en az KESIF_EN_AZ token'da görünenler)"""
 import csv, os, sqlite3, sys
 from collections import defaultdict
@@ -24,6 +27,9 @@ PENCERE = int(os.getenv("KESIF_PENCERE_SN", "3600"))
 EN_AZ = int(os.getenv("KESIF_EN_AZ", "2"))
 SAYFA = max(1, int(os.getenv("KESIF_SAYFA", "1")))
 MIN_TUTMA = int(os.getenv("KESIF_MIN_TUTMA_SN", "60"))
+SNIPER_SN = int(os.getenv("KESIF_SNIPER_SN", "120"))
+KAZANAN = int(os.getenv("KESIF_KAZANAN", "10"))
+KAZANAN_ESIK, KAZANAN_GUN = 20.0, 7
 OUT_CSV, OUT_TXT = "kesif_adaylar.csv", "wallets_kesif.txt"
 
 
@@ -49,6 +55,29 @@ def kaynak_alimlar(tracker_db, n):
     return out
 
 
+def kazanan_alimlar(etiket_db, n, now=None, esik=KAZANAN_ESIK, gun=KAZANAN_GUN):
+    """Kopyası en az %esik kazandıran son alımlar (en kazandıran önce, token başına bir): (token, kaynak, blok zamanı, oluşma zamanı)."""
+    import time as _t
+    now = now if now is not None else _t.time()
+    if not n or not etiket_db or not os.path.exists(etiket_db): return []
+    c = sqlite3.connect(f"file:{etiket_db}?mode=ro", uri=True)
+    try:
+        rows = c.execute("""SELECT o.token, o.wallet, o.block_time, o.ts, o.tb_yas_sn FROM etiket_olay o
+            JOIN etiket_sonuc s ON s.event_id=o.event_id WHERE s.ufuk='kaynak' AND s.getiri_pct >= ? AND o.ts >= ?
+            AND o.block_time > 0 ORDER BY s.getiri_pct DESC""", (esik, now - gun * 86400)).fetchall()
+    except sqlite3.OperationalError:
+        rows = []
+    finally:
+        c.close()
+    out, gorulen = [], set()
+    for token, wallet, bt, ts, yas in rows:
+        if token in gorulen: continue
+        gorulen.add(token)
+        out.append((token, wallet, int(bt), (ts - yas) if yas is not None else None))
+        if len(out) >= n: break
+    return out
+
+
 def odeyici(tx):
     keys = ((tx.get("transaction") or {}).get("message") or {}).get("accountKeys") or []
     if not keys: return None
@@ -56,8 +85,9 @@ def odeyici(tx):
     return k.get("pubkey") if isinstance(k, dict) else k
 
 
-def erken_alicilar(client, token, bt, pencere=PENCERE, limit=LIMIT, sayfa=SAYFA, min_tutma=MIN_TUTMA):
-    """Token'ı [bt-pencere, bt) aralığında alan cüzdanlar, hızlı al-satçılar hariç.
+def erken_alicilar(client, token, bt, pencere=PENCERE, limit=LIMIT, sayfa=SAYFA, min_tutma=MIN_TUTMA, olusma=None,
+                   sniper_sn=SNIPER_SN):
+    """Token'ı [bt-pencere, bt) aralığında alan cüzdanlar, hızlı al-satçılar ve (oluşma zamanı biliniyorsa) sniperlar hariç.
     Dönüş: (alıcılar, işlem sayısı, elenen hızlı al-satçı sayısı). Helius zaman filtresini desteklemezse istemci tarafında süzülür."""
     opts = {"transactionDetails": "full", "limit": limit, "sortOrder": "desc", "commitment": "confirmed",
             "encoding": "jsonParsed", "maxSupportedTransactionVersion": 1,
@@ -91,14 +121,20 @@ def erken_alicilar(client, token, bt, pencere=PENCERE, limit=LIMIT, sayfa=SAYFA,
         if r.get("event_type") == "BUY": alis[w].append(t)
         elif r.get("event_type") == "SELL": satis[w].append(t)
     hizli = {w for w, ts in alis.items() if any(0 <= s - min(ts) < min_tutma for s in satis.get(w, ()))}
+    if olusma is not None:
+        hizli |= {w for w, ts in alis.items() if min(ts) - olusma < sniper_sn}
     return set(alis) - hizli, len(txs), len(hizli)
 
 
-def main(client=None, tracker_db=None, out_dir="."):
+def main(client=None, tracker_db=None, out_dir=".", etiket_db=None):
     if client is None and not os.getenv("HELIUS_API_KEY") and not os.getenv("SOLANA_RPC_URL"):
         sys.exit("HELIUS_API_KEY tanımlı değil")
-    alimlar = kaynak_alimlar(tracker_db or os.getenv("TRACKER_DB", "nexora_tracker.db"), TOKEN_SAYI)
+    son = [(t, w, bt, None) for t, w, bt in kaynak_alimlar(tracker_db or os.getenv("TRACKER_DB", "nexora_tracker.db"), TOKEN_SAYI)]
+    kaz = kazanan_alimlar(etiket_db or os.getenv("ETIKET_DB", "nexora_etiket.db"), KAZANAN)
+    kaz_tok = {x[0] for x in kaz}
+    alimlar = kaz + [x for x in son if x[0] not in kaz_tok]
     if not alimlar: sys.exit("Takip veritabanında henüz kaynak alımı yok: takip bir süre çalışmalı.")
+    if kaz: print(f"{len(kaz)} kazanan token (kopyası en az %{KAZANAN_ESIK:.0f} kazandıran) incelenecek.", flush=True)
     print(f"{len(alimlar)} token incelenecek, token başına en fazla {LIMIT} işlem "
           f"x {SAYFA} sayfa (tahmini en fazla {len(alimlar) * SAYFA * ((LIMIT + 99) // 100) * 10} Helius kredisi).", flush=True)
     client = client or HeliusClient(max_retries=2)
@@ -106,14 +142,14 @@ def main(client=None, tracker_db=None, out_dir="."):
     for f in ("cuzdan_analiz.csv",):
         if os.path.exists(f): bilinen |= {r["wallet"] for r in csv.DictReader(open(f, newline=""))}
     gorulme = defaultdict(set)
-    for token, kaynak, bt in alimlar:
+    for token, kaynak, bt, olusma in alimlar:
         try:
-            alicilar, n, elenen = erken_alicilar(client, token, bt)
+            alicilar, n, elenen = erken_alicilar(client, token, bt, olusma=olusma)
         except (HeliusRPCError, ValueError) as e:
             print(f"  {token[:4]}…{token[-4:]}: atlandı ({e})", flush=True); continue
         alicilar -= {kaynak}
         print(f"  {token[:4]}…{token[-4:]}: {n} işlem, {len(alicilar)} erken alıcı"
-              + (f" ({elenen} hızlı al-satçı elendi)" if elenen else ""), flush=True)
+              + (f" ({elenen} hızlı al-satçı/sniper elendi)" if elenen else ""), flush=True)
         for w in alicilar: gorulme[w].add(token)
     satir = sorted(((w, len(t), ";".join(sorted(t))) for w, t in gorulme.items()), key=lambda x: -x[1])
     with open(os.path.join(out_dir, OUT_CSV), "w", newline="") as f:

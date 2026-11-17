@@ -133,3 +133,20 @@ class BoyutTests(unittest.TestCase):
         brut = gercek + 0.02
         self.assertAlmostEqual(y["puan ağırlıklı"]["kz"], round(brut * 0.5 - 0.02, 4), places=4)
         self.assertAlmostEqual(y["sabit 1 USDC"]["kz"], round(brut / 5 - 0.02, 4), places=4)
+
+
+class KazananTests(unittest.TestCase):
+    def test_kazanan_alimlar_ve_sniper_elenir(self):
+        d = tempfile.mkdtemp(); db = os.path.join(d, "e.db")
+        from nexora.etiket import SEMA
+        c = sqlite3.connect(db); c.executescript(SEMA)
+        for i, (tok, g, yas) in enumerate([("TW", 45.0, 600), ("TW", 30.0, 900), ("TK", 5.0, 600), ("TX", 25.0, None)]):
+            c.execute("INSERT INTO etiket_olay(event_id, ts, wallet, token, block_time, tb_yas_sn) VALUES(?,?,?,?,?,?)",
+                      (f"e{i}", 1_000_000.0, "SRC", tok, 999_990, yas))
+            c.execute("INSERT INTO etiket_sonuc(event_id, ufuk, ts, getiri_pct) VALUES(?, 'kaynak', 0, ?)", (f"e{i}", g))
+        c.commit(); c.close()
+        k = K.kazanan_alimlar(db, 10, now=1_000_100.0)
+        self.assertEqual(k, [("TW", "SRC", 999_990, 1_000_000.0 - 600), ("TX", "SRC", 999_990, None)])   # TK %20 altında
+        cl = FakeClient({"T": [swap_tx("SNIPER", "T", 1010), swap_tx("ERKEN", "T", 1500)]})
+        alicilar, _, elenen = K.erken_alicilar(cl, "T", 2000, pencere=3600, sayfa=1, olusma=1000, sniper_sn=120)
+        self.assertEqual((alicilar, elenen), ({"ERKEN"}, 1))                                              # 10 sn'de alan elenir

@@ -9,6 +9,7 @@ Kurallar (son PENCERE_GUN gün):
   izleme -> kopyalama : en az TERFI_N ölçüm, ortalama >= TERFI_ORT %, medyan > 0
   kopyalama -> izleme : en az DUSUR_N ölçüm, ortalama < 0
   izleme -> çıkar     : en az CIKAR_N ölçüm, ortalama <= CIKAR_ORT % (listeye yer açılır; kara listeye EKLENMEZ)
+  izleme -> çıkar     : en az SESSIZ_GUN gündür listede ve son SESSIZ_GUN günde hiç alım yapmadı (sessiz aday)
 Kara listedeki adreslere dokunulmaz. Dosyalar atomik yazılır; takip servisi dosya değişince kendini yeniden başlatır."""
 import os, sqlite3, time
 from statistics import median
@@ -17,6 +18,7 @@ PENCERE_GUN = 14
 TERFI_N, TERFI_ORT = 10, 3.0
 DUSUR_N = 8
 CIKAR_N, CIKAR_ORT = 10, -3.0
+SESSIZ_GUN = 7
 YENI_GUNLUK = 5
 LISTE_SINIRI = int(os.getenv("TAKIP_SINIRI", "25"))
 
@@ -39,7 +41,7 @@ def olcum(etiket_db, now=None, gun=PENCERE_GUN):
                     pozitif=round(sum(1 for x in v if x > 0) / len(v), 2)) for w, v in g.items()}
 
 
-def karar(liste, izle, olc, adaylar=(), kara=()):
+def karar(liste, izle, olc, adaylar=(), kara=(), sessiz=()):
     """Saf karar. liste: wallets.txt (kopyalanan + izlenen), izle: izle_listesi.txt. Dönüş: yeni listeler ve değişiklikler."""
     kara = set(kara)
     liste = [w for w in dict.fromkeys(liste) if w not in kara]
@@ -53,6 +55,7 @@ def karar(liste, izle, olc, adaylar=(), kara=()):
             if m["n"] >= DUSUR_N and m["ort"] < 0: dusur.append(w)
         elif m["n"] >= TERFI_N and m["ort"] >= TERFI_ORT and m["medyan"] > 0: terfi.append(w)
         elif m["n"] >= CIKAR_N and m["ort"] <= CIKAR_ORT: cikar.append(w)
+    cikar += [w for w in izle if w in set(sessiz) and w not in cikar and w not in terfi]   # yalnızca izlenenler; kopyalanana dokunulmaz
     yeni_liste = [w for w in liste if w not in cikar]
     yeni_izle = [w for w in izle if w not in terfi and w not in cikar] + dusur
     for w in dict.fromkeys(adaylar):
@@ -89,19 +92,50 @@ def _yaz(path, satirlar, baslik):
     os.replace(gecici, path)
 
 
-def uygula(adaylar=(), etiket_db=None, now=None, liste_yolu="wallets.txt", izle_yolu="izle_listesi.txt", kara_yolu="kara_liste.txt"):
-    """Ölçer, karar verir, değişiklik varsa dosyaları yazar. Dönüş: karar özeti (bildirim için) ve ölçümler."""
+def alim_yapanlar(tracker_db, now=None, gun=SESSIZ_GUN):
+    """Son `gun` günde en az bir alım sinyali olan cüzdanlar. Veritabanı yoksa None (sessizlik bilinmiyor: kimse çıkarılmaz)."""
+    now = now if now is not None else time.time()
+    if not tracker_db or not os.path.exists(tracker_db): return None
+    c = sqlite3.connect(f"file:{tracker_db}?mode=ro", uri=True, timeout=10)
+    try:
+        return {r[0] for r in c.execute("SELECT DISTINCT wallet FROM tracker_signals WHERE side='BUY' AND ts >= ?", (now - gun * 86400,))}
+    except sqlite3.OperationalError:
+        return None
+    finally:
+        c.close()
+
+
+def uygula(adaylar=(), etiket_db=None, now=None, liste_yolu="wallets.txt", izle_yolu="izle_listesi.txt", kara_yolu="kara_liste.txt",
+           tracker_db=None, kayit_yolu="kadro_kayit.json"):
+    """Ölçer, karar verir, değişiklik varsa dosyaları yazar. Dönüş: karar özeti (bildirim için) ve ölçümler.
+    kadro_kayit.json: cüzdanın listeye ilk görüldüğü zaman (sessizlik süresi buna göre sayılır)."""
+    import json
+    now = now if now is not None else time.time()
     etiket_db = etiket_db or os.getenv("ETIKET_DB", "nexora_etiket.db")
     olc = olcum(etiket_db, now)
-    k = karar(_oku(liste_yolu), _oku(izle_yolu), olc, adaylar, _oku(kara_yolu))
+    liste, izle = _oku(liste_yolu), _oku(izle_yolu)
+    try: kayit = json.load(open(kayit_yolu))
+    except (OSError, ValueError): kayit = {}
+    for w in liste: kayit.setdefault(w, now)
+    aktif = alim_yapanlar(tracker_db or os.getenv("TRACKER_DB", "nexora_tracker.db"), now)
+    sessiz = set() if aktif is None else {w for w in izle if w not in aktif and now - kayit.get(w, now) >= SESSIZ_GUN * 86400}
+    k = karar(liste, izle, olc, adaylar, _oku(kara_yolu), sessiz)
+    for w in k["eklenen"]: kayit[w] = now
+    kayit = {w: t for w, t in kayit.items() if w in set(k["liste"])}
+    try:
+        with open(kayit_yolu + ".tmp", "w") as f: json.dump(kayit, f)
+        os.replace(kayit_yolu + ".tmp", kayit_yolu)
+    except OSError:
+        pass
     degisti = any(k[x] for x in ("terfi", "dusur", "cikar", "eklenen"))
     if degisti:
-        tarih = time.strftime("%Y-%m-%d %H:%M", time.gmtime(now or time.time()))
+        tarih = time.strftime("%Y-%m-%d %H:%M", time.gmtime(now))
         _yaz(liste_yolu, k["liste"], f"# Takip listesi (kadro.py, {tarih} UTC). İzle listesindekiler yalnızca ölçülür.")
         _yaz(izle_yolu, k["izle"], f"# Yalnızca izlenen cüzdanlar (kadro.py, {tarih} UTC): sinyalleri ölçülür, kopyalanmaz.")
     ozet = {x: k[x] for x in ("terfi", "dusur", "cikar", "eklenen", "kopyalanan", "izlenen")}
     ozet["olcum"] = {w: olc[w] for w in k["liste"] if w in olc}
     ozet["degisti"] = degisti
+    ozet["sessiz"] = sorted(set(k["cikar"]) & sessiz)
     return ozet
 
 
