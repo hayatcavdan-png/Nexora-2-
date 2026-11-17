@@ -87,6 +87,22 @@ class BakiyeTest(unittest.TestCase):
         self.assertEqual([v["varlik"] for v in oz["varliklar"]], ["USDT", "BTC"])     # toz (DOGE 0.1 $) gösterilmez
         self.assertEqual(oz["degeri_bilinmeyen"], 1)
 
+    def test_fiat_kurlari_ve_tl_degerleme(self):
+        class Fiyat:
+            def __init__(self, d): self.d, self.url = d, None
+            def get(self, url, timeout=None): self.url = url; return R(self.d)
+        s = Fiyat([{"symbol": "USDTTRY", "price": "40.00"}, {"symbol": "EURUSDT", "price": "1.10"}, {"symbol": "BTCUSDT", "price": "50000"}])
+        kur = BH.fiat_kurlari(s, "binance")
+        self.assertEqual(s.url, BH.FIYAT_URL["binance"])
+        self.assertAlmostEqual(kur["TRY"]["son"], 0.025); self.assertAlmostEqual(kur["EUR"]["son"], 1.10)
+        self.assertNotIn("BTC", kur)                                                     # yalnızca itibari paralar
+        c, _ = ist("binance", {"/api/v3/account": {"balances": [{"asset": "TRY", "free": "72", "locked": "0"},
+                                                                {"asset": "BNB", "free": "0.002", "locked": "0"}]}})
+        oz = BH.ozet_bakiye(BH.bakiyeler(c, {"BNB": {"son": 600.0}, **kur}))
+        self.assertEqual(oz["degeri_bilinmeyen"], 0); self.assertEqual(oz["toplam_usd"], 3.0)   # 72/40 + 1.2
+        self.assertEqual(BH.fiat_kurlari(Fiyat({"code": -1, "msg": "x"}), "binance"), {})        # hata: boş
+        self.assertEqual(BH.fiat_kurlari(Fiyat([]), "kucoin"), {})                                # desteklenmeyen borsa
+
     def test_okx_equsd_kucoin_toplama(self):
         c, _ = ist("okx", {"/api/v5/account/balance": {"code": "0", "data": [{"details": [{"ccy": "ETH", "eq": "0.5", "eqUsd": "1500"}]}]}})
         self.assertEqual(BH.bakiyeler(c), [("ETH", 0.5, 1500.0)])

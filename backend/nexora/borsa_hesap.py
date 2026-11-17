@@ -27,6 +27,10 @@ IZINLI = {                                        # salt okunur uç noktalar; ba
     "mexc": {"/api/v3/account"},
 }
 STABIL = {"USDT", "USDC", "FDUSD", "BUSD", "DAI", "TUSD", "USD"}
+# Borsa hesabında tutulabilen itibari paralar. Dolar karşılıkları herkese açık USDT kurundan bulunur (USDT ≈ 1 $).
+FIAT = ("TRY", "EUR", "GBP", "BRL", "ARS", "UAH", "PLN", "RON", "ZAR", "JPY", "MXN", "COP", "CZK", "IDR", "NGN", "AUD", "KZT")
+FIYAT_URL = {"binance": "https://api.binance.com/api/v3/ticker/price",      # imzasız, herkese açık; hesap bilgisi gönderilmez
+             "mexc": "https://api.mexc.com/api/v3/ticker/price"}
 TOZ_USD = 1.0                                     # bunun altındaki varlıklar listede gösterilmez (toplama dahil)
 
 
@@ -152,6 +156,22 @@ def bakiyeler(c, fiyatlar=None):
             if varlik in STABIL: usd = miktar
             elif varlik in fiyatlar: usd = miktar * fiyatlar[varlik]["son"]
         out.append((varlik, miktar, usd))
+    return out
+
+
+def fiat_kurlari(s, borsa, timeout=15):
+    """{itibari para: dict(son=1 biriminin USD karşılığı)}; `bakiyeler`in `fiyatlar` sözlüğüyle aynı biçimde.
+    USDTTRY gibi ters çiftlerde 1/fiyat, EURUSDT gibi düz çiftlerde fiyat kullanılır. Hata ya da desteklenmeyen borsa: {}."""
+    url = FIYAT_URL.get(borsa)
+    if not url: return {}
+    try:
+        d = {str(x.get("symbol", "")).upper(): _sayi(x.get("price")) for x in s.get(url, timeout=timeout).json()}
+    except (requests.RequestException, ValueError, AttributeError, TypeError):
+        return {}
+    out = {}
+    for f in FIAT:
+        if d.get("USDT" + f, 0) > 0: out[f] = dict(son=1.0 / d["USDT" + f])
+        elif d.get(f + "USDT", 0) > 0: out[f] = dict(son=d[f + "USDT"])
     return out
 
 

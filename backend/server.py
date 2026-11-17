@@ -216,7 +216,8 @@ class H(BaseHTTPRequestHandler):
                 import requests as _rq
                 s_ = _rq.Session()
                 self._send(200, uyelik.borsa_bakiye(u["id"], kasa(), borsa_hesap.Istemci,
-                                                    lambda b: piyasa.borsa_fiyatlari(s_, borsa_hesap.BORSALAR[b]["ad"])))
+                                                    lambda b: {**(piyasa.borsa_fiyatlari(s_, borsa_hesap.BORSALAR[b]["ad"]) or {}),
+                                                               **borsa_hesap.fiat_kurlari(s_, b)}))
             else:
                 self._send(200, dict(borsalar=uyelik.borsalar(u["id"])))
             return
