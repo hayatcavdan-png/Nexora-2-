@@ -20,10 +20,12 @@ def fiyat(son, hacim=5e6, makas=0.0005):
     return dict(son=son, bid=son * (1 - makas / 2), ask=son * (1 + makas / 2), hacim=hacim)
 
 
-def motor():
+def motor(stratejiler=None, evren_sayi=0):
     d = tempfile.mkdtemp()
-    pf = {st.ad: Paper(os.path.join(d, st.ad + ".db"), kayma=P.KAYMA, ucret_orani=P.UCRET) for st in P.STRATEJILER}
-    return P.Motor(pf, s=None, borsalar=("Binance",), durum_dosyasi=os.path.join(d, "durum.json")), pf
+    stratejiler = stratejiler or (P.Momentum(), P.Trend(), P.Dip())     # momentum canlıda durdu ama mantığı test edilir
+    pf = {st.ad: Paper(os.path.join(d, st.ad + ".db"), kayma=P.KAYMA, ucret_orani=P.UCRET) for st in stratejiler}
+    return P.Motor(pf, s=None, borsalar=("Binance",), durum_dosyasi=os.path.join(d, "durum.json"), stratejiler=stratejiler,
+                   evren_sayi=evren_sayi), pf
 
 
 class Test(unittest.TestCase):
@@ -68,9 +70,19 @@ class Test(unittest.TestCase):
 
     def test_trend_iz_suren(self):
         st = P.Trend(); poz = dict(giris_fiyat=100.0, giris_ts=0.0, zirve=120.0)
-        self.assertIsNone(st.cikis(poz, fiyat(119.0), 3600))
-        self.assertIn("iz süren", st.cikis(poz, fiyat(116.0), 3600))
+        self.assertIsNone(st.cikis(poz, fiyat(116.0), 3600))                       # zirveden %3.3: iz %8 tetiklenmez
+        self.assertIn("iz süren", st.cikis(poz, fiyat(110.0), 3600))               # %8.3
+        self.assertIn("zarar kes", st.cikis(dict(giris_fiyat=100.0, giris_ts=0.0, zirve=100.0), fiyat(93.5), 60))
         self.assertIn("süre", P.Momentum().cikis(dict(giris_fiyat=100.0, giris_ts=0.0, zirve=100.0), fiyat(101.0), 5 * 3600))
+
+    def test_dip_ve_evren_siniri(self):
+        m, pf = motor((P.Dip(),), evren_sayi=1); t0 = 3_000_000.0
+        for i in range(61): m.tur(t0 + i * 60, {"Binance": {"BIG": fiyat(100.0, hacim=9e8), "SMALL": fiyat(100.0, hacim=2e6)}})
+        for i in range(61, 75): m.tur(t0 + i * 60, {"Binance": {"BIG": fiyat(92.0, hacim=9e8), "SMALL": fiyat(92.0, hacim=2e6)}})
+        olay, _ = m.tur(t0 + 76 * 60, {"Binance": {"BIG": fiyat(93.0, hacim=9e8), "SMALL": fiyat(93.0, hacim=2e6)}})
+        alinan = {o[2] for o in olay if o[:2] == ("dip", "al")}
+        self.assertEqual(alinan, {"Binance:BIG/USDT"})                              # yalnızca en hacimli coin
+        self.assertEqual([s.ad for s in P.STRATEJILER], ["trend", "dip"])           # canlı: momentum durdu
 
     def test_ozet(self):
         m, pf = motor()

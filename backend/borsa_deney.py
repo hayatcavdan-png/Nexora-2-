@@ -100,12 +100,12 @@ def _dip(x, dus60=-6.0):
     return x["r60"] is not None and x["r15"] is not None and x["r60"] <= dus60 and x["r15"] >= 0.5
 
 STRATEJILER = [
-    ("momentum (canlı): %6 kâr / %3 zarar / 4 sa", dict(giris=_momentum, kar_al=6, zarar_kes=3, sure_dk=240)),
+    ("momentum (durduruldu): %6 kâr / %3 zarar / 4 sa", dict(giris=_momentum, kar_al=6, zarar_kes=3, sure_dk=240)),
     ("momentum geniş: %10 / %5 / 8 sa", dict(giris=_momentum, kar_al=10, zarar_kes=5, sure_dk=480)),
-    ("trend (canlı): iz %3 / zarar %4 / 24 sa", dict(giris=_trend, iz=3, zarar_kes=4, sure_dk=1440)),
-    ("trend geniş: iz %8 / zarar %6", dict(giris=_trend, iz=8, zarar_kes=6, sure_dk=1440)),
+    ("trend (eski): iz %3 / zarar %4 / 24 sa", dict(giris=_trend, iz=3, zarar_kes=4, sure_dk=1440)),
+    ("trend (canlı): iz %8 / zarar %6", dict(giris=_trend, iz=8, zarar_kes=6, sure_dk=1440)),
     ("trend 4 sa kırılım: iz %6 / zarar %6", dict(giris=lambda x: _trend(x, "z240", 2.0, 0.5), iz=6, zarar_kes=6, sure_dk=1440)),
-    ("dip alım: 1 sa -%6 ve dönüş, %4 / %6 / 12 sa", dict(giris=_dip, kar_al=4, zarar_kes=6, sure_dk=720)),
+    ("dip alım (canlı): 1 sa -%6 ve dönüş, %4 / %6 / 12 sa", dict(giris=_dip, kar_al=4, zarar_kes=6, sure_dk=720)),
 ]
 
 

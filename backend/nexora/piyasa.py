@@ -132,8 +132,9 @@ class Momentum(Strateji):
 
 class Trend(Strateji):
     ad = "trend"
-    aciklama = "son 1 saatin zirvesini kıran ve 4 saatte artıda olan coin; iz süren durdurma %3, zarar kes %4, en fazla 24 saat"
-    zarar_kes, iz, sure_sn = 4.0, 3.0, 24 * 3600
+    aciklama = "son 1 saatin zirvesini kıran ve 4 saatte artıda olan coin; iz süren durdurma %8, zarar kes %6, en fazla 24 saat"
+    # 17.11.2026 (borsa deney masası, 7 gün / 60 coin): iz %3 erken çıkıyordu (+2.22$); iz %8 / zarar %6 en iyisi (+3.44$)
+    zarar_kes, iz, sure_sn = 6.0, 8.0, 24 * 3600
 
     def giris(self, g, taban, v, now):
         r240 = g.degisim(taban, 4 * 3600, now)
@@ -141,13 +142,29 @@ class Trend(Strateji):
         return r240 is not None and r240 > 1.0 and z is not None and v["son"] > z * 1.005
 
 
-STRATEJILER = (Momentum(), Trend())
+class Dip(Strateji):
+    ad = "dip"
+    aciklama = "1 saatte %6+ düşüp son 15 dakikada toparlanmaya başlayan coin; kâr al %4, zarar kes %6, en fazla 12 saat"
+    kar_al, zarar_kes, sure_sn = 4.0, 6.0, 12 * 3600
+
+    def giris(self, g, taban, v, now):
+        r15, r60 = g.degisim(taban, 900, now), g.degisim(taban, 3600, now)
+        return r15 is not None and r60 is not None and r60 <= -6.0 and r15 >= 0.5
+
+
+# 17.11.2026 (kullanıcı onayı, borsa deney masası): momentum iki ayarda da zararda -> durduruldu (sınıf kodda, geçmiş veri korunur);
+# yerine dip alım ölçülüyor. Girişler yalnızca hacme göre en büyük EVREN_SAYI coin'de (küçük coin'de makas ve gürültü zarar ettiriyordu).
+STRATEJILER = (Trend(), Dip())
+EVREN_SAYI = 60
 
 
 class Motor:
     """Her dakika: fiyatları al, geçmişi güncelle, açık pozisyonların çıkışını, sonra yeni girişleri değerlendir."""
-    def __init__(self, portfoyler, s=None, borsalar=("Binance", "OKX", "KuCoin", "MEXC"), durum_dosyasi="piyasa_durum.json"):
+    def __init__(self, portfoyler, s=None, borsalar=("Binance", "OKX", "KuCoin", "MEXC"), durum_dosyasi="piyasa_durum.json",
+                 stratejiler=None, evren_sayi=None):
         self.p = portfoyler                  # {strateji adı: Paper}
+        self.st = stratejiler or STRATEJILER
+        self.evren_sayi = evren_sayi if evren_sayi is not None else EVREN_SAYI
         self.s, self.borsalar, self.durum_dosyasi = s or requests.Session(), borsalar, durum_dosyasi
         self.g = Gecmis(); self.kiyas = None
 
@@ -162,7 +179,8 @@ class Motor:
         for taban, v in ev.items(): self.g.ekle(taban, now, v["son"])
         if self.kiyas is None and "BTC" in ev: self.kiyas = (now, ev["BTC"]["son"])
         olay = []
-        for st in STRATEJILER:
+        secili = {t for t, _ in sorted(ev.items(), key=lambda kv: -kv[1]["hacim"])[:self.evren_sayi]} if self.evren_sayi else set(ev)
+        for st in self.st:
             paper = self.p[st.ad]
             for poz_satir in paper.portfolio()["positions"]:                   # 1) çıkışlar
                 token = poz_satir["token"]; taban = token.split(":", 1)[1].split("/")[0]
@@ -174,7 +192,8 @@ class Motor:
                 if neden:
                     r = paper.handle_signal(f"{st.ad}:{token}:{int(now)}:sat", st.ad, token, "sell", v["bid"], v["hacim"], 0)
                     if r.get("decision") == "KOPYALANDI": paper._set(f"son_cikis:{token}", str(now)); olay.append((st.ad, "sat", token, neden))
-            for taban, v in ev.items():                                        # 2) girişler
+            for taban, v in ev.items():                                        # 2) girişler (yalnızca en hacimli coin'ler)
+                if taban not in secili: continue
                 token = f"{v['borsa']}:{taban}/{KARSI}"
                 if paper.position(token): continue
                 son = float(paper._get(f"son_cikis:{token}") or 0)

@@ -4,7 +4,7 @@
                                python yedek.py --geri DOSYA -> yedeği bu klasöre açar (takip ve sunucu DURMUŞ olmalı)"""
 import glob, os, sqlite3, sys, tarfile, tempfile, time
 
-DBLER = ["nexora_paper.db", "nexora_tracker.db", "nexora_etiket.db", "nexora_dna.db", "nexora_borsa.db", "nexora_strateji_momentum.db", "nexora_strateji_trend.db", "nexora_bnb.db", "nexora_base.db"]
+DBLER = ["nexora_paper.db", "nexora_tracker.db", "nexora_etiket.db", "nexora_dna.db", "nexora_borsa.db", "nexora_strateji_momentum.db", "nexora_strateji_trend.db", "nexora_strateji_dip.db", "nexora_bnb.db", "nexora_base.db"]
 DOSYALAR = ["wallets.txt", "kara_liste.txt", "cuzdan_analiz.csv", "cuzdan_tarama.csv", "takip_kaybi.json", "wallets_onerilen.txt"]
 SAKLA = int(os.getenv("YEDEK_SAKLA", "14"))
 
