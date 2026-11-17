@@ -4,9 +4,9 @@
 Her işlem bir sınıfa ayrılır; iki token değişen işlemlerde en sık görülen token'lar yazılır (karşı varlık listesine
 eklenmesi gereken bir ödeme token'ı var mı?). İşlem gönderilmez, anahtar kullanılmaz."""
 import json, os, sys
-from collections import Counter
+from collections import Counter, defaultdict
 import requests
-from nexora.evm import ZINCIRLER, EvmRpc, EvmHatasi, gezgin_islemleri, coz_tam, TRANSFER, WITHDRAWAL, YEREL, _adr
+from nexora.evm import ZINCIRLER, EvmRpc, EvmHatasi, gezgin_islemleri, coz_tam, yerel_fark, TRANSFER, _adr
 from nexora import evm_analiz as A
 
 GUN = int(os.getenv("EVM_ANALIZ_GUN", "5"))
@@ -45,14 +45,19 @@ def main(argv, rpc=None, s=None):
         cuzdanlar = [m["wallet"] for m in kayit[:4]]
     if not cuzdanlar: sys.exit("Çözülemeyen işlemi olan cüzdan yok.")
     son = rpc.blok(); bas = son - int(GUN * 86400 / A.BLOK_SURESI[z])
-    genel, tokenler = Counter(), Counter()
+    genel, tokenler = Counter(), Counter(); ornek = defaultdict(list)
     for w in cuzdanlar:
         islemler = gezgin_islemleri(s, z, w, bas) if c.get("gezgin") else None
+        if islemler is None and c.get("gezgin"):
+            print(f"\n{w[:6]}…{w[-4:]}: gezgin yanıt vermedi, atlandı", flush=True); continue
         if islemler is None:
             islemler = {}
-            for konular in ([TRANSFER, None, "0x" + "0" * 24 + w[2:]], [TRANSFER, "0x" + "0" * 24 + w[2:]]):
-                for l in rpc.call("eth_getLogs", [{"fromBlock": hex(bas), "toBlock": hex(son), "topics": konular}]) or []:
-                    islemler.setdefault(l["transactionHash"], int(l["blockNumber"], 16))
+            try:
+                for konular in ([TRANSFER, None, "0x" + "0" * 24 + w[2:]], [TRANSFER, "0x" + "0" * 24 + w[2:]]):
+                    for l in rpc.call("eth_getLogs", [{"fromBlock": hex(bas), "toBlock": hex(son), "topics": konular}]) or []:
+                        islemler.setdefault(l["transactionHash"], int(l["blockNumber"], 16))
+            except EvmHatasi as e:
+                print(f"\n{w[:6]}…{w[-4:]}: geçmiş okunamadı ({str(e)[:60]}), atlandı", flush=True); continue
         sinif = Counter(); cozulen = 0
         for karma, blok in sorted(islemler.items(), key=lambda x: x[1])[-150:]:
             try:
@@ -61,6 +66,10 @@ def main(argv, rpc=None, s=None):
                 sinif["okunamadı"] += 1; continue
             if coz_tam(rpc, tx, mk, w, z, blok): cozulen += 1; continue
             n, tk = neden(tx, mk, w, z); sinif[n] += 1; genel[n] += 1; tokenler.update(tk)
+            if len(ornek[n]) < 2:                            # her sınıftan örnek: işlem karması, ETH değeri, yerel bakiye farkı
+                ornek[n].append(f"{karma}  değer {int(tx.get('value') or '0x0', 16) / 1e18:.5f} ETH  "
+                                f"bakiye farkı {(lambda f: 'okunamadı' if f is None else f'{f / 1e18:+.5f} ETH')(yerel_fark(rpc, w, blok, tx, mk))}  "
+                                f"hedef {(tx.get('to') or '')[:10]}  olay {len(mk.get('logs') or [])}")
         print(f"\n{w[:6]}…{w[-4:]}: {len(islemler)} işlem, {cozulen} swap çözüldü", flush=True)
         for n, k in sinif.most_common(): print(f"  {k:>4}  {n}")
     print("\n== TOPLAM çözülemeyen ==")
@@ -68,6 +77,10 @@ def main(argv, rpc=None, s=None):
     if tokenler:
         print("En sık görülen token'lar (karşı varlık olabilir mi?):")
         for t, k in tokenler.most_common(6): print(f"  {k:>4}  {t}")
+    print("Örnek işlemler:")
+    for n, ler in ornek.items():
+        print(f"  [{n}]")
+        for o in ler: print(f"    {o}")
 
 
 if __name__ == "__main__":
