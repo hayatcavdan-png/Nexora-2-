@@ -59,8 +59,7 @@ def rapor(now=None):
                  f"en kötü an ort %{_ort([x['min_pct'] for x in kap if x['min_pct'] is not None])}, "
                  f"en iyi an ort %{_ort([x['max_pct'] for x in kap if x['max_pct'] is not None])}")
         tepe = [x for x in kap if (x["max_pct"] or 0) >= 20]
-        if tepe: L.append(f"    %20+ kâra çıkıp sonra kapanan {len(tepe)} poz: sonuç toplamı {sum(x['pnl'] or 0 for x in tepe):+.2f}$ "
-                          "(kâr alma olsaydı korunabilirdi)")
+        if tepe: L.append(f"    %20+ kâra çıkan {len(tepe)} poz: kapanışta toplam {sum(x['pnl'] or 0 for x in tepe):+.2f}$")
     takili = _q(p, "SELECT COUNT(*) n FROM durum_gecis WHERE yeni='TAKILDI' AND ts>=?", (bas,))
     if takili and takili[0]["n"]: L.append(f"    Satış teklifi alınamayıp takılan: {takili[0]['n']}")
 

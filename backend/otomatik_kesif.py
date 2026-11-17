@@ -48,7 +48,7 @@ def takip_denetimi(analiz=None, gecmis_db=None):
     return dict(denetlenen=len(rows), bozulan=bozulan, iyi=sum(1 for r in rows.values() if r.get("karar") == "kopyalanabilir"))
 
 
-def calistir(kesif=None, analiz=None, now=None, denetim=None, liste=None, evm=None):
+def calistir(kesif=None, analiz=None, now=None, denetim=None, liste=None, evm=None, kadro=None):
     now = now if now is not None else time.time()
     kesif = kesif or cuzdan_kesif.main
     analiz = analiz or (lambda: cuzdan_analiz.main(list_path=cuzdan_kesif.OUT_TXT))
@@ -80,6 +80,11 @@ def calistir(kesif=None, analiz=None, now=None, denetim=None, liste=None, evm=No
         sonuc["durum"], sonuc["hata"] = "atlandı", str(e.code)[:200] if e.code else None
     except Exception as e:                      # zamanlayıcıda çalışır: hata kaydedilir, bildirime düşer
         sonuc["durum"], sonuc["hata"] = "hata", f"{type(e).__name__}: {str(e)[:160]}"
+    try:                                        # kadro: listeyi BİZİM ölçtüğümüz sonuca göre yönet (yeni adaylar önce izlemeye)
+        from nexora import kadro as _kadro
+        sonuc["kadro"] = (kadro or _kadro.uygula)([c["wallet"] for c in sonuc["kopyalanabilir"]])
+    except Exception as e:
+        sonuc["kadro"] = dict(hata=f"{type(e).__name__}: {str(e)[:120]}", degisti=False)
     try:                                        # keşif sonuç vermese de takip listesi her gün denetlenir
         sonuc["takip"] = (denetim or takip_denetimi)()
     except SystemExit as e:

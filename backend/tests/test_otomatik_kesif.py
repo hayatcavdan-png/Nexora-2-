@@ -32,7 +32,10 @@ class Test(unittest.TestCase):
         self.assertEqual((s["durum"], s["aday"], s["analiz_edilen"]), ("tamam", 2, 2))
         self.assertEqual([c["wallet"] for c in s["kopyalanabilir"]], [A])
         self.assertEqual(set(json.load(open("kesif_gorulen.json"))), {A, B})
-        self.assertEqual(open("wallets.txt").read(), "9" * 43 + "\n")                 # takip listesine dokunulmaz
+        self.assertEqual(O.cuzdan_ekle.oku("wallets.txt"), ["9" * 43, A])               # yeni aday listeye girer...
+        self.assertEqual(O.cuzdan_ekle.oku("izle_listesi.txt"), [A])                     # ...ama yalnızca izlenir (kopyalanmaz)
+        self.assertEqual(s["kadro"]["eklenen"], [A])
+        self.assertEqual(panel.kesif_olayi("kesif_son.json", 0)["baslik"], "Kadro güncellendi: 1 kopyalanan, 1 izlenen cüzdan")
         # sonraki gün: görülenler kesif_gorulen.txt'e yazılır (keşif bunları aday saymaz); 14 gün sonra unutulur
         self.calis(kesif=lambda: [], now=1000.0 + 86400)
         self.assertIn(A, open("kesif_gorulen.txt").read())
@@ -55,7 +58,8 @@ class Test(unittest.TestCase):
 
     def test_olay_metni(self):
         self.analiz_csv()
-        self.calis(kesif=lambda: [A], analiz=lambda: [dict(wallet=A, karar="kopyalanabilir")], now=4000.0)
+        self.calis(kesif=lambda: [A], analiz=lambda: [dict(wallet=A, karar="kopyalanabilir")], now=4000.0,
+                   kadro=lambda aday: dict(degisti=False))                      # kadro değişiklik yapmadıysa eski öneri metni
         e = panel.olaylar("yok.db", "yok.db", son=0, now=5000.0, kesif_path="kesif_son.json")["olaylar"]
         self.assertEqual(len(e), 1)
         self.assertEqual(e[0]["tur"], "kesif"); self.assertIn("1 yeni kopyalanabilir", e[0]["baslik"])

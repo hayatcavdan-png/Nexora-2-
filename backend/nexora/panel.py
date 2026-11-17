@@ -148,6 +148,17 @@ def kesif_olayi(path, son):
     if ts <= son: return None
     if k.get("durum") == "hata":
         return dict(id=f"x{int(ts)}", ts=ts, tur="risk", baslik="Otomatik keşif başarısız", metin=k.get("hata") or "bilinmeyen hata")
+    kd = k.get("kadro") or {}
+    if kd.get("degisti"):                        # kadro listeyi değiştirdi: en önemli olay bu
+        kisa = lambda ws: ", ".join(w[:4] + "…" + w[-4:] for w in ws[:3])
+        parca = []
+        if kd.get("terfi"): parca.append(f"{len(kd['terfi'])} cüzdan kopyalamaya geçti ({kisa(kd['terfi'])})")
+        if kd.get("dusur"): parca.append(f"{len(kd['dusur'])} cüzdan izlemeye düştü ({kisa(kd['dusur'])})")
+        if kd.get("cikar"): parca.append(f"{len(kd['cikar'])} cüzdan listeden çıktı")
+        if kd.get("eklenen"): parca.append(f"{len(kd['eklenen'])} yeni cüzdan izlemeye alındı")
+        return dict(id=f"x{int(ts)}", ts=ts, tur="kesif", baslik=f"Kadro güncellendi: {kd.get('kopyalanan', 0)} kopyalanan, "
+                    f"{kd.get('izlenen', 0)} izlenen cüzdan", metin="; ".join(parca) + ". Karar, sinyallerin gerçek tekliflerle "
+                    "ölçülen sonucuna göre verildi (paper).")
     yeni = k.get("kopyalanabilir") or []
     evm_yeni = {z: v.get("eklenen") or [] for z, v in (k.get("evm") or {}).items() if v.get("eklenen")}
     if not yeni and evm_yeni:                    # yalnız EVM ekosistemlerine paper cüzdan eklendi

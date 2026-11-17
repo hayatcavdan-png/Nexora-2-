@@ -129,9 +129,13 @@ def main():
     print(f"Takip başladı: {len(wallets)} cüzdan, {mode}, yoklama {INTERVAL} sn "
           f"(PAPER, gerçek işlem KAPALI)", flush=True)
     last_mark = time.time()
+    liste_izi = {f: (os.path.getmtime(f) if os.path.exists(f) else None) for f in ("wallets.txt", "izle_listesi.txt")}
     try:
         while True:
             stop.wait(INTERVAL)
+            if any((os.path.getmtime(f) if os.path.exists(f) else None) != v for f, v in liste_izi.items()):
+                print("Takip listesi değişti (kadro): yeni listeyle yeniden başlatılıyor.", flush=True)
+                raise SystemExit(0)                     # systemd (Restart=always) birkaç saniyede yeniden başlatır
             st0 = tr.latency_stats()
             paper.nabiz(saglik=dict(
                 baslangic=BASLANGIC, ws=("kapalı" if not USE_WS else "bağlı" if listener and listener.connected else "bağlı değil"),
