@@ -82,7 +82,7 @@ class Test(unittest.TestCase):
         olay, _ = m.tur(t0 + 76 * 60, {"Binance": {"BIG": fiyat(93.0, hacim=9e8), "SMALL": fiyat(93.0, hacim=2e6)}})
         alinan = {o[2] for o in olay if o[:2] == ("dip", "al")}
         self.assertEqual(alinan, {"Binance:BIG/USDT"})                              # yalnızca en hacimli coin
-        self.assertEqual([s.ad for s in P.STRATEJILER], ["trend", "dip"])           # canlı: momentum durdu
+        self.assertEqual([s.ad for s in P.STRATEJILER], ["trend"])                  # canlı: momentum ve dip durdu
 
     def test_ozet(self):
         m, pf = motor()

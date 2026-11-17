@@ -154,7 +154,9 @@ class Dip(Strateji):
 
 # 17.11.2026 (kullanıcı onayı, borsa deney masası): momentum iki ayarda da zararda -> durduruldu (sınıf kodda, geçmiş veri korunur);
 # yerine dip alım ölçülüyor. Girişler yalnızca hacme göre en büyük EVREN_SAYI coin'de (küçük coin'de makas ve gürültü zarar ettiriyordu).
-STRATEJILER = (Trend(), Dip())
+# 17.11.2026 (kullanıcı onayı, borsa deney masası 14 gün): dip alım 7 günde artıda, 14 günde zararda (-3.10$) -> durduruldu.
+# Trend (iz %8) 14 günde en az kaybeden (-0.69$); yalnızca ölçüm için açık.
+STRATEJILER = (Trend(),)
 EVREN_SAYI = 60
 
 
