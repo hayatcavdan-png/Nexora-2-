@@ -113,6 +113,24 @@ def rapor(now=None):
     except Exception as ex:
         L.append(f"[6] zarar kesme hesaplanamadı: {type(ex).__name__}")
 
+    # 8) Token özellikleri: hangi token türü kaybettiriyor? (kaynak satınca çıkış getirisi)
+    tk = _q(e, """SELECT o.tb_yas_sn yas, o.tb_likidite lik, o.tb_organik org, o.tb_top_pct top, o.tb_dev_pct dev,
+                         o.al_sat_kaybi_pct rt, s.getiri_pct g FROM etiket_olay o JOIN etiket_sonuc s ON s.event_id=o.event_id
+                  WHERE s.ufuk='kaynak' AND s.getiri_pct IS NOT NULL AND o.ts>=?""", (now - max(GUN, 14) * 86400,))
+    if tk:
+        L.append(f"[8] Token türüne göre (son {max(GUN, 14):g} gün, kaynak satınca çıkış): n / ort / pozitif")
+        boyut = [("Yaş", "yas", [("<1 sa", 0, 3600), ("1-24 sa", 3600, 86400), (">1 gün", 86400, 1e18)]),
+                 ("Likidite", "lik", [("<10k$", 0, 1e4), ("10-50k$", 1e4, 5e4), ("50-250k$", 5e4, 2.5e5), (">250k$", 2.5e5, 1e18)]),
+                 ("Organik", "org", [("<30", 0, 30), ("30-60", 30, 60), ("60+", 60, 1e9)]),
+                 ("Top10 pay", "top", [("<%20", 0, 20), ("%20-40", 20, 40), (">%40", 40, 1e9)]),
+                 ("Al-sat kaybı", "rt", [("<%1", -1e9, 1), ("%1-3", 1, 3), (">%3", 3, 1e9)])]
+        for ad, k, aral in boyut:
+            par = []
+            for et, lo, hi in aral:
+                g = [x["g"] for x in tk if x[k] is not None and lo <= x[k] < hi]
+                if g: par.append(f"{et} {len(g)}/{_ort(g):+}/%{round(100 * sum(v > 0 for v in g) / len(g))}")
+            if par: L.append(f"    {ad:<12} " + "  ".join(par))
+
     # 6b) Kısmi satış ölçümü
     km = _q(p, "SELECT * FROM kismi_olcum WHERE acilis_ts>=?", (bas,))
     if km:
