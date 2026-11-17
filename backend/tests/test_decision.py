@@ -203,3 +203,35 @@ class TrackerIntegration(unittest.TestCase):
         self.assertEqual(tr.signals()[0]["decision"], "KOPYALANDI")
         self.assertEqual(p.trades()[0]["event_id"], "A:sig1")
 if __name__ == "__main__": unittest.main()
+
+
+class KaynakDenetimiTests(unittest.TestCase):
+    def setUp(self):
+        self.p, self.q = Paper(), FakeQuoter()
+        self.d = Decider(self.p, self.q, Safe())
+        self.d.decide("e1", "W", TOK, "buy", 1)
+        self.acilis = self.p.portfolio()["positions"][0]["opened_ts"] or 0
+
+    def test_kaynakta_token_yoksa_kapatir(self):
+        sorulan = []
+        r = self.d.kaynak_denetimi(lambda w, t: sorulan.append((w, t)) or 0, now=self.acilis + 3600)
+        self.assertEqual(sorulan, [("W", TOK)])
+        self.assertEqual(r[0][1], "KOPYALANDI"); self.assertIsNone(self.p.position(TOK))
+        sat = [x for x in self.p.trades() if x["side"] == "sell"][0]
+        self.assertIn("kaynakta token kalmadı", sat["reason"])
+
+    def test_bakiye_var_bilinmiyor_ya_da_yeni_pozisyon(self):
+        self.assertEqual(self.d.kaynak_denetimi(lambda w, t: 5, now=self.acilis + 3600), [])        # kaynak hâlâ tutuyor
+        self.assertEqual(self.d.kaynak_denetimi(lambda w, t: None, now=self.acilis + 3600), [])     # RPC hatası: dokunma
+        self.assertEqual(self.d.kaynak_denetimi(lambda w, t: 0, now=self.acilis + 60), [])          # 10 dk dolmadı
+        self.assertIsNotNone(self.p.position(TOK))
+
+    def test_kaynak_bakiyesi_ayristirma(self):
+        from nexora.decision import kaynak_bakiyesi
+        hesap = lambda m: {"account": {"data": {"parsed": {"info": {"tokenAmount": {"amount": m}}}}}}
+        c = Mock(); c.call = Mock(return_value={"value": [hesap("100"), hesap("23")]})
+        self.assertEqual(kaynak_bakiyesi(c, "W", TOK), 123)
+        self.assertEqual(c.call.call_args.args[0], "getTokenAccountsByOwner")
+        c.call = Mock(return_value={"value": []}); self.assertEqual(kaynak_bakiyesi(c, "W", TOK), 0)   # hesap kapatılmış
+        c.call = Mock(side_effect=RuntimeError("ağ")); self.assertIsNone(kaynak_bakiyesi(c, "W", TOK))
+        c.call = Mock(return_value={"value": [{"account": {}}]}); self.assertIsNone(kaynak_bakiyesi(c, "W", TOK))

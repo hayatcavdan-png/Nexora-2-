@@ -8,6 +8,15 @@ from nexora import durum as D
 
 USDC_DECIMALS = 6
 
+def kaynak_bakiyesi(client, wallet, mint):
+    """Kaynak cüzdanın bu token'daki toplam ham bakiyesi (tüm token hesapları; salt okunur RPC). Bilinmiyorsa None."""
+    try:
+        r = client.call("getTokenAccountsByOwner", [wallet, {"mint": mint}, {"encoding": "jsonParsed", "commitment": "confirmed"}])
+        return sum(int(a["account"]["data"]["parsed"]["info"]["tokenAmount"]["amount"]) for a in (r or {}).get("value") or [])
+    except Exception:
+        return None
+
+
 def _q(q):
     """Denetim izi için teklifin özeti."""
     return dict(giris=q.get("in_amount"), cikis=q.get("out_amount"), etki=q.get("price_impact_pct"),
@@ -64,7 +73,26 @@ class Decider:
     def _olc(self, event_id, token):
         if self.bilgi is not None: self.bilgi.enqueue(event_id, token)
 
-    def decide(self, event_id, wallet, token, side, signal_age_s, boyut_usd=None):
+    KAYNAK_YAS_SN = 600           # pozisyon en az bu kadar açıksa denetlenir (kaynağın alışı zincirde yerleşsin)
+
+    def kaynak_denetimi(self, bakiye, now=None):
+        """Kaynak cüzdan token'ı satış sinyali vermeden elden çıkardıysa (başka adrese aktarım ya da çözülemeyen bir satış),
+        pozisyon kendi kendine hiç kapanmaz. Böyle pozisyonları gerçek satış teklifiyle kapatır.
+        bakiye(wallet, token) -> ham miktar; None (bilinmiyor) ya da sıfırdan büyükse pozisyona dokunulmaz."""
+        import time as _t
+        now = now if now is not None else _t.time()
+        out = []
+        for pos in self.paper.portfolio()["positions"]:
+            w, t = pos.get("wallet"), pos["token"]
+            if not w or w == "MANUEL" or not pos.get("qty_raw"): continue
+            if pos.get("opened_ts") and now - pos["opened_ts"] < self.KAYNAK_YAS_SN: continue
+            b = bakiye(w, t)
+            if b is None or b > 0: continue
+            r = self.decide(f"aktarim:{t}:{int(now)}", w, t, "sell", 0.0, neden="kaynakta token kalmadı (satış sinyali gelmedi)")
+            out.append((t, r.get("decision"), r.get("reason")))
+        return out
+
+    def decide(self, event_id, wallet, token, side, signal_age_s, boyut_usd=None, neden=None):
         p = self.paper
         if p.seen(event_id): return dict(decision="ATLANDI", reason="tekrarlanan olay")
         iz = []                       # N1: her adımın girdisi ve sonucu (değiştirilemez kayıt)
@@ -85,7 +113,7 @@ class Decider:
                 if side == "buy" and reason in self.KURAL_GOLGE and boyut_usd is None:
                     iz.append(dict(adim="kural_golgesi", sonuc="açıldı" if self._kural_golgesi(event_id, wallet, token, reason) else "açılmadı"))
             else:
-                r = self._buy(event_id, wallet, token, size, iz) if side == "buy" else self._sell(event_id, wallet, token, iz)
+                r = self._buy(event_id, wallet, token, size, iz) if side == "buy" else self._sell(event_id, wallet, token, iz, neden)
             return r
         except Exception as e:
             iz.append(dict(adim="hata", sonuc=f"{type(e).__name__}: {str(e)[:120]}"))
@@ -168,11 +196,12 @@ class Decider:
                 continue
             self.paper.shadow_close(sh["id"], q["out_amount"] / 10 ** USDC_DECIMALS, event_id)
 
-    def _sell(self, event_id, wallet, token, iz=None):
+    def _sell(self, event_id, wallet, token, iz=None, neden=None):
         iz = iz if iz is not None else []
         p = self.paper
         pos = p.position(token)
-        p.durum_degistir(token, D.KAPANIYOR, "kaynak sattı")
+        p.durum_degistir(token, D.KAPANIYOR, neden or "kaynak sattı")
+        if neden: iz.append(dict(adim="neden", sonuc=neden))
         iz.append(dict(adim="durum", sonuc=D.KAPANIYOR))
         try:
             q = self.quoter.quote(token, USDC_MINT, int(pos["qty_raw"]))
@@ -184,7 +213,7 @@ class Decider:
         iz.append(dict(adim="satis_teklifi", sonuc="alındı", maliyet_usd=pos["cost"], **_q(q)))
         proceeds = q["out_amount"] / 10 ** USDC_DECIMALS
         etki = "etki bilinmiyor" if q["price_impact_pct"] is None else f"etki %{q['price_impact_pct']:.2f}"
-        r = p.record_sell(event_id, wallet, token, proceeds, note=etki)
+        r = p.record_sell(event_id, wallet, token, proceeds, note=etki + (f"; {neden}" if neden else ""))
         if r.get("decision") == "KOPYALANDI" and self.yurutme is not None:
             self.yurutme.enqueue(event_id, "sell", token, token, USDC_MINT, int(pos["qty_raw"]), q["out_amount"])
         return r

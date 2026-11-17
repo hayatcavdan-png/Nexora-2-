@@ -16,7 +16,7 @@ from nexora.ws_listener import WSListener
 from nexora.market import JupiterQuoter
 from nexora.token_safety import TokenSafety
 from nexora.model_kapisi import ModelDosyasi, ModelKapisi
-from nexora.decision import Decider
+from nexora.decision import Decider, kaynak_bakiyesi
 from nexora.token_bilgi import TokenBilgi, Toplayici
 from nexora.yurutme import YurutmeOlcer
 from nexora.etiket import Etiketci
@@ -29,6 +29,7 @@ def read_list(path):
     return [l.strip() for l in open(path) if l.strip() and not l.lstrip().startswith("#")]
 INTERVAL = int(os.getenv("TRACK_INTERVAL", "60" if USE_WS else "20"))
 MARK_EVERY = int(os.getenv("MARK_INTERVAL", "120"))   # açık pozisyonları 2 dakikada bir gerçek teklifle değerle
+KAYNAK_KONTROL = int(os.getenv("KAYNAK_KONTROL_SN", "900"))   # 15 dk'da bir: kaynak token'ı satmadan elden çıkardı mı?
 
 def short(a): return a[:4] + "…" + a[-4:]
 
@@ -128,7 +129,7 @@ def main():
            (", gerçek Jupiter teklifleriyle paper işlem" if PAPER_TRADE else ", paper işlem kapalı")
     print(f"Takip başladı: {len(wallets)} cüzdan, {mode}, yoklama {INTERVAL} sn "
           f"(PAPER, gerçek işlem KAPALI)", flush=True)
-    last_mark = time.time()
+    last_mark = last_kaynak = time.time()
     liste_izi = {f: (os.path.getmtime(f) if os.path.exists(f) else None) for f in ("wallets.txt", "izle_listesi.txt")}
     try:
         while True:
@@ -149,6 +150,13 @@ def main():
                 if borsa is not None:
                     try: borsa.degerle()
                     except Exception: pass
+            if decider and time.time() - last_kaynak >= KAYNAK_KONTROL:
+                last_kaynak = time.time()
+                try:
+                    for t, karar, neden in decider.kaynak_denetimi(lambda w, t: kaynak_bakiyesi(client, w, t)):
+                        print(f"  kaynakta token kalmadı: {short(t)} -> {karar} ({neden})", flush=True)
+                except Exception as e:
+                    print(f"  kaynak denetimi yapılamadı: {type(e).__name__}", flush=True)
             for w, res in tr.poll_all().items():
                 if res == "hata": print(f"  {short(w)}: hata (karantinaya yaklaşıyor olabilir)", flush=True)
             for r in tr.last_poll_rows:                 # WebSocket'in kaçırıp yoklamanın bulduğu
