@@ -48,7 +48,7 @@ class Decider:
         try:
             s = self.safety.check(token)
             if s["verdict"] != "UYGUN": return False
-            size = round(p.equity() * p.limit("max_pos_pct"), 6)
+            size = round(p.equity() * p.poz_orani(), 6)
             amount = int(round(size * 10 ** USDC_DECIMALS))
             q = self.quoter.quote(USDC_MINT, token, amount)
             if q["price_impact_pct"] is not None and q["price_impact_pct"] > p.limit("max_price_impact_pct"): return False

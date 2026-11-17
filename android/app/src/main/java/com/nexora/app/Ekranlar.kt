@@ -164,7 +164,7 @@ fun BotEkrani(v: Veri, durdurIste: () -> Unit, devam: () -> Unit) {
         Satir("İşlem modu", "Paper (sanal)")
         Satir("Başlangıç sermayesi", "${usd(a.optDouble("start_cash", 100.0))} USDC")
         Satir("İşlem başına risk", yuzde(a.optDouble("max_pos_pct", 0.05) * 100))
-        Satir("En fazla açık pozisyon", a.optInt("max_positions", 5).toString())
+        Satir("En fazla açık pozisyon", a.optInt("max_positions", 8).toString())
         Satir("Cüzdan başına pozisyon", a.optInt("max_positions_per_wallet", 2).toString())
         Satir("Token başına günlük giriş", a.optInt("max_token_entries_per_day", 2).toString())
         Satir("Günlük zarar sınırı", yuzde(a.optDouble("daily_loss_pct", 0.03) * 100))
@@ -578,7 +578,7 @@ fun AyarlarEkrani(v: Veri, url: String, key: String, bildirim: Boolean, bildirim
 private val RISK_ALANLARI = listOf(
     RiskAlani("max_pos_pct", "Pozisyon büyüklüğü", "% portföy", 100.0, 0.5, 5.0, false),
     RiskAlani("daily_loss_pct", "Günlük zarar sınırı", "% portföy", 100.0, 0.5, 3.0, false),
-    RiskAlani("max_positions", "En fazla açık pozisyon", "adet", 1.0, 1.0, 5.0, true),
+    RiskAlani("max_positions", "En fazla açık pozisyon", "adet", 1.0, 1.0, 16.0, true),
     RiskAlani("max_positions_per_wallet", "Cüzdan başına pozisyon", "adet", 1.0, 1.0, 2.0, true),
     RiskAlani("max_token_entries_per_day", "Token başına günlük giriş", "adet", 1.0, 1.0, 2.0, true),
     RiskAlani("max_signal_age_s", "En eski sinyal", "sn", 1.0, 3.0, 10.0, true),
@@ -604,8 +604,9 @@ fun RiskAyarlari(ayarlar: org.json.JSONObject, kaydet: (org.json.JSONObject) -> 
             Icon(Icons.Filled.Warning, null, tint = Nx.Sari)
             Text("Risk sınırları", color = Nx.Metin, fontWeight = FontWeight.SemiBold)
         }
-        Text("Sınırlar yalnızca sıkılaştırılabilir: üst değerler proje kuralıdır (%5 pozisyon, %3 günlük zarar, 5 pozisyon) " +
-             "ve sunucu bunları aşan değeri reddeder. Her değişiklik kayıt altına alınır.", color = Nx.Soluk, fontSize = 12.sp)
+        Text("Üst değerler proje kuralıdır (%5 pozisyon, %3 günlük zarar, 16 pozisyon). Pozisyon büyüklüğü x pozisyon sayısı " +
+             "en fazla %40 olabilir (örneğin 8 x %5 ya da 16 x %2,5). Sunucu aşan değeri reddeder; her değişiklik kayıt altına alınır.",
+             color = Nx.Soluk, fontSize = 12.sp)
         RISK_ALANLARI.forEach { a ->
             OutlinedTextField(metinler[a.anahtar] ?: "", { metinler[a.anahtar] = it.replace(',', '.') },
                 label = { Text("${a.ad} (${a.birim})") },

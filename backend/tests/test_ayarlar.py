@@ -18,10 +18,21 @@ class AyarTests(unittest.TestCase):
         self.assertEqual(len(self.p.ayarlar()["gecmis"]), 2)
 
     def test_cannot_loosen_beyond_rules(self):
-        for bad in [{"max_pos_pct": 0.06}, {"daily_loss_pct": 0.05}, {"max_positions": 9}, {"max_positions_per_wallet": 3},
+        for bad in [{"max_pos_pct": 0.06}, {"daily_loss_pct": 0.05}, {"max_positions": 17}, {"max_positions_per_wallet": 3},
                     {"max_roundtrip_loss_pct": 7}, {"max_signal_age_s": 30}, {"max_positions": 0},
                     {"start_cash": 1000}, {"max_positions": 2.5}, {"max_positions": "3"}, {"max_positions": True}, {}]:
             with self.assertRaises(ValueError, msg=str(bad)): self.p.ayar_degistir(bad)
+
+    def test_toplam_risk_korunur(self):
+        with self.assertRaises(ValueError) as e: self.p.ayar_degistir({"max_positions": 16})     # 16 x %5 = %80
+        self.assertIn("toplam risk", str(e.exception))
+        self.assertEqual(self.p.limit("max_positions"), CFG["max_positions"])                    # hiçbiri uygulanmadı
+        self.p.ayar_degistir({"max_positions": 16, "max_pos_pct": 0.025})                        # 16 x %2.5 = %40
+        self.assertEqual((self.p.limit("max_positions"), self.p.limit("max_pos_pct")), (16, 0.025))
+        self.assertEqual(self.p.precheck("buy", "T1", 1, "W1")[1], 2.5)                          # 100 $ x %2.5
+        with self.assertRaises(ValueError): self.p.ayar_degistir({"max_pos_pct": 0.05})          # yeniden büyütülemez
+        self.p._set("ayar:max_pos_pct", "0.05"); self.p.db.commit()                              # elle yazılsa bile...
+        self.assertAlmostEqual(self.p.poz_orani(), 0.025)                                        # ...boyut %40/16'ya kısılır
 
     def test_all_or_nothing(self):
         with self.assertRaises(ValueError): self.p.ayar_degistir({"max_positions": 2, "max_pos_pct": 0.5})
@@ -86,7 +97,7 @@ class ServerAyarTests(unittest.TestCase):
         c, d = self.call("/ayarlar"); self.assertEqual(c, 200); self.assertIn("sinirlar", d)
         c, d = self.call("/ayarlar", {"max_positions": 4}); self.assertEqual((c, d["gecerli"]["max_positions"]), (200, 4))
         self.assertEqual(self.call("/durum")[1]["ayarlar"]["max_positions"], 4)
-        c, d = self.call("/ayarlar", {"max_positions": 9}); self.assertEqual(c, 400); self.assertIn("arasında", d["hata"])
+        c, d = self.call("/ayarlar", {"max_positions": 17}); self.assertEqual(c, 400); self.assertIn("arasında", d["hata"])
         c, d = self.call("/ayarlar", None)
         self.assertEqual(d["gecerli"]["max_positions"], 4)
 

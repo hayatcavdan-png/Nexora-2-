@@ -32,7 +32,7 @@ class EvmKarar:
             return p.handle_signal(ev, w, token, "sell", usd / poz["qty"], 10 ** 9, yas)
         g = self.g.kontrol(token)
         if not g["uygun"]: return self._red(ev, w, token, yon, "token güvenliği: " + "; ".join(g["gerekceler"]))
-        boyut = round(p.equity() * p.limit("max_pos_pct"), 6)
+        boyut = round(p.equity() * p.poz_orani(), 6)
         try:
             dec = self.rpc.ondalik(token)
             al = self.t.teklif(self.z["usd"], token, int(boyut * 10 ** self.z["usd_ondalik"]))

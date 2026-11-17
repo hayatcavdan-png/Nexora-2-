@@ -12,7 +12,8 @@ CFG = dict(
     start_cash=100.0,        # USDC (sanal)
     max_pos_pct=0.05,        # pozisyon başına %5
     daily_loss_pct=0.03,     # günlük %3 zarar eşiği
-    max_positions=8,         # kullanıcı talebiyle 5 -> 8 (16.11.2026); toplam risk: 8 x %5 = en fazla %40
+    max_positions=8,         # kullanıcı talebiyle 5 -> 8 (16.11.2026); toplam risk: 8 x %5 = en fazla %40.
+                             # 17.11.2026: üst sınır 16'ya çıktı (16 x %2.5, kayıtlı ayar); TOPLAM_RISK her bileşimde korunur
     max_signal_age_s=10,
     min_liquidity_usd=50_000,
     base_slippage=0.005,     # %0.5
@@ -30,13 +31,15 @@ CFG = dict(
 AYARLANABILIR = dict(
     max_pos_pct=(0.005, 0.05, float),
     daily_loss_pct=(0.005, 0.03, float),
-    max_positions=(1, 8, int),
+    max_positions=(1, 16, int),
     max_positions_per_wallet=(1, 2, int),
     max_signal_age_s=(3, 10, int),
     max_price_impact_pct=(0.5, 3.0, float),
     max_roundtrip_loss_pct=(1.0, 6.0, float),
     max_token_entries_per_day=(1, 2, int),
 )
+
+TOPLAM_RISK = 0.40           # pozisyon büyüklüğü x en fazla pozisyon bunu aşamaz (her ayar bileşiminde)
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS state(k TEXT PRIMARY KEY, v TEXT);
@@ -153,6 +156,10 @@ class Paper:
                 pass
         return CFG[k]
 
+    def poz_orani(self):
+        """Pozisyon büyüklüğü (portföy oranı): ayar, ama toplam risk TOPLAM_RISK'i aşmayacak şekilde kısılır."""
+        return min(self.limit("max_pos_pct"), TOPLAM_RISK / self.limit("max_positions"))
+
     def ayarlar(self):
         with self.lock:
             gecerli = {**CFG, **{k: self.limit(k) for k in AYARLANABILIR}}
@@ -172,6 +179,10 @@ class Paper:
             x = typ(v)
             if not lo <= x <= hi: raise ValueError(f"{k}: {lo} ile {hi} arasında olmalı")
             temiz[k] = x
+        yeni = {k: temiz.get(k, self.limit(k)) for k in ("max_pos_pct", "max_positions")}
+        if yeni["max_pos_pct"] * yeni["max_positions"] > TOPLAM_RISK + 1e-9:
+            raise ValueError(f"toplam risk %{100 * yeni['max_pos_pct'] * yeni['max_positions']:.0f}: pozisyon büyüklüğü x "
+                             f"pozisyon sayısı en fazla %{100 * TOPLAM_RISK:.0f} olabilir")
         with self.lock:
             for k, x in temiz.items():
                 eski = self.limit(k)
@@ -291,7 +302,7 @@ class Paper:
                 n = self.db.execute("SELECT COUNT(*) c FROM positions").fetchone()["c"]
                 has = self.db.execute("SELECT 1 FROM positions WHERE token=?", (token,)).fetchone()
                 if n >= self.limit("max_positions") and not has: return rej("maks. eşzamanlı pozisyon")
-                size = eq * self.limit("max_pos_pct")
+                size = eq * self.poz_orani()
                 ucret = CFG["net_fee_usd"] + size * self.ucret_orani
                 if size + ucret > self.cash(): return rej("yetersiz nakit")
                 slip = self.kayma + size / liquidity_usd
@@ -352,7 +363,7 @@ class Paper:
             if wallet is not None:
                 nw = self.db.execute("SELECT COUNT(*) c FROM positions WHERE wallet=?", (wallet,)).fetchone()["c"]
                 if nw >= self.limit("max_positions_per_wallet"): return "bu cüzdan için pozisyon sınırı dolu", 0
-            size = round(eq * self.limit("max_pos_pct"), 6)
+            size = round(eq * self.poz_orani(), 6)
             if size + CFG["net_fee_usd"] + CFG["fee_reserve_usd"] > self.cash():
                 return "yetersiz nakit (ücret rezervi korunuyor)", 0
             return None, size
