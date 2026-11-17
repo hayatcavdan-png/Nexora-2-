@@ -311,7 +311,7 @@ private fun BorsaHesaplari(liste: org.json.JSONArray?, gercek: JSONObject?, mesg
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button({ acik = ""; k = ""; g = ""; p = "" }, Modifier.weight(1f), colors = NxGriButon()) { Text("Vazgeç") }
-                    Button({ bagla(id, k, g, p) { acik = "" }; g = ""; p = "" }, Modifier.weight(1f),
+                    Button({ bagla(id, k, g, p) { acik = "" }; k = ""; g = ""; p = "" }, Modifier.weight(1f),
                         enabled = !mesgul && onay && k.length >= 8 && g.length >= 8 && (!parolaGerekli || p.isNotEmpty()),
                         colors = NxButonRenk()) { Text("Doğrula ve bağla") }
                 }
