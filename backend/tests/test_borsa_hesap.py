@@ -103,6 +103,11 @@ class BakiyeTest(unittest.TestCase):
         self.assertEqual(BH.fiat_kurlari(Fiyat({"code": -1, "msg": "x"}), "binance"), {})        # hata: boş
         self.assertEqual(BH.fiat_kurlari(Fiyat([]), "kucoin"), {})                                # desteklenmeyen borsa
 
+    def test_kucuk_hesapta_kucuk_varliklar_gorunur(self):
+        oz = BH.ozet_bakiye([("TRY", 40.0, 0.8), ("BNB", 0.001, 0.59), ("SHIB", 1.0, 0.00001)])
+        self.assertEqual([v["varlik"] for v in oz["varliklar"]], ["TRY", "BNB"])        # 1 sentin altı yine gizli
+        self.assertEqual(oz["toplam_usd"], 1.39)
+
     def test_binance_earn_ld_varliklari(self):
         c, _ = ist("binance", {"/api/v3/account": {"balances": [{"asset": "LDBNB", "free": "0.002", "locked": "0"},
                                                                 {"asset": "LDUSDT", "free": "3", "locked": "0"},

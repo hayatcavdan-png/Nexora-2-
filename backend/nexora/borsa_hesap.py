@@ -189,7 +189,9 @@ def _sayi(x):
 def ozet_bakiye(liste):
     """Toplam USD (değeri bilinenler), gösterilecek varlıklar (toz hariç, büyükten küçüğe), değeri bilinmeyen sayısı."""
     bilinen = [x for x in liste if x[2] is not None]
-    gorunur = sorted((x for x in bilinen if x[2] >= TOZ_USD), key=lambda x: -x[2])
+    toplam = sum(x[2] for x in bilinen)
+    esik = max(0.01, min(TOZ_USD, toplam * 0.01))     # küçük hesapta toz sınırı da küçülür: toplamın %1'i (en az 1 sent)
+    gorunur = sorted((x for x in bilinen if x[2] >= esik), key=lambda x: -x[2])
     return dict(toplam_usd=round(sum(x[2] for x in bilinen), 2),
                 varliklar=[dict(varlik=v, miktar=round(m, 8), usd=round(u, 2)) for v, m, u in gorunur[:20]],
                 degeri_bilinmeyen=len(liste) - len(bilinen),
