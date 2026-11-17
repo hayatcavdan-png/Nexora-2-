@@ -32,9 +32,9 @@
    "ad": "Cüzdan keşfi",
    "grup": "Seçim",
    "durum": "devam",
-   "yuzde": 90,
-   "yapilan": "413 cüzdan tarandı; 190 aday kârlılık analizinden geçti; bot, pasif, şüpheli ayrımı; hacim botu kalıbı otomatik tespit ediliyor; 3 cüzdan kara listede; zincirden yeni cüzdan keşfi aracı: kaynakların aldığı token'ları onlardan önce alan cüzdanlar (sınırlı kredi, elle çalışır); uygulamadan tek cüzdan analizi (Wallet DNA, günlük sınırlı); sunucuda keşif turu (40 token × 500 işlem): sniper/hızlı al-satçılar otomatik eleniyor; 27 adaydan 1 kopyalanabilir cüzdan (DVi9…TN7N) bulundu; yedekli ekleme aracı (cuzdan_ekle.py: ön izleme, --uygula, --geri); hesap türü ayrımı: eğri dışı (PDA), program, program hesabı ve boş adresler analizden önce ayıklanıyor (100 adres = 1 istek), bilinen_hesaplar.txt ile borsa/köprü etiketleme; takip listesi denetimi (hesap_denetim.py); günlük otomatik keşif (systemd zamanlayıcı, 05:40): yalnızca öneri üretir, yeni kopyalanabilir cüzdan veya hata uygulamaya bildirim olarak gelir; 14 gün içinde analiz edilen aday tekrar analiz edilmez; analiz sonuçları birleştirilerek saklanıyor. Günlük takip denetimi: takipteki cüzdanlar her gün yeniden analiz edilir, eşik altına düşen bildirilir (listeden otomatik çıkarma yok).",
-   "eksik": "Eklenen cüzdanların paper sonucunu izlemek (birkaç gün veri)"
+   "yuzde": 92,
+   "yapilan": "413 cüzdan tarandı; 190 aday kârlılık analizinden geçti; bot, pasif, şüpheli ayrımı; hacim botu kalıbı otomatik tespit ediliyor; 3 cüzdan kara listede; zincirden yeni cüzdan keşfi aracı: kaynakların aldığı token'ları onlardan önce alan cüzdanlar (sınırlı kredi, elle çalışır); uygulamadan tek cüzdan analizi (Wallet DNA, günlük sınırlı); sunucuda keşif turu (40 token × 500 işlem): sniper/hızlı al-satçılar otomatik eleniyor; 27 adaydan 1 kopyalanabilir cüzdan (DVi9…TN7N) bulundu; yedekli ekleme aracı (cuzdan_ekle.py: ön izleme, --uygula, --geri); hesap türü ayrımı: eğri dışı (PDA), program, program hesabı ve boş adresler analizden önce ayıklanıyor (100 adres = 1 istek), bilinen_hesaplar.txt ile borsa/köprü etiketleme; takip listesi denetimi (hesap_denetim.py); günlük otomatik keşif (systemd zamanlayıcı, 05:40): yalnızca öneri üretir, yeni kopyalanabilir cüzdan veya hata uygulamaya bildirim olarak gelir; 14 gün içinde analiz edilen aday tekrar analiz edilmez; analiz sonuçları birleştirilerek saklanıyor. Günlük takip denetimi: takipteki cüzdanlar her gün yeniden analiz edilir, eşik altına düşen bildirilir (listeden otomatik çıkarma yok); kadro (17.11.2026): takip listesi kendini yönetir; kazanan token'larda erken alıcı arama, sniper elemesi, 7 gün sessiz adayı çıkarma; 'herkes' modu: listedeki her cüzdan kopyalanır (deney masası kararı)",
+   "eksik": "Yeni kurulumla birkaç günlük sonuç; ölçüme dayalı eleme (eski 'olcum' modu) veri yeterli olunca deney masasında yeniden sınanacak"
   },
   {
    "kod": "N4",
@@ -68,18 +68,18 @@
    "ad": "Kopyalama karar motoru",
    "grup": "İşlem",
    "durum": "devam",
-   "yuzde": 75,
-   "yapilan": "Ağsız kurallar, fiyat etkisi, al-sat kaybı, yalnız sahip olunanı satma, cüzdan başına sınır; ilk KOPYALANDI işlemi canlıda gerçekleşti (15.11 22:03, 4Fys…pump, etki %1.09, al-sat kaybı %3.0); büyüklük yöntemleri karşılaştırma ölçümü (sabit %5 / puan ağırlıklı / sabit 1 USDC)",
-   "eksik": "Yeterli kapanmış işlemle yöntem kararı"
+   "yuzde": 80,
+   "yapilan": "Ağsız kurallar, fiyat etkisi, al-sat kaybı, yalnız sahip olunanı satma, cüzdan başına sınır; ilk KOPYALANDI işlemi canlıda gerçekleşti (15.11 22:03, 4Fys…pump, etki %1.09, al-sat kaybı %3.0); büyüklük yöntemleri karşılaştırma ölçümü (sabit %5 / puan ağırlıklı / sabit 1 USDC); kaynak token'ı satış sinyali vermeden elden çıkarırsa pozisyon kapanır (15 dk denetim); kısmi satış gölge ölçümü (kaynak kadar satsaydık)",
+   "eksik": "Kısmi satış ölçümünün sonucu (birkaç gün) ve gerekirse gerçek kurala çevrilmesi"
   },
   {
    "kod": "N8",
    "ad": "Sermaye ve risk yönetimi",
    "grup": "İşlem",
    "durum": "devam",
-   "yuzde": 92,
-   "yapilan": "100 USDC, %5 pozisyon, %3 günlük zarar, 5 pozisyon, cüzdan başına 2 pozisyon, 1 USDC ücret rezervi, acil durdurma; limitler uygulamadan değiştirilebilir (yalnızca sıkılaştırma, sunucu denetimi, değişiklik kaydı); token yoğunlaşması: token başına tek pozisyon (%5) ve aynı token'a günde en fazla 2 giriş (uygulamadan 1'e düşürülebilir). 16.11.2026: açık pozisyon sınırı 5 -> 8 (kullanıcı talebi; toplam risk en fazla %40, günlük %3 zarar sınırı geçerli).",
-   "eksik": "Uzun süreli gerçek kullanımda sınırların gözden geçirilmesi"
+   "yuzde": 94,
+   "yapilan": "100 USDC, %5 pozisyon, %3 günlük zarar, 5 pozisyon, cüzdan başına 2 pozisyon, 1 USDC ücret rezervi, acil durdurma; limitler uygulamadan değiştirilebilir (yalnızca sıkılaştırma, sunucu denetimi, değişiklik kaydı); token yoğunlaşması: token başına tek pozisyon (%5) ve aynı token'a günde en fazla 2 giriş (uygulamadan 1'e düşürülebilir). 16.11.2026: açık pozisyon sınırı 5 -> 8 (kullanıcı talebi; toplam risk en fazla %40, günlük %3 zarar sınırı geçerli); toplam risk koruması (büyüklük x sayı ve açık maliyet en fazla %40); 17.11.2026 kullanıcı onayıyla 10 pozisyon x %4, al-sat kaybı sınırı %3",
+   "eksik": "Yeni ayarla birkaç günlük gerçek sonuç; deney masasıyla düzenli gözden geçirme"
   },
   {
    "kod": "N9",
@@ -95,9 +95,9 @@
    "ad": "Strateji optimizasyonu ve ileri test",
    "grup": "İşlem",
    "durum": "devam",
-   "yuzde": 30,
-   "yapilan": "Gölge işlem kaydı (reddedilen alımlar) ve zarar kesme ölçümü (%10/20/30/50 eşiklerinde satsaydık ne olurdu) veri topluyor; takipçi kaybı ayrıştırması; token özelliklerine göre sonuç ayrıştırması. Gerçek Para Hazırlık Karnesi: 8 ölçülebilir ölçüt (işlem sayısı, süre, ortalama K/Z ve %95 güven alt sınırı, profit factor, düşüş, çalışma oranı, etiket); küçük örneklemde \"bekliyor\", asla otomatik geçiş yok. Kural gölgesi: pozisyon/cüzdan/token sınırı yüzünden reddedilen alımlar (saatte en fazla 8) aynı süzgeçlerden geçirilip gölgede ölçülür; \"sınır olmasaydı ne kazanırdık\" raporda ayrı grup.",
-   "eksik": "En az 30 günlük ileri paper testi; eşik kararı için en az 20 kapanmış gölge işlem ve 20 kapanmış pozisyon"
+   "yuzde": 55,
+   "yapilan": "Gölge işlem kaydı (reddedilen alımlar) ve zarar kesme ölçümü (%10/20/30/50 eşiklerinde satsaydık ne olurdu) veri topluyor; takipçi kaybı ayrıştırması; token özelliklerine göre sonuç ayrıştırması. Gerçek Para Hazırlık Karnesi: 8 ölçülebilir ölçüt (işlem sayısı, süre, ortalama K/Z ve %95 güven alt sınırı, profit factor, düşüş, çalışma oranı, etiket); küçük örneklemde \"bekliyor\", asla otomatik geçiş yok. Kural gölgesi: pozisyon/cüzdan/token sınırı yüzünden reddedilen alımlar (saatte en fazla 8) aynı süzgeçlerden geçirilip gölgede ölçülür; \"sınır olmasaydı ne kazanırdık\" raporda ayrı grup; strateji teşhis raporu (uygulamada) ve deney masası: ölçülmüş sinyaller farklı kurallarla aynı koşullarda yeniden oynatılır; sonuç: al-sat <= %3 ve geniş kopyalama en kârlı, zarar kesme ve token filtresi kârı düşürüyor",
+   "eksik": "En az 30 günlük ileri paper testi: canlı sonuçların deney masasıyla tutarlılığı"
   },
   {
    "kod": "N11",
@@ -131,18 +131,18 @@
    "ad": "Android uygulaması",
    "grup": "Ürün",
    "durum": "devam",
-   "yuzde": 90,
-   "yapilan": "Uygulama 4.0 (COMMAND X tasarımı): ateş kızılı X'li NEXORA logosu ve N amblemi simgesi; Ana Sayfa (bakiye, 24s değişim, aralıklı grafik, AutoPilot, Shield), Keşfet (gerçek Token Radar, Wallet DNA analizi, takip edilen cüzdanlar), AutoPilot X (risk seviyesi ve sınırlar), Portföy (elle paper işlem, pozisyonlar, geçmiş), Profil; aşağı çekip yenileme; optimize (R8) derleme; bildirimler, PIN kilidi, yedek indirme, rapor kartları; 5.0.0 yeni tasarım: NEXORA AI paleti, Nexo maskotu (10 ifade), yeni logo ve simge, açılış animasyonu, canlı arka plan, Yapay Zekâ Çekirdeği kartı. 5.1–5.3: Hesabım (giriş, davet, bağlantılar, kişisel sanal hesap) ve Hazırlık Karnesi ekranları. 5.5: ana sayfada Bugün kartı (yer durumu, günlük özet, işlem açılmama nedeni), pozisyon yaşı ve tek dokunuşla paper kapatma, animasyonları azalt ayarı.",
-   "eksik": "Gerçek kullanımda akıcılık geri bildirimi"
+   "yuzde": 92,
+   "yapilan": "Uygulama 4.0 (COMMAND X tasarımı): ateş kızılı X'li NEXORA logosu ve N amblemi simgesi; Ana Sayfa (bakiye, 24s değişim, aralıklı grafik, AutoPilot, Shield), Keşfet (gerçek Token Radar, Wallet DNA analizi, takip edilen cüzdanlar), AutoPilot X (risk seviyesi ve sınırlar), Portföy (elle paper işlem, pozisyonlar, geçmiş), Profil; aşağı çekip yenileme; optimize (R8) derleme; bildirimler, PIN kilidi, yedek indirme, rapor kartları; 5.0.0 yeni tasarım: NEXORA AI paleti, Nexo maskotu (10 ifade), yeni logo ve simge, açılış animasyonu, canlı arka plan, Yapay Zekâ Çekirdeği kartı. 5.1–5.3: Hesabım (giriş, davet, bağlantılar, kişisel sanal hesap) ve Hazırlık Karnesi ekranları. 5.5: ana sayfada Bugün kartı (yer durumu, günlük özet, işlem açılmama nedeni), pozisyon yaşı ve tek dokunuşla paper kapatma, animasyonları azalt ayarı; Strateji teşhisi kartı (1/3/7/14 gün), rol ayrımı (üyede kurucu bölümleri gizli), şifre sıfırlama",
+   "eksik": "Gerçek kullanımda akıcılık geri bildirimi; normal kullanıcı için sade arayüz (sonraya bırakıldı)"
   },
   {
    "kod": "N15",
    "ad": "Çok kullanıcılı ürün",
    "grup": "Ürün",
    "durum": "devam",
-   "yuzde": 25,
-   "yapilan": "Paper modda üyelik: e-posta/parola (scrypt), 30 günlük oturum, giriş deneme kilidi; davet kodu ve davetli listesi; üye başına kişisel sanal hesap (katılım anından itibaren, zirve/düşüş, %20 kâr payı gösterimi); bağlantı kayıtları (yalnızca herkese açık adres, Binance kilitli). Hiçbir gizli anahtar saklanmaz.",
-   "eksik": "Devredildi: kullanıcı başına borsa bağlantısı N29, kişisel portföy ve risk N30, hukuk N36. Para hiçbir zaman uygulamada tutulmaz (emanetsiz model)."
+   "yuzde": 40,
+   "yapilan": "Paper modda üyelik: e-posta/parola (scrypt), 30 günlük oturum, giriş deneme kilidi; davet kodu ve davetli listesi; üye başına kişisel sanal hesap (katılım anından itibaren, zirve/düşüş, %20 kâr payı gösterimi); bağlantı kayıtları (yalnızca herkese açık adres, Binance kilitli). Hiçbir gizli anahtar saklanmaz; rol ayrımı: kurucu/üye yetkisi sunucuda denetlenir, rol yalnızca sunucuda komutla atanır, üyeye cüzdan adresleri gizli gider; kayıt deneme sınırı",
+   "eksik": "Kurucu girişine ikinci doğrulama; sunucuyu dışarıya açma (alan adı, HTTPS) hukuk görüşünden sonra; N29/N30/N36"
   },
   {
    "kod": "N16",
@@ -293,8 +293,8 @@
    "ad": "Bildirim sinyalleri",
    "grup": "Faz 2 · Çoklu platform",
    "durum": "devam",
-   "yuzde": 60,
-   "yapilan": "Bildirimler: listesiz token alımları (öncü cüzdan), paper işlem açılış/kapanış (Solana, BNB, Base; K/Z dahil) ve günlük zarar sınırı aşımı (paper, gün başına %3; gün başına tek bildirim). Her bildirim bir kez gider; hepsi 'gerçek para kullanılmadı' der. Saatlik zamanlayıcı ve uygulamada Bildirimler kartı (5.15.0).",
+   "yuzde": 70,
+   "yapilan": "Bildirimler: listesiz token alımları (öncü cüzdan), paper işlem açılış/kapanış (Solana, BNB, Base; K/Z dahil) ve günlük zarar sınırı aşımı (paper, gün başına %3; gün başına tek bildirim). Her bildirim bir kez gider; hepsi 'gerçek para kullanılmadı' der. Saatlik zamanlayıcı ve uygulamada Bildirimler kartı (5.15.0); her sabah 09:00 günlük özet bildirimi (alım/satış, gerçekleşen ve açık K/Z, reddedilenler)",
    "eksik": "Cihaz bildirimi (push) için karar ve izin ekranı; ilk birkaç günün bildirimlerinin gözden geçirilmesi (gürültü var mı?)."
   },
   {
@@ -320,9 +320,9 @@
    "ad": "Güvenlik sertleştirme",
    "grup": "Faz 2 · Çoklu platform",
    "durum": "devam",
-   "yuzde": 75,
-   "yapilan": "Anahtarlar loglarda maskeleniyor; karar izi değiştirilemez; pilot anahtarı sunucudan çıkmıyor. 5.9: telefonda sunucu ve oturum anahtarları Android Keystore (AES-256-GCM) ile şifreli; eski düz metin ilk açılışta otomatik şifrelenir. Sunucu kasası (nexora/kasa.py): standart kütüphaneyle önce-şifrele-sonra-doğrula, kayıt bağlamına bağlı etiket, anahtar dosyası 600 izinli ve yedek dışı; kullanıcı borsa anahtarları (N29) için hazır. anahtar_dondur.sh: NEXORA API anahtarını tek komutla yeniler. Parola değiştirme (eski parola doğrulanır, tüm oturumlar kapanır, bu cihaza yeni oturum verilir) ve tüm oturumları kapatma (borsa anahtarlarına dokunmadan); uygulama 5.16.0, Profil › Güvenlik. Kasa anahtarı ve borsa anahtarları şifreli, üye+borsa bağlamlı.",
-   "eksik": "Bağımsız güvenlik denetimi (dış göz); kasa ana anahtarının çevrimdışı ayrı yedeği (sizin tarafınızda yapılacak, sunucu dosyasını yalnızca güvenli bir yere kopyalayarak); kayıtlı e-posta doğrulaması ve parola sıfırlama (sonraki sürüm)."
+   "yuzde": 80,
+   "yapilan": "Anahtarlar loglarda maskeleniyor; karar izi değiştirilemez; pilot anahtarı sunucudan çıkmıyor. 5.9: telefonda sunucu ve oturum anahtarları Android Keystore (AES-256-GCM) ile şifreli; eski düz metin ilk açılışta otomatik şifrelenir. Sunucu kasası (nexora/kasa.py): standart kütüphaneyle önce-şifrele-sonra-doğrula, kayıt bağlamına bağlı etiket, anahtar dosyası 600 izinli ve yedek dışı; kullanıcı borsa anahtarları (N29) için hazır. anahtar_dondur.sh: NEXORA API anahtarını tek komutla yeniler. Parola değiştirme (eski parola doğrulanır, tüm oturumlar kapanır, bu cihaza yeni oturum verilir) ve tüm oturumları kapatma (borsa anahtarlarına dokunmadan); uygulama 5.16.0, Profil › Güvenlik. Kasa anahtarı ve borsa anahtarları şifreli, üye+borsa bağlamlı; e-posta ile şifre sıfırlama (Brevo), rol ayrımı, kayıt sınırı",
+   "eksik": "Kurucu girişine ikinci doğrulama; bağımsız güvenlik denetimi; kasa ana anahtarının çevrimdışı ayrı yedeği"
   },
   {
    "kod": "N36",
