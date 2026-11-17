@@ -103,6 +103,15 @@ class BakiyeTest(unittest.TestCase):
         self.assertEqual(BH.fiat_kurlari(Fiyat({"code": -1, "msg": "x"}), "binance"), {})        # hata: boş
         self.assertEqual(BH.fiat_kurlari(Fiyat([]), "kucoin"), {})                                # desteklenmeyen borsa
 
+    def test_binance_earn_ld_varliklari(self):
+        c, _ = ist("binance", {"/api/v3/account": {"balances": [{"asset": "LDBNB", "free": "0.002", "locked": "0"},
+                                                                {"asset": "LDUSDT", "free": "3", "locked": "0"},
+                                                                {"asset": "LDO", "free": "1", "locked": "0"},
+                                                                {"asset": "QQQ", "free": "1", "locked": "0"}]}})
+        oz = BH.ozet_bakiye(BH.bakiyeler(c, {"BNB": {"son": 600.0}, "LDO": {"son": 2.0}}))
+        self.assertEqual(oz["toplam_usd"], 6.2)                                          # 1.2 + 3 + 2
+        self.assertEqual(oz["degeri_bilinmeyen"], 1); self.assertEqual(oz["bilinmeyenler"], ["QQQ"])
+
     def test_okx_equsd_kucoin_toplama(self):
         c, _ = ist("okx", {"/api/v5/account/balance": {"code": "0", "data": [{"details": [{"ccy": "ETH", "eq": "0.5", "eqUsd": "1500"}]}]}})
         self.assertEqual(BH.bakiyeler(c), [("ETH", 0.5, 1500.0)])

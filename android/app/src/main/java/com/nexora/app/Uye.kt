@@ -336,7 +336,11 @@ private fun BorsaHesaplari(liste: org.json.JSONArray?, gercek: JSONObject?, mesg
                     val a = v.getJSONObject(j)
                     Text("   ${a.optString("varlik")}  ${a.optDouble("miktar")}  ≈ ${String.format(Locale.US, "%,.2f $", a.optDouble("usd"))}", color = Nx.Soluk, fontSize = 12.sp)
                 }
-                if (x.optInt("degeri_bilinmeyen") > 0) Text("   + ${x.optInt("degeri_bilinmeyen")} varlığın değeri bilinmiyor", color = Nx.Soluk, fontSize = 11.sp)
+                if (x.optInt("degeri_bilinmeyen") > 0) {
+                    val adlar = x.optJSONArray("bilinmeyenler")?.let { a -> (0 until a.length()).joinToString(", ") { a.optString(it) } }.orEmpty()
+                    Text("   + ${x.optInt("degeri_bilinmeyen")} varlığın değeri bilinmiyor" + (if (adlar.isNotEmpty()) ": $adlar" else ""),
+                         color = Nx.Soluk, fontSize = 11.sp)
+                }
             }
             Text(gercek.optString("not_"), color = Nx.Soluk, fontSize = 11.sp)
         }

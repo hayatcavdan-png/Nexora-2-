@@ -152,9 +152,9 @@ def bakiyeler(c, fiyatlar=None):
     for varlik, miktar, usd in ham:
         if not varlik or miktar <= 0: continue
         varlik = str(varlik).upper()
-        if usd is None:
-            if varlik in STABIL: usd = miktar
-            elif varlik in fiyatlar: usd = miktar * fiyatlar[varlik]["son"]
+        if usd is None: usd = _usd(varlik, miktar, fiyatlar)
+        if usd is None and c.b == "binance" and varlik.startswith("LD") and len(varlik) > 2:
+            usd = _usd(varlik[2:], miktar, fiyatlar)   # Simple Earn esnek: LDBNB = BNB (LDO gibi gerçek coinler önce kendi adıyla aranır)
         out.append((varlik, miktar, usd))
     return out
 
@@ -175,6 +175,12 @@ def fiat_kurlari(s, borsa, timeout=15):
     return out
 
 
+def _usd(varlik, miktar, fiyatlar):
+    if varlik in STABIL: return miktar
+    if varlik in fiyatlar: return miktar * fiyatlar[varlik]["son"]
+    return None
+
+
 def _sayi(x):
     try: return float(x)
     except (TypeError, ValueError): return 0.0
@@ -186,4 +192,5 @@ def ozet_bakiye(liste):
     gorunur = sorted((x for x in bilinen if x[2] >= TOZ_USD), key=lambda x: -x[2])
     return dict(toplam_usd=round(sum(x[2] for x in bilinen), 2),
                 varliklar=[dict(varlik=v, miktar=round(m, 8), usd=round(u, 2)) for v, m, u in gorunur[:20]],
-                degeri_bilinmeyen=len(liste) - len(bilinen))
+                degeri_bilinmeyen=len(liste) - len(bilinen),
+                bilinmeyenler=sorted({x[0] for x in liste if x[2] is None})[:20])
