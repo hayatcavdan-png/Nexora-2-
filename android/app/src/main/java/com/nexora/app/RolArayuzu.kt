@@ -11,6 +11,7 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -119,7 +120,7 @@ fun LazyListScope.yoneticiAnaPanel(v: Veri, git: (String) -> Unit) {
                     Modifier.weight(1f))
                 RolMiniIstatistik("Açık paper pozisyon", v.pozisyonlar.size.toString(), Nx.Gok,
                     Modifier.weight(1f))
-                RolMiniIstatistik("Son sinyal", v.sinyaller.size.toString(), Nx.Lila,
+                RolMiniIstatistik("Son sinyaller", v.sinyaller.size.toString(), Nx.Lila,
                     Modifier.weight(1f))
             }
             Row(verticalAlignment = Alignment.CenterVertically,
