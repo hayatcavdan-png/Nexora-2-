@@ -137,8 +137,13 @@ def auto_paper_status(path, *, enabled=False):
     if not path:
         return dict(base, status="PATH_NOT_CONFIGURED")
     try:
-        from nexora.social_ai.paper_watch import Store
-        public = Store(path).read()
+        from nexora.social_ai.paper_watch import Store, public_status
+        from nexora.strategy_lab.profit_engine import review as profit_review
+        from time import time
+        store = Store(path)
+        history = store._read()
+        public = public_status(history)
+        review = profit_review(history, as_of=time())
         entries = public.get("entries", [])
         if not isinstance(entries, list):
             raise ValueError("invalid entries")
@@ -156,6 +161,14 @@ def auto_paper_status(path, *, enabled=False):
             recent_exit_unavailable=sum(v.get("action") == "EXIT_UNAVAILABLE"
                                         for v in signals if isinstance(v, dict)),
             available_research_cash_usdt=public["available_research_cash_usdt"],
+            profit_research={
+                "status": review["status"],
+                "mature_samples": review["mature_samples"],
+                "recommended_horizon_min": review["recommended_horizon_min"],
+                "intake": review["intake"],
+                "forward_stress": review.get("forward_stress", {}),
+                "not_proven_real_profit": True,
+            },
         )
     except (OSError, ValueError, TypeError, KeyError, AttributeError):
         return dict(base, status="LEDGER_UNAVAILABLE")
