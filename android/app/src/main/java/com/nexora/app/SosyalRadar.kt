@@ -149,6 +149,10 @@ fun SosyalRadarEkrani(url: String, key: String) {
         // 100 USDT'lik ayrı offline paper çalışması; Social Radar 0/5'e eklenmez.
         SosyalPaperKarti(url, key, yenile)
 
+        // Jupiter ilk havuz, Helius mint, iki yönlü teklif. Yalnızca kurucunun
+        // düğmesiyle çalışan ayrı salt-okunur araştırma. Telegram içeriği yok.
+        YeniTokenArastirmaKarti(url, key)
+
         Text("Sosyal kaynaklar", color = Nx.Metin, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
         SOSYAL_KAYNAKLAR.forEach { kaynak ->
             val satir = kaynaklar[kaynak.kimlik]?.singleOrNull()
