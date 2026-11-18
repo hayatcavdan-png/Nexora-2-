@@ -16,7 +16,8 @@ object Yedek {
     private const val SAKLA = 7
 
     fun indir(base: String, key: String): Pair<String, ByteArray> {
-        val c = URL(base.trim().trimEnd('/') + "/yedek/son").openConnection() as HttpURLConnection
+        val c = AgGuvenligi.endpoint(base, "/yedek/son").openConnection() as HttpURLConnection
+        c.instanceFollowRedirects = false
         c.connectTimeout = 10_000; c.readTimeout = 60_000
         c.setRequestProperty("X-API-Key", key.trim())
         if (c.responseCode != 200) error(if (c.responseCode == 404) "sunucuda henüz yedek yok" else "HTTP ${c.responseCode}")
@@ -67,9 +68,8 @@ object Yedek {
         val simdi = System.currentTimeMillis()
         if (simdi - sp.getLong("yedek_deneme", 0L) < 6 * 3600_000L) return
         sp.edit().putLong("yedek_deneme", simdi).apply()
-        val (ad, veri) = indir(base, key)
-        if (ad == sp.getString("yedek_son_ad", "")) return
-        kaydet(ctx, ad, veri)
+        // Network stream -> file: no full backup in memory and no old-file pruning.
+        val (ad, _) = YedekAkis.indirKaydet(ctx, base, key)
         sp.edit().putString("yedek_son_ad", ad).putLong("yedek_son_ts", simdi).apply()
     }
 }
