@@ -1,0 +1,17 @@
+{
+  "name": "nexora-seven-tools-readonly-sdk",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Isolated optional Raydium SDK V2 / Orca Whirlpools read-only pool checker",
+  "scripts": {
+    "test": "node --test test-pools.mjs",
+    "scan": "node scan.mjs"
+  },
+  "dependencies": {
+    "@raydium-io/raydium-sdk-v2": "^0.2.64-alpha",
+    "@orca-so/whirlpools-client": "*",
+    "@solana/web3.js": "^1.98.4",
+    "@solana/kit": "*"
+  }
+}
