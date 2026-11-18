@@ -46,6 +46,9 @@ class TelegramMetadataWorkerTests(unittest.TestCase):
             self.assertFalse(data["social_ai_transfer"])
             safe = from_t10(data)
             self.assertEqual(sum(x["metadata_count"] for x in safe["source_status"]), 2)
+            ids = {x["source_id"]: x.get("last_message_id") for x in safe["source_status"]}
+            self.assertEqual(ids["solana_early_trending"], "20")
+            self.assertEqual(ids["kolscope"], "30")
             self.assertFalse(safe["listener_running"])
 
     def test_missing_log_fails_without_creating_status_files(self):
