@@ -540,12 +540,22 @@ fun AyarlarEkrani(v: Veri, url: String, key: String, bildirim: Boolean, bildirim
             Etiket(if (v.bagli) "bağlı" else "bağlı değil", if (v.bagli) Nx.Yesil else Nx.Kirmizi)
         }
         OutlinedTextField(u, { u = it }, label = { Text("Sunucu adresi") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(k, { k = it }, label = { Text("API anahtarı") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
-            visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation())
-        Button({ kaydet(u.trim(), k.trim()) }, colors = NxButonRenk(), modifier = Modifier.fillMaxWidth()) {
-            Text("Kaydet ve bağlan")
+        if (v.kurucu) {
+            OutlinedTextField(k, { k = it }, label = { Text("Yönetici API anahtarı") },
+                singleLine = true, modifier = Modifier.fillMaxWidth(),
+                visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation())
+        } else {
+            Text("Üye bağlantısı güvenli oturumunuzla çalışır; yönetici API anahtarı gerekmez.",
+                color = Nx.Soluk, fontSize = 12.sp)
         }
-        if (v.eksikUclar.isNotEmpty()) Text("Sunucu eski sürümde olabilir; okunamayan: ${v.eksikUclar.joinToString()}", color = Nx.Sari, fontSize = 12.sp)
+        Button({ kaydet(u.trim(), if (v.kurucu) k.trim() else "") },
+            colors = NxButonRenk(), modifier = Modifier.fillMaxWidth()) {
+            Text("Bağlantıyı kaydet")
+        }
+        if (v.kurucu && v.eksikUclar.isNotEmpty()) {
+            Text("Erişilemeyen servisler: ${v.eksikUclar.joinToString()}",
+                color = Nx.Sari, fontSize = 12.sp)
+        }
     }
     Kart(Modifier.fillMaxWidth()) {
         Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically,
