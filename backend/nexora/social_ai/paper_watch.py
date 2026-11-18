@@ -110,7 +110,10 @@ def open_study(state, research, *, now):
     if not valid_address(mint) or mint == USDT_MINT:
         return {"opened": False, "reason": "MINT_INVALID"}
     stamp = research.get("observed_at")
-    stamp = _now(stamp) if type(stamp) in (int, float) else None
+    try:
+        stamp = _now(stamp)
+    except PaperWatchError:
+        stamp = None
     if stamp is None or not stamp <= now <= stamp + OPEN_FRESHNESS_SECONDS:
         return {"opened": False, "reason": "QUOTE_STALE"}
     raw_qty = research.get("expected_token_qty_raw")
@@ -137,6 +140,7 @@ def open_study(state, research, *, now):
         "assumed_sell_fee_usdt": str(ASSUMED_SELL_FEE_USDT),
         "assumed_slippage_bps": str(SLIPPAGE_BUFFER_BPS),
         "reserved_cost_usdt": str(ENTRY_COST),
+        "reserved": True,
         "horizons": {f"{m}dk": {"status": "PENDING", "net_usdt": None}
                      for m in HORIZONS},
     }
@@ -213,6 +217,29 @@ def expire_missed(state, *, now):
             if now > row["observed_at"] + m * 60 + QUOTE_WINDOW_SECONDS:
                 rec.update(status="UNKNOWN", reason="WINDOW_MISSED", net_usdt=None)
                 changed = True
+    return changed
+
+
+def release_completed(state):
+    """Release principal after every independent horizon is measured or missed.
+
+    The results are *four research scenarios*, not executed sells. Hypothetical
+    profits are never credited to available research cash.
+    """
+    available = _valid_state(state)
+    changed = False
+    for row in state["entries"]:
+        if row.get("reserved") is not True:
+            continue
+        if any(x.get("status") == "PENDING" for x in row["horizons"].values()):
+            continue
+        available += Decimal(row["reserved_cost_usdt"])
+        row["reserved"] = False
+        changed = True
+    if changed:
+        if available > TOTAL_USDT:
+            raise PaperWatchError("released cash outside budget")
+        state["available_research_cash_usdt"] = str(available)
     return changed
 
 
@@ -312,5 +339,6 @@ def refresh_due(store, quoter, *, now=None, max_quotes=3):
         for mint, horizon, _ in due:
             settle_horizon(state, mint, horizon, now=now,
                            quote=quotes[(mint, horizon)])
+        release_completed(state)
         return public_status(state)
     return store.mutate(apply)
