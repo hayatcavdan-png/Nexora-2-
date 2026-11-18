@@ -66,7 +66,14 @@ fun UyeEkrani(url: String, key: String, sp: SharedPreferences, oturumDegisti: ()
         cagri("/uye/borsa") { borsalar = JSONObject(it).optJSONArray("borsalar") }
     }
     fun girisBitti(r: String) {
-        oturum = JSONObject(r).optString("oturum"); Kasa.yaz(sp, "oturum", oturum); parola = ""
+        val yeniOturum = JSONObject(r).optString("oturum")
+        if (yeniOturum.isBlank() || !Kasa.yaz(sp, "oturum", yeniOturum)) {
+            mesaj = "Oturum güvenli olarak kaydedilemedi. Android Keystore durumunu kontrol edin."
+            parola = ""
+            return
+        }
+        oturum = yeniOturum
+        parola = ""
         Oturum.deger = oturum; oturumDegisti()
         yukle()
     }
@@ -209,7 +216,16 @@ fun UyeEkrani(url: String, key: String, sp: SharedPreferences, oturumDegisti: ()
                 oku = { cagri("/uye/borsa?bakiye=1") { gercek = JSONObject(it) } })
             GuvenlikKarti(mesgul,
                 parolaDegistir = { eski, yeni -> cagri("/uye/parola", true, JSONObject().put("eski", eski).put("yeni", yeni)) {
-                    oturum = JSONObject(it).optString("oturum"); Kasa.yaz(sp, "oturum", oturum); Oturum.deger = oturum; mesaj = "Parola değişti. Diğer tüm cihazlarda oturum kapandı." } },
+                    val yeni = JSONObject(it).optString("oturum")
+                    if (yeni.isBlank()) {
+                        mesaj = "Parola değişti ancak oturum yanıtı eksik; yeniden giriş yapın."
+                    } else {
+                        val saklandi = Kasa.yaz(sp, "oturum", yeni)
+                        oturum = yeni; Oturum.deger = yeni
+                        mesaj = if (saklandi) "Parola değişti. Diğer cihazlarda oturum kapandı."
+                                else "Parola değişti; yeni oturum güvenle saklanamadı, tekrar giriş yapmanız gerekecek."
+                    }
+                } },
                 tumOturumlar = { cagri("/uye/oturumlari-kapat", true) { oturum = ""; Oturum.deger = ""; sp.edit().remove("oturum").apply(); profil = null; bakiye = null; mesaj = "Tüm oturumlar kapatıldı. Tekrar giriş yapın."; oturumDegisti() } })
             BilgiKutusu("Sistem sunucuları (Helius, Jupiter) sizin adınıza ayrı anahtar gerektirmez. Borsa anahtarınızla şu an yalnızca bakiye okunur; uygulama emir göndermez ve para çekemez.")
         }
