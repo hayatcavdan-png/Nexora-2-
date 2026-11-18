@@ -59,6 +59,7 @@ class ProfitEngineTests(unittest.TestCase):
         self.assertEqual(result["horizons"][0]["quotes_available"], 65)
         self.assertGreaterEqual(result["forward_stress"]["selected_paper_studies"], 20)
         self.assertGreater(result["forward_stress"]["stress_net_usdt"], 0)
+        self.assertGreater(result["forward_stress"]["stress_lower_bound_usdt"], 0)
         self.assertNotIn(MINT, json.dumps(result))
         self.assertFalse(result["real_order"])
 
