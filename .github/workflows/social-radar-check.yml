@@ -8,6 +8,7 @@ on:
     paths:
       - "backend/**"
       - "android/**"
+      - "tools/strategy_lab/**"
       - ".github/workflows/social-radar-check.yml"
 permissions:
   contents: read
@@ -37,6 +38,7 @@ jobs:
           python -B -m unittest discover -s backend/tests -p 'test_social_recent_http.py' -v
           python -B -m unittest discover -s backend/tests -p 'test_social_paper_watch.py' -v
           python -B -m unittest discover -s backend/tests -p 'test_social_paper_watch_http.py' -v
+          python -B -m unittest discover -s backend/tests -p 'test_strategy_lab.py' -v
   full-backend:
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -70,6 +72,12 @@ jobs:
           pip install --quiet fonttools
           fonttools varLib.instancer /tmp/orbitron_var.ttf wght=900 -o android/app/src/main/res/font/orbitron_black.ttf
           fonttools varLib.instancer /tmp/orbitron_var.ttf wght=700 -o android/app/src/main/res/font/orbitron_bold.ttf
+      - name: Lightweight Charts 5.1 local asset (no CDN at runtime)
+        run: |
+          mkdir -p /tmp/nexora-lightweight android/app/src/main/assets/strategy_lab
+          npm install --prefix /tmp/nexora-lightweight --no-save --ignore-scripts --no-audit --no-fund lightweight-charts@5.1.0
+          cp /tmp/nexora-lightweight/node_modules/lightweight-charts/dist/lightweight-charts.standalone.production.js android/app/src/main/assets/strategy_lab/
+          test -s android/app/src/main/assets/strategy_lab/lightweight-charts.standalone.production.js
       - name: Kotlin APK derle
         run: gradle -p android assembleRelease --no-daemon
       - uses: actions/upload-artifact@v4
@@ -77,3 +85,35 @@ jobs:
           name: nexora-social-ai-apk
           path: android/app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
+
+  strategy-optional:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install optional Python lab stack ONLY in isolated CI runner
+        run: python -m pip install --disable-pip-version-check -r backend/requirements-strategy-lab.txt
+      - name: Test DuckDB VectorBT QuantStats and solana-py without network calls
+        env:
+          PYTHONPATH: backend
+          PYTHONDONTWRITEBYTECODE: "1"
+        run: python -B -m unittest discover -s backend/tests -p 'test_strategy_lab_optional.py' -v
+  strategy-sdk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install isolated read-only Raydium and Orca SDK dependencies
+        run: npm install --prefix tools/strategy_lab/sdk --ignore-scripts --no-audit --no-fund
+      - name: Validate read-only SDK imports and pure normalization
+        run: |
+          cd tools/strategy_lab/sdk
+          npm test
+          node --input-type=module -e "await import('@raydium-io/raydium-sdk-v2'); await import('@orca-so/whirlpools-client'); console.log('SDK imports OK')"
+          node scan.mjs So11111111111111111111111111111111111111112
