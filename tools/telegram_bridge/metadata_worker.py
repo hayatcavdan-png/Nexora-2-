@@ -84,6 +84,7 @@ def update(directory):
             "platform": "telegram",
             "handle": row["handle"],
             "metadata_count": row["count"],
+            "last_id": row.get("last_id"),
             "last_local_time": row.get("last_local_time"),
             "bridge_status": "LOCAL_METADATA_ONLY",
             "live_verified": False,
