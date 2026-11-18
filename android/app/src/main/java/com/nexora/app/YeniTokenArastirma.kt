@@ -74,8 +74,6 @@ fun YeniTokenArastirmaKarti(url: String, key: String) {
         Etiket("MANUEL ONAY / SALT OKUNUR", Nx.Sari)
         Text("Jupiter yeni likidite havuzları → Helius SPL mint ve yetki kontrolü → Jupiter alım/geri satış teklifi. Gerçek emir veya paper pozisyon açılmaz.",
             color = Nx.Soluk, fontSize = 12.sp)
-        Text("Telegram kanal takibi bu araştırmadan ayrıdır; mesaj içerikleri okunmaz.",
-            color = Nx.Soluk, fontSize = 11.sp)
         Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
             Switch(checked = paperStudy, onCheckedChange = { paperStudy = it })
             Spacer(Modifier.width(8.dp))
