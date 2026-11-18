@@ -9,6 +9,7 @@ on:
       - "backend/tests/test_social_ai.py"
       - "backend/tests/test_social_radar.py"
       - "backend/tests/test_social_radar_api.py"
+      - "android/app/src/main/java/com/nexora/app/**"
       - ".github/workflows/social-radar-check.yml"
 permissions:
   contents: read
@@ -31,3 +32,26 @@ jobs:
           python -B -m unittest discover -s backend/tests -p 'test_social_ai.py' -v
           python -B -m unittest discover -s backend/tests -p 'test_social_radar.py' -v
           python -B -m unittest discover -s backend/tests -p 'test_social_radar_api.py' -v
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 17 }
+      - uses: gradle/actions/setup-gradle@v4
+        with: { gradle-version: 8.7 }
+      - name: Orbitron fontlarini hazirla
+        run: |
+          mkdir -p android/app/src/main/res/font
+          curl -fsSL --retry 3 -o /tmp/orbitron_var.ttf "https://github.com/google/fonts/raw/main/ofl/orbitron/Orbitron%5Bwght%5D.ttf"
+          pip install --quiet fonttools
+          fonttools varLib.instancer /tmp/orbitron_var.ttf wght=900 -o android/app/src/main/res/font/orbitron_black.ttf
+          fonttools varLib.instancer /tmp/orbitron_var.ttf wght=700 -o android/app/src/main/res/font/orbitron_bold.ttf
+      - name: Kotlin APK derle
+        run: gradle -p android assembleRelease --no-daemon
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nexora-social-ai-apk
+          path: android/app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
