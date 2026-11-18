@@ -221,9 +221,14 @@ fun App() {
                 if (v.hata.isNotEmpty() && !(bagliDegil && ekran == "ana")) item(key = "hata") { Text(v.hata, color = Nx.Kirmizi, fontSize = 13.sp) }
                 if (bagliDegil && ekran == "ana") item(key = "baglan") {
                     BaglanKarti(url, key, v.hata) { u, k ->
-                        url = u; key = k
-                        sp.edit().putString("url", u).apply(); Kasa.yaz(sp, "key", k)
-                        if (k.isBlank() && Oturum.deger.isEmpty()) ekran = "uye" else cekYenile()   // üye: önce giriş
+                        if (Kasa.yaz(sp, "key", k)) {
+                            url = u; key = k
+                            sp.edit().putString("url", u).apply()
+                            if (k.isBlank() && Oturum.deger.isEmpty()) ekran = "uye" else cekYenile()
+                        } else {
+                            v.hata = "Android güvenli kasası kullanılamıyor; API anahtarı kaydedilmedi."
+                            mesaj(v.hata)
+                        }
                     }
                 } else when (ekran) {
                     "ana" -> {
@@ -285,11 +290,16 @@ fun App() {
                                 izinIste.launch(android.Manifest.permission.POST_NOTIFICATIONS)
                             } else bildirimAyarla(acik)
                         }, { riskKaydet(it) }, { yedekIndir() }) { u, k ->
-                            url = u; key = k
-                            sp.edit().putString("url", u).apply(); Kasa.yaz(sp, "key", k)
-                            if (k.isBlank() && Oturum.deger.isEmpty()) {             // anahtar silindi, oturum yok: giriş ekranına
+                            if (!Kasa.yaz(sp, "key", k)) {
+                                v.hata = "Android güvenli kasası kullanılamıyor; anahtar kaydedilmedi."
+                                mesaj(v.hata)
+                            } else {
+                                url = u; key = k
+                                sp.edit().putString("url", u).apply()
+                                if (k.isBlank() && Oturum.deger.isEmpty()) {
                                 v.bagli = false; mesaj("API anahtarı yok: hesabınızla giriş yapın"); ekran = "uye"
-                            } else yenile()
+                                } else yenile()
+                            }
                         }
                         KilitAyari(sp)
                         GorunumAyari(sp)
