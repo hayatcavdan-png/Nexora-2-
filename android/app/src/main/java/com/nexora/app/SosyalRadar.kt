@@ -25,8 +25,6 @@ private data class SosyalKaynak(
 )
 
 private val SOSYAL_KAYNAKLAR = listOf(
-    SosyalKaynak("solana_early_trending", "Solana Early Trending", "Telegram", "solearlytrending", "Yeni Solana trendleri"),
-    SosyalKaynak("kolscope", "KOLscope", "Telegram", "KOLscope", "Influencer çağrıları"),
     SosyalKaynak("ansem", "Ansem", "X", "blknoiz06", "Sosyal anlatı ve paylaşımlar"),
     SosyalKaynak("lookonchain", "Lookonchain", "X", "lookonchain", "Zincir analizi ve büyük işlemler"),
     SosyalKaynak("bubblemaps", "Bubblemaps", "X", "bubblemaps", "İlişkili cüzdan riskleri"),
@@ -142,9 +140,6 @@ fun SosyalRadarEkrani(url: String, key: String) {
             }
         }
 
-        // Yalnızca aynı telefondaki Termux'un anonim metadata durumu.
-        // Sunucunun 0/5 gerçek Social Radar kaynak hesabına KATILMAZ.
-        YerelTelegramKoprusu()
 
         Text("Sosyal kaynaklar", color = Nx.Metin, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
         SOSYAL_KAYNAKLAR.forEach { kaynak ->
