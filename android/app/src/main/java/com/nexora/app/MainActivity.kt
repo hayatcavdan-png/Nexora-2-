@@ -226,9 +226,23 @@ fun App() {
                         if (k.isBlank() && Oturum.deger.isEmpty()) ekran = "uye" else cekYenile()   // üye: önce giriş
                     }
                 } else when (ekran) {
-                    "ana" -> anaSayfa(v, gizle, { gizle = !gizle; sp.edit().putBoolean("gizle", gizle).apply() }, aralik, { aralik = it },
-                                      { ekran = it }, eko, { eko = it }, { mesaj(it) }, { if (v.kurucu) durdurOnay = true })
-                    "karne" -> karne(v) { ekran = it }
+                    "ana" -> {
+                        if (v.kurucu) {
+                            yoneticiAnaPanel(v) { hedef ->
+                                if (hedef == "sosyal") { kesfetSekme = 3; ekran = "kesfet" }
+                                else ekran = hedef
+                            }
+                            anaSayfa(v, gizle, { gizle = !gizle; sp.edit().putBoolean("gizle", gizle).apply() },
+                                aralik, { aralik = it }, { ekran = it }, eko, { eko = it }, { mesaj(it) },
+                                { durdurOnay = true })
+                        } else uyeAnaPanel(v) { ekran = it }
+                    }
+                    "karne" -> {
+                        if (!v.kurucu) item(key = "uye_karne_bilgi") {
+                            BilgiKutusu("Bu karne sistemin genel paper sonuçlarını gösterir; kişisel sanal bakiyeniz için Hesabım bölümünü açın.")
+                        }
+                        karne(v) { ekran = it }
+                    }
                     "kesfet" -> {
                         item(key = "k_sekme") {
                             Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(50)).background(Nx.Yuzey2).padding(4.dp),
@@ -253,9 +267,14 @@ fun App() {
                         if (ekosistemKapsamDisi(eko)) item(key = "sinyal_eko") { BilgiKutusu("Sinyal akışı şimdilik yalnızca Solana öncü cüzdanlarındandır. Bu ekosistemin sinyalleri ayrı izlenir; sonuçları Karne sekmesinde.") }
                         else items(v.sinyaller, key = { "s_" + it.ts + it.token + it.yon }) { SinyalKarti(it) }
                     }
-                    "portfoy" -> portfoy(v, { ekran = "ana" }, portfoySekme, { portfoySekme = it }, { t ->
-                        if (v.kurucu) { manuelIslem(t, "sell", null); mesaj("Kapatma isteği gönderildi") } else mesaj(KURUCU_NOTU) }, eko) {
-                        if (v.kurucu) IslemFormu(v, seciliToken, { seciliToken = it }, { t, y, u -> manuelIslem(t, y, u) }, islemSonuc, islemMesgul)
+                    "portfoy" -> {
+                        if (v.kurucu) {
+                            portfoy(v, { ekran = "ana" }, portfoySekme, { portfoySekme = it },
+                                { t -> manuelIslem(t, "sell", null); mesaj("Kapatma isteği gönderildi") }, eko) {
+                                IslemFormu(v, seciliToken, { seciliToken = it },
+                                    { t, y, u -> manuelIslem(t, y, u) }, islemSonuc, islemMesgul)
+                            }
+                        } else uyePortfoyPanel(v) { ekran = it }
                     }
                     "profil" -> profil(v, { ekran = it }) {
                         AyarlarEkrani(v, url, key, bildirim, { acik ->
@@ -322,7 +341,12 @@ fun AnaUstBaslik(git: (String) -> Unit, kurucu: Boolean = true) {
                 DropdownMenuItem({ Text("Ayarlar") }, { menu = false; git("profil") })
             }
         }
-        Box(Modifier.weight(1f), contentAlignment = Alignment.Center) { Logo(24.sp) }
+        Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+            Logo(24.sp)
+            Text(if (kurucu) "OPERASYON MERKEZİ" else "KİŞİSEL ALAN",
+                color = Nx.Soluk, fontSize = 9.sp, fontWeight = FontWeight.SemiBold,
+                letterSpacing = 1.2.sp, maxLines = 1)
+        }
         Box {
             IconButton({ git("rapor") }) { Icon(Icons.Filled.Notifications, "Rapor", tint = Nx.Metin) }
             Box(Modifier.align(Alignment.TopEnd).padding(top = 10.dp, end = 10.dp).size(8.dp).clip(CircleShape).background(Nx.Mor))
