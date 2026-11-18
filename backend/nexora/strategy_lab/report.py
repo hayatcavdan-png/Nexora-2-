@@ -6,6 +6,7 @@ artifact; unknown fields, secrets and account details are never returned.
 import json
 import os
 import stat
+from math import isfinite
 
 from .integrations import capabilities
 
@@ -46,7 +47,6 @@ def sanitize(data):
             value = float(point.get("equity"))
         except (ValueError, TypeError):
             raise ValueError("invalid equity value") from None
-        from math import isfinite
         if type(stamp) is not int or stamp <= previous or not isfinite(value) or value <= 0 or value > 1000000:
             raise ValueError("invalid historical equity point")
         previous = stamp
@@ -60,7 +60,6 @@ def sanitize(data):
     if isinstance(metrics, dict):
         allowed = ("final_mark_usdt", "trades", "fee_bps", "slippage_bps")
         valid = {}
-        from math import isfinite
         for key in allowed:
             val = metrics.get(key)
             if key == "trades" and type(val) is int and 0 <= val <= 10000:
