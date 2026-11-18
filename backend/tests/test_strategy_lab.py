@@ -111,6 +111,16 @@ class StrategyLabTests(unittest.TestCase):
         self.assertEqual(result["summary"]["profitable_proven"], False)
         self.assertNotIn("private", json.dumps(result))
 
+    def test_optional_metrics_without_base_history(self):
+        item = {"schema_version":1,"mode":"PAPER_STRATEGY_LAB","real_order":False,
+                "equity":[],"candidates":[],
+                "optional_reports":{"vectorbt":{
+                    "real_order":False,"final_equity_usdt":101.25,
+                    "api_key":"DO_NOT_LEAK"}}}
+        data = sanitize(item)
+        self.assertEqual(data["optional_reports"]["vectorbt"]["final_equity_usdt"], 101.25)
+        self.assertNotIn("DO_NOT_LEAK", json.dumps(data))
+
     def test_snapshot_defaults_and_invalid_files(self):
         self.assertEqual(read_snapshot("")["snapshot_status"], "NOT_CONFIGURED")
         with tempfile.TemporaryDirectory() as folder:
