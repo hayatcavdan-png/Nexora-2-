@@ -80,6 +80,49 @@ class StrategyLabAutoPaperTests(unittest.TestCase):
             self.assertEqual(store.read()["total_studies"], 0)
 
 
+    def test_profitable_history_fixes_exit_plan_before_entry(self):
+        from nexora.social_ai.paper_watch import initial_state, open_study
+        from nexora.strategy_lab.profit_engine import MATURITY_S
+        now = 1_800_500_000
+        past = initial_state()
+        past["entries"] = [
+            {
+                "mint": MINT,
+                "observed_at": now - MATURITY_S - 100 - i * 7200,
+                "reserved_cost_usdt": "4.08",
+                "horizons": {
+                    "5dk": {"status": "OK", "net_usdt": "0.3",
+                             "measured_at": now - MATURITY_S - 100 - i * 7200 + 301},
+                    **{f"{m}dk": {"status": "UNKNOWN"} for m in (15, 30, 60)}
+                },
+            }
+            for i in range(35)
+        ]
+        class SyntheticStore:
+            def __init__(self):
+                self.private = None
+
+            def _read(self):
+                return past
+
+            def mutate(self, callback):
+                state = initial_state()
+                result = callback(state)
+                self.private = state
+                return result
+
+        store = SyntheticStore()
+        outcome = auto.cycle(
+            research=lambda **kwargs: {"mode": "READ_ONLY_RESEARCH",
+                                       "status": "OK", "real_order": False,
+                                       "results": [candidate(now)]},
+            store=store, now=now,
+        )
+        self.assertEqual(outcome["paper_opened"], 1)
+        self.assertEqual(store.private["entries"][0]["planned_exit_horizon_min"], 5)
+        self.assertEqual(store.private["entries"][0]["plan_decided_at"], now)
+        self.assertFalse(outcome["real_order"])
+
     def test_profit_circuit_breaker_skips_provider_entirely(self):
         from nexora.social_ai.paper_watch import initial_state
         from nexora.strategy_lab.profit_engine import MATURITY_S
