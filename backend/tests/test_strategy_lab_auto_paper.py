@@ -25,6 +25,12 @@ def candidate(now):
         "mint": MINT,
         "expected_token_qty_raw": "123456",
         "observed_at": now-1,
+        "buy_in_usdt": "4",
+        "liquidity_usd": "45000",
+        "quote_roundtrip_pct": "5",
+        "buy_price_impact_pct": "1",
+        "sell_price_impact_pct": "1",
+        "immediate_sell_quote_usdt": "3.8",
     }
 
 
