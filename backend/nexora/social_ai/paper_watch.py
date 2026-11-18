@@ -201,6 +201,10 @@ def settle_horizon(state, mint, key, *, now, quote=None):
     rec.update(status="OK", reason="QUOTE_SNAPSHOT_ASSUMPTIONS",
                net_usdt=str(net.quantize(Decimal("0.000001"))),
                quoted_exit_usdt=str(expected_exit), measured_at=now)
+    # Additional strategy advice only. Does not sell, free cash or alter
+    # existing horizon accounting: these are independent what-if scenarios.
+    from nexora.strategy_lab.auto_decision import exit_signal
+    rec["lab_exit_signal"] = exit_signal(row, quote, observed_at=now, now=now)
     return rec
 
 
