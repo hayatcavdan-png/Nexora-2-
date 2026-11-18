@@ -317,7 +317,8 @@ private fun BorsaHesaplari(liste: org.json.JSONArray?, gercek: JSONObject?, mesg
                 var p by remember(id) { mutableStateOf("") }
                 var onay by remember(id) { mutableStateOf(false) }
                 val parolaGerekli = b.optBoolean("parola_gerekli")
-                OutlinedTextField(k, { k = it.trim() }, label = { Text("API anahtarı") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(k, { k = it.trim() }, label = { Text("API anahtarı") }, singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(g, { g = it.trim() }, label = { Text("Gizli anahtar (secret)") }, singleLine = true,
                     visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth())
                 if (parolaGerekli) OutlinedTextField(p, { p = it.trim() }, label = { Text("API parolası (passphrase)") }, singleLine = true,
