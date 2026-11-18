@@ -60,8 +60,14 @@ def cycle(*, research, store, now):
     vetted.sort(key=lambda item: item[0], reverse=True)
 
     opened = 0
+    planned = profit.get("recommended_horizon_min")
+    if planned not in (5, 15, 30, 60) or type(planned) is not int:
+        planned = None
     for _, candidate in vetted:
-        result = store.mutate(lambda state: open_study(state, candidate, now=now))
+        # Never let untrusted provider metadata choose the winning exit later.
+        # Plan is based only on historical data that had matured at entry.
+        paper_candidate = dict(candidate, planned_exit_horizon_min=planned)
+        result = store.mutate(lambda state: open_study(state, paper_candidate, now=now))
         if result.get("opened") is True:
             opened = 1
             break
