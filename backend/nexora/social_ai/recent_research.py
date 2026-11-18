@@ -245,7 +245,7 @@ def _get_recent(session, key):
 def _admission(now_monotonic):
     global _last_request
     with _lock:
-        if now_monotonic - _last_request < _MIN_REQUEST_SPACING_SECONDS:
+        if _last_request > 0 and now_monotonic - _last_request < _MIN_REQUEST_SPACING_SECONDS:
             return False
         _last_request = now_monotonic
     return True
