@@ -31,6 +31,9 @@ jobs:
           python -B -m unittest discover -s backend/tests -p 'test_social_radar.py' -v
           python -B -m unittest discover -s backend/tests -p 'test_social_radar_api.py' -v
           python -B -m unittest discover -s backend/tests -p 'test_social_radar_http.py' -v
+          python -B -m unittest discover -s backend/tests -p 'test_social_paper_usdt.py' -v
+          python -B -m unittest discover -s backend/tests -p 'test_social_paper_http.py' -v
+          python -B -m unittest discover -s backend/tests -p 'test_telegram_bridge.py' -v
   full-backend:
     runs-on: ubuntu-latest
     timeout-minutes: 20
