@@ -13,7 +13,7 @@ import java.net.URL
  *  Amaç: sunucu kaybolsa bile verinin bir kopyası telefonda kalsın (N13). */
 object Yedek {
     private const val KLASOR = "NEXORA"
-    private const val SAKLA = 7
+    // Historical 7-file retention disabled: previous backups are never deleted.
 
     fun indir(base: String, key: String): Pair<String, ByteArray> {
         val c = AgGuvenligi.endpoint(base, "/yedek/son").openConnection() as HttpURLConnection
@@ -45,20 +45,12 @@ object Yedek {
             val uri = cr.insert(koleksiyon, cv) ?: error("dosya oluşturulamadı")
             cr.openOutputStream(uri)?.use { it.write(veri) } ?: error("dosya yazılamadı")
             cv.clear(); cv.put(MediaStore.MediaColumns.IS_PENDING, 0); cr.update(uri, cv, null, null)
-            // Yalnızca bu uygulamanın yazdığı NEXORA yedekleri görünür; en yeni SAKLA tanesi kalır.
-            cr.query(koleksiyon, arrayOf(MediaStore.MediaColumns._ID, MediaStore.MediaColumns.DISPLAY_NAME),
-                "${MediaStore.MediaColumns.RELATIVE_PATH}=? AND ${MediaStore.MediaColumns.DISPLAY_NAME} LIKE 'nexora_%'",
-                arrayOf(yol), "${MediaStore.MediaColumns.DISPLAY_NAME} DESC")?.use {
-                var i = 0
-                while (it.moveToNext()) {
-                    if (++i > SAKLA) cr.delete(android.content.ContentUris.withAppendedId(koleksiyon, it.getLong(0)), null, null)
-                }
-            }
+            // Existing backups are never pruned by a download.
             return "İndirilenler/$KLASOR/$ad"
         }
         val dir = File(ctx.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), KLASOR).apply { mkdirs() }
         File(dir, ad).writeBytes(veri)
-        dir.listFiles { f -> f.name.startsWith("nexora_") }?.sortedByDescending { it.name }?.drop(SAKLA)?.forEach { it.delete() }
+        // Preserve every existing backup; never delete old files automatically.
         return File(dir, ad).absolutePath
     }
 
