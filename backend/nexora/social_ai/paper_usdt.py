@@ -45,7 +45,13 @@ def _decimal(value, *, allow_zero=False):
 
 
 def _time(value):
-    return float(value) if type(value) in (int, float) and math.isfinite(value) and value > 0 else None
+    if type(value) not in (int, float):
+        return None
+    try:
+        number = float(value)
+    except (OverflowError, ValueError):
+        return None
+    return number if math.isfinite(number) and number > 0 else None
 
 
 def _fresh(row, cutoff, *, start=0, seconds=MAX_AGE_SECONDS):
