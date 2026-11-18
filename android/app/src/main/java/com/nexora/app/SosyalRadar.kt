@@ -146,6 +146,9 @@ fun SosyalRadarEkrani(url: String, key: String) {
         // Sunucunun 0/5 gerçek Social Radar kaynak hesabına KATILMAZ.
         YerelTelegramKoprusu()
 
+        // 100 USDT'lik ayrı offline paper çalışması; Social Radar 0/5'e eklenmez.
+        SosyalPaperKarti(url, key, yenile)
+
         Text("Sosyal kaynaklar", color = Nx.Metin, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
         SOSYAL_KAYNAKLAR.forEach { kaynak ->
             val satir = kaynaklar[kaynak.kimlik]?.singleOrNull()
