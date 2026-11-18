@@ -41,6 +41,7 @@ jobs:
           python -B -m unittest discover -s backend/tests -p 'test_strategy_lab.py' -v
           python -B -m unittest discover -s backend/tests -p 'test_strategy_lab_http.py' -v
           python -B -m unittest discover -s backend/tests -p 'test_strategy_lab_runner.py' -v
+          python -B -m unittest discover -s backend/tests -p 'test_strategy_lab_auto_paper.py' -v
   full-backend:
     runs-on: ubuntu-latest
     timeout-minutes: 20
