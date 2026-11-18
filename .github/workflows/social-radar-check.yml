@@ -86,6 +86,8 @@ jobs:
           test -s android/app/src/main/assets/strategy_lab/lightweight-charts.standalone.production.js
       - name: Kotlin APK derle
         run: gradle -p android assembleRelease --no-daemon
+      - name: Android transport security JVM tests
+        run: gradle -p android testDebugUnitTest --no-daemon
       - uses: actions/upload-artifact@v4
         with:
           name: nexora-social-ai-apk
