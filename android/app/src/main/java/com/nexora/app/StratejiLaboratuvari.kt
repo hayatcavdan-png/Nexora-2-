@@ -96,6 +96,37 @@ fun StratejiLaboratuvari(url: String, key: String) {
                 Text("Başlangıç sanal sermaye: 100 USDT",
                     color = Nx.Metin, fontWeight = FontWeight.SemiBold)
             }
+            // Dedicated paper automation status: never indicate live order execution.
+            report.optJSONObject("auto_paper")?.let { auto ->
+                Kart(Modifier.fillMaxWidth()) {
+                    Text("Otomatik işlem araştırması", color = Nx.Metin,
+                        fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                    val state = auto.optString("status")
+                    Text(when (state) {
+                        "LEDGER_AVAILABLE" -> "Ayrı sanal defter okunabiliyor."
+                        "DISABLED" -> "Otomatik sanal araştırma kapalı."
+                        "PATH_NOT_CONFIGURED" -> "Bağımsız sanal defter yolu tanımlanmamış."
+                        else -> "Sanal defter şu anda okunamıyor."
+                    }, color = Nx.Soluk, fontSize = 12.sp)
+                    if (state == "LEDGER_AVAILABLE") {
+                        Text("Toplam sanal çalışma: " + auto.optInt("total_studies"),
+                            color = Nx.Metin, fontSize = 12.sp)
+                        Text("Yakın dönem açık çalışma: " +
+                            auto.optInt("active_recent_studies"), color = Nx.Soluk, fontSize = 12.sp)
+                        Text("Sanal SAT sinyalleri: " +
+                            auto.optInt("recent_sell_signals") +
+                            " · Çıkış kotasyonu yok: " +
+                            auto.optInt("recent_exit_unavailable"),
+                            color = Nx.Soluk, fontSize = 12.sp)
+                        Text("Kalan araştırma bakiyesi: " +
+                            auto.optString("available_research_cash_usdt") + " USDT",
+                            color = Nx.Soluk, fontSize = 12.sp)
+                    }
+                    Text("Bunlar gerçekleşmiş işlemler değildir. Defterin bulunması " +
+                         "otomatik tarayıcının çalıştığını kanıtlamaz.",
+                        color = Nx.Sari, fontSize = 11.sp)
+                }
+            }
             Kart(Modifier.fillMaxWidth()) {
                 Text("Yedi analiz aracı", color = Nx.Metin,
                     fontWeight = FontWeight.Bold, fontSize = 17.sp)
