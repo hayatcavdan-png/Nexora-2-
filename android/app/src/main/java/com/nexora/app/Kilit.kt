@@ -29,7 +29,35 @@ object Kilit {
         sp.edit().putString("pin_tuz", tuz).putString("pin_ozet", ozet(tuz, pin)).apply()
     }
 
-    fun kaldir(sp: SharedPreferences) { sp.edit().remove("pin_tuz").remove("pin_ozet").apply() }
+    private const val FAILED = "pin_hata"
+    private const val BLOCK_UNTIL = "pin_blok_bitis"
+
+    // Persist UI rate-limiting across app restarts (still not a hardware-backed
+    // substitute for server authentication or cryptographic key access control).
+    fun blockedUntil(sp: SharedPreferences): Long = sp.getLong(BLOCK_UNTIL, 0L)
+
+    fun clearFailures(sp: SharedPreferences) {
+        sp.edit().remove(FAILED).remove(BLOCK_UNTIL).apply()
+    }
+
+    fun wrongAttempt(sp: SharedPreferences, now: Long): Pair<Int, Long> {
+        val blocked = blockedUntil(sp)
+        if (now < blocked) return 0 to blocked
+        val count = (sp.getInt(FAILED, 0) + 1).coerceIn(1, 5)
+        return if (count >= 5) {
+            val next = now + 30_000L
+            sp.edit().putInt(FAILED, 0).putLong(BLOCK_UNTIL, next).apply()
+            0 to next
+        } else {
+            sp.edit().putInt(FAILED, count).remove(BLOCK_UNTIL).apply()
+            count to 0L
+        }
+    }
+
+    fun kaldir(sp: SharedPreferences) {
+        sp.edit().remove("pin_tuz").remove("pin_ozet")
+            .remove(FAILED).remove(BLOCK_UNTIL).apply()
+    }
 
     fun dogru(sp: SharedPreferences, pin: String): Boolean {
         val tuz = sp.getString("pin_tuz", null) ?: return false
@@ -63,8 +91,8 @@ fun KilitEkrani(sp: SharedPreferences, acildi: () -> Unit) {
     LaunchedEffect(Unit) { if (bio) Kilit.biyometrikSor(akt!!, acildi) }
     var pin by remember { mutableStateOf("") }
     var hata by remember { mutableStateOf("") }
-    var yanlis by remember { mutableIntStateOf(0) }
-    var bekle by remember { mutableLongStateOf(0L) }
+    var yanlis by remember { mutableIntStateOf(sp.getInt("pin_hata", 0)) }
+    var bekle by remember { mutableLongStateOf(Kilit.blockedUntil(sp)) }
     Column(Modifier.fillMaxSize().padding(32.dp), verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
            horizontalAlignment = Alignment.CenterHorizontally) {
         Nexo(120.dp, NexoIfade.UYKU, NexoPoz.SERBEST)
@@ -78,11 +106,15 @@ fun KilitEkrani(sp: SharedPreferences, acildi: () -> Unit) {
         Button({
             val simdi = System.currentTimeMillis()
             if (simdi < bekle) { hata = "Çok fazla hatalı deneme. ${(bekle - simdi) / 1000 + 1} sn bekleyin."; return@Button }
-            if (Kilit.dogru(sp, pin)) { yanlis = 0; acildi() }
-            else {
-                yanlis++; pin = ""
-                if (yanlis >= 5) { bekle = simdi + 30_000; yanlis = 0; hata = "5 hatalı deneme: 30 sn bekleyin." }
-                else hata = "PIN yanlış (${5 - yanlis} deneme kaldı)"
+            if (Kilit.dogru(sp, pin)) {
+                Kilit.clearFailures(sp)
+                yanlis = 0; bekle = 0L
+                acildi()
+            } else {
+                val (count, until) = Kilit.wrongAttempt(sp, simdi)
+                yanlis = count; bekle = until; pin = ""
+                hata = if (until > simdi) "5 hatalı deneme: 30 sn bekleyin."
+                    else "PIN yanlış (${5 - yanlis} deneme kaldı)"
             }
         }, colors = NxButonRenk(), modifier = Modifier.fillMaxWidth()) { Text("Aç") }
         if (bio) OutlinedButton({ Kilit.biyometrikSor(akt!!, acildi) }, modifier = Modifier.fillMaxWidth()) { Text("Parmak izi / yüz ile aç") }
