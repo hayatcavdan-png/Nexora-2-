@@ -122,6 +122,37 @@ fun StratejiLaboratuvari(url: String, key: String) {
                             auto.optString("available_research_cash_usdt") + " USDT",
                             color = Nx.Soluk, fontSize = 12.sp)
                     }
+                    auto.optJSONObject("profit_research")?.let { guard ->
+                        HorizontalDivider()
+                        Text("Net Kâr Koruması · İleri Test", color = Nx.Metin,
+                            fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                        Text("Durum: " + guard.optString("status"),
+                            color = Nx.Soluk, fontSize = 12.sp)
+                        Text("Olgunlaşmış sanal örnek: " +
+                            guard.optInt("mature_samples"),
+                            color = Nx.Soluk, fontSize = 12.sp)
+                        val chosen = guard.optInt("recommended_horizon_min", 0)
+                        Text(if (chosen > 0) "Araştırma çıkış ufku: ${chosen} dk" else
+                            "Henüz istatistiksel olarak desteklenen çıkış ufku yok.",
+                            color = Nx.Soluk, fontSize = 12.sp)
+                        val intake = guard.optJSONObject("intake")
+                        if (intake?.optBoolean("allow_new_paper") == false) {
+                            Text("Yeni sanal işlemler koruma nedeniyle durduruldu.",
+                                color = Nx.Sari, fontSize = 12.sp)
+                        }
+                        val fw = guard.optJSONObject("forward_stress")
+                        if (fw != null && fw.optInt("selected_paper_studies") > 0) {
+                            Text("İleri testte seçilen sanal çalışmalar: " +
+                                fw.optInt("selected_paper_studies"),
+                                color = Nx.Soluk, fontSize = 12.sp)
+                            Text("Kayıp ve eksik kotasyon stres sonucu: " +
+                                fw.optString("stress_net_usdt") + " USDT",
+                                color = Nx.Soluk, fontSize = 12.sp)
+                        }
+                        Text("Bunlar karşı-olgusal Jupiter teklifleri ve stres " +
+                             "varsayımlarıdır; gerçekleşmiş net kâr değildir.",
+                            color = Nx.Sari, fontSize = 11.sp)
+                    }
                     Text("Bunlar gerçekleşmiş işlemler değildir. Defterin bulunması " +
                          "otomatik tarayıcının çalıştığını kanıtlamaz.",
                         color = Nx.Sari, fontSize = 11.sp)
