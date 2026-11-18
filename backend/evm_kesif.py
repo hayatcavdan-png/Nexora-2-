@@ -14,6 +14,7 @@ from nexora import evm_kesif as K
 TOKEN = int(os.getenv("EVM_KESIF_TOKEN", "25")); EN_AZ = int(os.getenv("EVM_KESIF_EN_AZ", "2")); EKLE = 5
 ANALIZ = int(os.getenv("EVM_ANALIZ_ADAY", "20")); GUN = int(os.getenv("EVM_ANALIZ_GUN", "5"))
 AKTIF_MIN, AKTIF_MAKS = 3, 300
+UZUN = 3                                                 # "eksik veri" çıkan aday 3 kat uzun pencereyle yeniden denenir
 
 
 def main(argv, rpc=None, s=None, ekle_en_fazla=EKLE, liste_siniri=None):
@@ -60,6 +61,11 @@ def main(argv, rpc=None, s=None, ekle_en_fazla=EKLE, liste_siniri=None):
         try:
             sy = {}
             m = A.analiz(A.swaplar(rpc, w, z, son - blok, son, sayac=sy, gezgin=gz), rpc, z, yerel, w)
+            if m["karar"] == "eksik veri":                       # alışlar pencere dışında: 3 kat uzun pencereyle bir kez daha
+                sy = {}
+                m = A.analiz(A.swaplar(rpc, w, z, son - UZUN * blok, son, en_fazla_islem=400, sayac=sy, gezgin=gz), rpc, z, yerel, w)
+                m["uzun_pencere"] = 1
+            m = A.cozum_karari(m, sy)
             m.update(islem=sy.get("islem", 0), cozulemeyen=sy.get("cozulemeyen", 0))
         except Exception as ex:
             m = dict(wallet=w, karar="hata", gerekce=f"{type(ex).__name__}: {str(ex)[:60]}", kapanan=0, gerceklesen_usd=0.0)

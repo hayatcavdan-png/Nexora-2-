@@ -45,7 +45,7 @@ class Test(unittest.TestCase):
         rpc = Rpc(isl)
         sy = {}
         sw = A.swaplar(rpc, W, "bnb", 0, 1000, sayac=sy)
-        self.assertEqual(sy, dict(islem=6, cozulemeyen=0))                                  # yalnızca USDT hareketi işlem sayılmaz
+        self.assertEqual((sy["islem"], sy["cozulemeyen"]), (6, 0))                                  # yalnızca USDT hareketi işlem sayılmaz
         self.assertEqual([(s["yon"], s["blok"]) for s in sw], [("buy", 100), ("sell", 200), ("buy", 300), ("sell", 900), ("sell", 950), ("sell", 990)])
         m = A.analiz(sw, rpc, "bnb", 600.0, W)
         self.assertEqual((m["kapanan"], m["satis"], m["eslesmeyen_satis"]), (3, 4, 1))

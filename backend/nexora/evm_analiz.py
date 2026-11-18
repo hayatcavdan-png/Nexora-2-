@@ -3,7 +3,7 @@
 Cüzdanın son günlerdeki ERC-20 transferleri bloklardan okunur (eth_getLogs; düğüm sınırında aralık bölünür), token içeren her
 işlem makbuzuyla çözülür (swap mı, ne alındı, ne ödendi), karşı varlık USD'ye çevrilir (stablecoin = 1 $, yerel/sarılı
 coin = tek bir güncel fiyat: yaklaşıklık), token başına FIFO ile gerçekleşen K/Z hesaplanır. Salt okunur."""
-from collections import defaultdict
+from collections import Counter, defaultdict
 from statistics import median
 
 from nexora.evm import ZINCIRLER, YEREL, EvmHatasi, TRANSFER, _konu, coz_tam
@@ -25,14 +25,16 @@ def swaplar(rpc, cuzdan, zincir, bas, son, en_fazla_islem=150, sayac=None, gezgi
                 if (l.get("address") or "").lower() in karsi: continue  # yalnızca karşı varlık hareketi: swap adayı değil
                 islemler.setdefault(l["transactionHash"], int(l["blockNumber"], 16))
     out = []; secili = sorted(islemler.items(), key=lambda x: x[1])[-en_fazla_islem:]
-    if sayac is not None: sayac.update(islem=len(islemler), cozulemeyen=0)
+    if sayac is not None: sayac.update(islem=len(islemler), cozulemeyen=0, araci=Counter())
     for karma, blok in secili:
         try:
-            s = coz_tam(rpc, rpc.call("eth_getTransactionByHash", [karma]) or {}, rpc.call("eth_getTransactionReceipt", [karma]) or {}, w, zincir, blok)
+            tx = rpc.call("eth_getTransactionByHash", [karma]) or {}
+            s = coz_tam(rpc, tx, rpc.call("eth_getTransactionReceipt", [karma]) or {}, w, zincir, blok)
         except EvmHatasi:
             continue
         if s: out.append(dict(s, blok=blok))
-        elif sayac is not None: sayac["cozulemeyen"] += 1
+        elif sayac is not None:
+            sayac["cozulemeyen"] += 1; sayac["araci"][(tx.get("to") or "?").lower()] += 1
     return out
 
 
@@ -82,3 +84,17 @@ def yerel_fiyat(teklif, zincir):
     """1 yerel coin (BNB/ETH) kaç USD: toplayıcıdan sarılı coin -> USD stablecoin teklifi."""
     z = ZINCIRLER[zincir]
     return teklif.teklif(z["sarili"], z["usd"], 10 ** 18)["cikis_raw"] / 10 ** z["usd_ondalik"]
+
+
+COZULEMEZ_ORAN, COZULEMEZ_EN_AZ = 0.5, 10
+
+
+def cozum_karari(m, sayac):
+    """İşlemlerinin yarıdan fazlası swap olarak çözülemeyen cüzdan: ödeme tarafı zincir kayıtlarında görünmüyor
+    (ör. parası önceden bir bot/emir sözleşmesine yatırılmış). Maliyeti ölçülemez ve sinyalleri de çözülemez:
+    hangi karar çıkmış olursa olsun 'çözülemiyor' olur (görünen azınlık işlemle verilen karar yanıltıcıdır) ve kopyalanmaz."""
+    n, c = sayac.get("islem", 0), sayac.get("cozulemeyen", 0)
+    if n < COZULEMEZ_EN_AZ or c / n <= COZULEMEZ_ORAN: return m
+    en = (sayac.get("araci") or Counter()).most_common(1)
+    araci = f"; en sık aracı {en[0][0][:10]}… ({en[0][1]} işlem)" if en else ""
+    return dict(m, karar="çözülemiyor", gerekce=f"işlemlerin %{100 * c / n:.0f}'i swap olarak çözülemedi{araci}", skor=0.0)

@@ -22,3 +22,15 @@ class NedenTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class CozumKarariTests(unittest.TestCase):
+    def test_cozulemiyor(self):
+        from collections import Counter
+        from nexora import evm_analiz as A
+        sy = dict(islem=100, cozulemeyen=80, araci=Counter({"0x4857db57aaaa": 70}))
+        m = A.cozum_karari(dict(karar="yetersiz veri", gerekce="x"), sy)
+        self.assertEqual(m["karar"], "çözülemiyor"); self.assertIn("%80", m["gerekce"]); self.assertIn("0x4857db57", m["gerekce"])
+        self.assertEqual(A.cozum_karari(dict(karar="zayıf"), dict(islem=100, cozulemeyen=20))["karar"], "zayıf")
+        self.assertEqual(A.cozum_karari(dict(karar="kopyalanabilir"), sy)["karar"], "çözülemiyor")
+        self.assertEqual(A.cozum_karari(dict(karar="yetersiz veri"), dict(islem=5, cozulemeyen=5))["karar"], "yetersiz veri")
