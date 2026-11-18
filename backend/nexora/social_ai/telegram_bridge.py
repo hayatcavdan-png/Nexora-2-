@@ -83,14 +83,23 @@ def from_t10(data, *, now=None, worker_status=None):
         if item.get("live_verified") not in (None, False):
             raise BridgeUnavailable("incorrect live verification")
         seen.add(source_id)
-        clean.append({
+        row = {
             "source_id": source_id,
             "platform": "telegram",
             "handle": CHANNELS[source_id],
             "metadata_count": _count(item.get("metadata_count")),
             "live_verified": False,
             "social_ai_transfer": False,
-        })
+        }
+        # Optional PUBLIC channel message ID only. No text, CA or author data.
+        # Client may open the post in Telegram, then the USER manually copies CA.
+        last = item.get("last_id")
+        if last is not None:
+            if (type(last) is not str or not 1 <= len(last) <= 22
+                    or not last.isascii() or not last.isdecimal() or int(last) == 0):
+                raise BridgeUnavailable("invalid last message id")
+            row["last_message_id"] = last
+        clean.append(row)
     clean.sort(key=lambda row: row["source_id"])
     worker_status = worker_status if isinstance(worker_status, dict) else {}
     return {
