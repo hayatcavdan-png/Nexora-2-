@@ -143,16 +143,18 @@ class Decider:
     GUC_SN = 900
     GUC_KAT = float(os.getenv("GUCLENDIRME_KAT", "2"))
 
-    def _teyit(self, wallet, token, now=None):
-        """Bu alımı da sayarak son GUC_SN içinde token'ı alan farklı cüzdan sayısı (bellekte; servis yeniden başlarsa sıfırlanır)."""
+    def _teyit(self, wallet, token, now=None, golge=False):
+        """Bu alımı da sayarak son GUC_SN içinde token'ı alan farklı cüzdan sayısı (bellekte; servis yeniden başlarsa sıfırlanır).
+        Dönüş: (kopyalanan cüzdan sayısı, gölge/izlenen dahil toplam). Canlı güçlendirme yalnızca ilkini kullanır;
+        ikincisi karar izine yazılır (gölge teyidi önce ölçülür, deney masası [10b])."""
         import time as _t
         now = now if now is not None else _t.time()
         kayit = self.__dict__.setdefault("_alimlar", {})
-        d = kayit.setdefault(token, {}); d[wallet] = now
-        for w in [w for w, t in d.items() if now - t > self.GUC_SN]: del d[w]
+        d = kayit.setdefault(token, {}); d[wallet] = (now, golge)
+        for w in [w for w, (t, _) in d.items() if now - t > self.GUC_SN]: del d[w]
         if len(kayit) > 2000:                                         # bellek sınırı: eski token'ları at
-            for t in [t for t, x in kayit.items() if not x or max(x.values()) < now - self.GUC_SN]: del kayit[t]
-        return len(d)
+            for t in [t for t, x in kayit.items() if not x or max(v[0] for v in x.values()) < now - self.GUC_SN]: del kayit[t]
+        return sum(1 for _, g in d.values() if not g), len(d)
 
     def decide(self, event_id, wallet, token, side, signal_age_s, boyut_usd=None, neden=None, kaynak_oran=None):
         p = self.paper
@@ -169,8 +171,11 @@ class Decider:
                                                 "max_signal_age_s", "max_price_impact_pct", "max_roundtrip_loss_pct")}
             reason, size = p.precheck(side, token, signal_age_s, wallet)
             ek = False
+            if side == "buy" and wallet in self.izle:                  # gölge/izlenen alım: yalnızca teyit sayacına yazılır
+                self._teyit(wallet, token, golge=True)
             if side == "buy" and boyut_usd is None and wallet != "MANUEL" and wallet not in self.izle and self.GUC_KAT > 1:
-                teyit = self._teyit(wallet, token)
+                teyit, teyit_tum = self._teyit(wallet, token)
+                if teyit_tum > teyit: iz.append(dict(adim="golge_teyit", teyit=teyit, gölge_dahil=teyit_tum))
                 if teyit >= 2 and reason == "bu token'da zaten pozisyon var":
                     reason, size = p.precheck(side, token, signal_age_s, wallet, ek=True); ek = not reason
                     iz.append(dict(adim="guclendirme", sonuc="ek parça" if ek else f"yok: {reason}", teyit=teyit))

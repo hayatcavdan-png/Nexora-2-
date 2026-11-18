@@ -169,6 +169,18 @@ def rapor(now=None, GUN=3.0):
     except Exception as ex:
         L.append(f"[10b] giriş modelleri hesaplanamadı: {type(ex).__name__}")
 
+    try:                                   # 11) Gölge havuz ve yapay zekâ verisi
+        from nexora import golge
+        k = golge.karne(os.getenv("ETIKET_DB", "nexora_etiket.db"), now=now)
+        from nexora.ozellik import veri_seti
+        n = len(veri_seti(os.getenv("ETIKET_DB", "nexora_etiket.db")))
+        L.append(f"[11] Gölge havuz {k['havuz']} cüzdan (kopyalanmaz): {k['olculen']} ölçüldü, {k['sinyal']} sinyal (14 gün), "
+                 f"terfi adayı {len(k['terfi'])}. Yapay zekâ verisi: {n}/500 etiketli örnek")
+        for w, m in [x for x in k["satirlar"] if x[0] in k["terfi"]][:5]:
+            L.append(f"    terfi adayı {_k(w)}  n={m['n']} ort %{m['ort']:+.1f} medyan %{m['medyan']:+.1f}")
+    except Exception as ex:
+        L.append(f"[11] gölge havuz hesaplanamadı: {type(ex).__name__}")
+
     # 6b) Kısmi satış ölçümü
     km = _q(p, "SELECT * FROM kismi_olcum WHERE acilis_ts>=?", (bas,))
     if km:

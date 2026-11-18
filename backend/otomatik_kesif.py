@@ -85,6 +85,16 @@ def calistir(kesif=None, analiz=None, now=None, denetim=None, liste=None, evm=No
         sonuc["kadro"] = (kadro or _kadro.uygula)([c["wallet"] for c in sonuc["kopyalanabilir"]])
     except Exception as e:
         sonuc["kadro"] = dict(hata=f"{type(e).__name__}: {str(e)[:120]}", degisti=False)
+    try:                                        # gölge havuz: kopyalanmayan ama etiketlenen geniş havuz (yapay zekâ verisi, teyit)
+        from nexora import golge as _golge
+        sonuc["golge"] = _golge.doldur()
+    except Exception as e:
+        sonuc["golge"] = dict(hata=f"{type(e).__name__}: {str(e)[:120]}")
+    try:                                        # yapay zekâ: yeterli etiket varsa modeli her gece yeniden sına (kabul edilirse
+        import yz_model                         # yz_model.json yazılır ve gölge karar başlar; işlem kuralına DOKUNMAZ)
+        sonuc["yz"] = yz_model.calistir(os.getenv("ETIKET_DB", "nexora_etiket.db")).splitlines()[0][:160]
+    except Exception as e:
+        sonuc["yz"] = f"çalışmadı: {type(e).__name__}"
     try:                                        # keşif sonuç vermese de takip listesi her gün denetlenir
         sonuc["takip"] = (denetim or takip_denetimi)()
     except SystemExit as e:

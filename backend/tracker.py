@@ -58,6 +58,9 @@ def main():
     # Platform 2: borsa cüzdanları (wallets_borsa.txt) da izlenir; platform 1'de yalnızca izlenir, alımları kopyalanmaz
     borsa_cuz = [w for w in read_list("wallets_borsa.txt") if w not in black and w not in wallets]
     wallets += borsa_cuz
+    # Gölge havuz (golge_listesi.txt): yalnızca izlenir ve etiketlenir, KOPYALANMAZ (yapay zekâ verisi, teyit ölçümü)
+    golge_cuz = [w for w in dict.fromkeys(read_list("golge_listesi.txt")) if w not in black and w not in wallets and _eko.tespit(w) == "solana"]
+    wallets += golge_cuz
     if not wallets: sys.exit("wallets.txt boş (ya da hepsi kara listede)")
 
     client = HeliusClient(max_retries=2)
@@ -78,14 +81,15 @@ def main():
                 except ValueError: pass
                 cuzdan_ist[r["wallet"]] = {k: r.get(k) for k in ("karar", "kazanma_orani", "kar_faktoru", "ort_getiri", "kapanan",
                                                                   "medyan_tutma_sn", "skor", "dusus_kazanc_orani", "sifir_tur_orani")}
-        izle = [w for w in read_list("izle_listesi.txt") if w in wallets] + borsa_cuz
+        izle = [w for w in read_list("izle_listesi.txt") if w in wallets] + borsa_cuz + golge_cuz
         model = ModelDosyasi()                            # N19/N20: yz_model.json (yalnızca N18'de kabul edilmiş model)
         kapi = ModelKapisi(model, bilgi=TokenBilgi(api_key=quoter.api_key, throttle=quoter._throttle), cuzdanlar=cuzdan_ist)
         decider = Decider(paper, quoter, TokenSafety(client), bilgi=bilgi, yurutme=YurutmeOlcer(quoter, paper).baslat(),
                           puanlar=puanlar, izle=izle, kapi=kapi)
         kd = kapi.durum()
         if kd["acik"]: print(f"  Model filtresi AÇIK (model {kd['model'] or 'YOK: filtre uygulanmıyor'})", flush=True)
-        if izle: print(f"  {len(izle)} cüzdan yalnızca izleniyor (izle_listesi.txt): sinyalleri etiketlenir, alımları kopyalanmaz", flush=True)
+        if izle: print(f"  {len(izle)} cüzdan yalnızca izleniyor (izle listesi, borsa, gölge havuz {len(golge_cuz)}): "
+                       f"sinyalleri etiketlenir, alımları kopyalanmaz", flush=True)
         if not quoter.api_key:
             print("  Not: JUPITER_API_KEY yok, teklifler anahtarsız (0.5 istek/sn). Ücretsiz anahtar hızlandırır.", flush=True)
     etiketci = None
@@ -144,7 +148,7 @@ def main():
             print(f"  seviyeler okunamadı ({type(e).__name__}): eski seviyeler geçerli", flush=True)
     seviye_yenile()
     last_mark = last_kaynak = last_seviye = time.time()
-    liste_izi = {f: (os.path.getmtime(f) if os.path.exists(f) else None) for f in ("wallets.txt", "izle_listesi.txt")}
+    liste_izi = {f: (os.path.getmtime(f) if os.path.exists(f) else None) for f in ("wallets.txt", "izle_listesi.txt", "golge_listesi.txt")}
     try:
         while True:
             stop.wait(INTERVAL)

@@ -120,15 +120,26 @@ def aktif_liste(liste_yolu="wallets.txt", izle_yolu="izle_listesi.txt"):
     return {w for w in K._oku(liste_yolu) if w not in iz}
 
 
-def masa(etiket_db=None, now=None, gun=14, deneyler=DENEYLER, aktif=None):
-    s = sinyaller(etiket_db or os.getenv("ETIKET_DB", "nexora_etiket.db"), now, gun)
+def golge_seti(yol="golge_listesi.txt"):
+    return set(K._oku(yol))
+
+
+def masa(etiket_db=None, now=None, gun=14, deneyler=DENEYLER, aktif=None, golge=None):
+    """Kurallar gölge havuz DIŞINDAKİ sinyallerle oynatılır (canlıda kopyalanabilecek olanlar). Gölge havuzun sinyalleri
+    varsa ek satır: 'şimdiki kural + gölge havuz da kopyalansaydı'."""
+    hepsi = sinyaller(etiket_db or os.getenv("ETIKET_DB", "nexora_etiket.db"), now, gun)
+    golge = golge_seti() if golge is None else set(golge)
+    s = [x for x in hepsi if x[2] not in golge]
     aktif = aktif_liste() if aktif is None else set(aktif)
     out = []
     for ad, cfg in deneyler:
         cfg = dict(cfg)
         if cfg.get("aktif") == "liste": cfg["aktif"] = aktif
         out.append(dict(ad=ad, **simule(s, **cfg)))
-    return dict(sinyal=len(s), gun=gun, sonuclar=out)
+    if len(hepsi) > len(s):
+        out.append(dict(ad=f"Şimdiki kural + gölge havuz da kopyalansa ({len(hepsi) - len(s)} gölge sinyali)",
+                        **simule(hepsi, max_poz=10, oran=0.04, rt_max=3.0)))
+    return dict(sinyal=len(s), golge_sinyal=len(hepsi) - len(s), gun=gun, sonuclar=out)
 
 
 # ---------------------------------------------------------------- Model A / Model B (ALPHA HUNTER X fikirleri, yalnızca ölçüm)
@@ -137,7 +148,7 @@ GERI_SN = 300           # Model B: sinyalden 5 dakika sonra (etiket motorunun 5 
 UCRET_PAY = 2 * 0.01 / 5.0   # iki bacak ağ ücreti / 5 $ (etiket getirisindeki ile aynı)
 
 
-def sinyaller_detay(etiket_db, now=None, gun=14):
+def sinyaller_detay(etiket_db, now=None, gun=14, golge=frozenset()):
     """Kaynak sonucu olan her sinyal: giriş/çıkış zamanı, cüzdan, token, getiri, al-sat kaybı, 5 dk ve kaynak çıkış tutarı,
     ve 15 dk içinde aynı token'ı alan farklı cüzdan sayısı (teyit)."""
     now = now if now is not None else time.time()
@@ -158,8 +169,10 @@ def sinyaller_detay(etiket_db, now=None, gun=14):
     for ts, w, t in alim: tok.setdefault(t, []).append((ts, w))
     out = []
     for gts, cts, w, t, g, rt, giris, ck, c5 in rows:
-        n = len({ww for ts, ww in tok.get(t, ()) if gts - TEYIT_SN <= ts <= gts})
-        out.append(dict(giris=gts, cikis=max(gts, cts), w=w, t=t, g=float(g), rt=rt, usd=giris or 5.0, ck=ck, c5=c5, teyit=max(n, 1)))
+        yakin = {ww for ts, ww in tok.get(t, ()) if gts - TEYIT_SN <= ts <= gts}
+        n = len(yakin - set(golge)) if w not in golge else len(yakin)    # canlı kural: yalnızca kopyalanan cüzdanlar teyit eder
+        out.append(dict(giris=gts, cikis=max(gts, cts), w=w, t=t, g=float(g), rt=rt, usd=giris or 5.0, ck=ck, c5=c5,
+                        teyit=max(n, 1), teyit_golge=max(len(yakin), 1), golge=w in golge))
     return out
 
 
@@ -183,15 +196,18 @@ def model_b(detay, dusus_pct):
     return out
 
 
-def guclendirici(detay, kat, en_az=2):
-    """Her sinyale gir; en az `en_az` cüzdanın 15 dk içinde aldığı token'da büyüklük `kat` (tutuluyorsa ek parça)."""
-    return [(d["giris"], d["cikis"], d["w"], d["t"], d["g"], d["rt"], kat if d["teyit"] >= en_az else 1.0) for d in detay]
+def guclendirici(detay, kat, en_az=2, alan="teyit"):
+    """Her sinyale gir; en az `en_az` cüzdanın 15 dk içinde aldığı token'da büyüklük `kat` (tutuluyorsa ek parça).
+    alan='teyit_golge': gölge havuzun alımları da teyit sayılır (girişler yine yalnızca kopyalanan cüzdanlardan)."""
+    return [(d["giris"], d["cikis"], d["w"], d["t"], d["g"], d["rt"], kat if d[alan] >= en_az else 1.0) for d in detay]
 
 
 MODELLER = [
     ("Taban: her sinyal (10x%4, %3)", lambda d: model_a(d, 1)),
     ("Güçlendirici: 2+ cüzdanda 2x", lambda d: guclendirici(d, 2.0)),
     ("Güçlendirici: 2+ cüzdanda 3x", lambda d: guclendirici(d, 3.0)),
+    ("Güçlendirici 2x, gölge havuz da teyit eder", lambda d: guclendirici(d, 2.0, alan="teyit_golge")),
+    ("Güçlendirici 2x, teyit için 3+ cüzdan (gölge dahil)", lambda d: guclendirici(d, 2.0, en_az=3, alan="teyit_golge")),
     ("Model A: 15 dk'da 2+ cüzdan", lambda d: model_a(d, 2)),
     ("Model A: 15 dk'da 3+ cüzdan", lambda d: model_a(d, 3)),
     ("Model B: 5 dk sonra %3+ düştüyse gir", lambda d: model_b(d, 3.0)),
@@ -200,6 +216,8 @@ MODELLER = [
 MODEL_AYAR = dict(max_poz=10, oran=0.04, rt_max=3.0)
 
 
-def modeller(etiket_db=None, now=None, gun=14):
-    d = sinyaller_detay(etiket_db or os.getenv("ETIKET_DB", "nexora_etiket.db"), now, gun)
+def modeller(etiket_db=None, now=None, gun=14, golge=None):
+    """Girişler yalnızca kopyalanabilecek (gölge dışı) sinyallerden; gölge alımları yalnızca 'teyit_golge'de sayılır."""
+    golge = golge_seti() if golge is None else set(golge)
+    d = [x for x in sinyaller_detay(etiket_db or os.getenv("ETIKET_DB", "nexora_etiket.db"), now, gun, golge) if not x["golge"]]
     return dict(sinyal=len(d), sonuclar=[dict(ad=ad, aday=len(f(d)), **simule(f(d), **MODEL_AYAR)) for ad, f in MODELLER])

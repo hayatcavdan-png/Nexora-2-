@@ -89,6 +89,17 @@ class EtiketTests(unittest.TestCase):
         finally:
             E.GUNLUK = old
 
+    def test_golge_ayri_sinir_ve_teyit(self):
+        old = (E.GUNLUK, E.GOLGE_GUNLUK); E.GUNLUK, E.GOLGE_GUNLUK = 2, 1
+        try:
+            self.e.sinyal("G1:a", "G1", "TOK", "buy", "a", 0, 1, "REDDEDİLDİ", E.IZLENEN); self.run_all()
+            self.e.sinyal("G2:b", "G2", "TOK", "buy", "b", 0, 1, "REDDEDİLDİ", E.IZLENEN); self.run_all()   # gölge sınırı dolu
+            self.e.sinyal("W:c", "W", "TOK", "buy", "c", 0, 1, "KOPYALANDI", "geçti"); self.run_all()       # kopyalanan etkilenmez
+            d = {r["event_id"]: r["teyit"] for r in self.rows("SELECT event_id, teyit FROM etiket_olay")}
+            self.assertEqual(d, {"G1:a": 1, "W:c": 2})
+        finally:
+            E.GUNLUK, E.GOLGE_GUNLUK = old
+
     def test_missed_horizon_and_unsellable_and_timeout(self):
         self.e.sinyal("W:a", "W", "TOK", "buy", "a", 0, 1, "x", "x"); self.run_all()
         self.t[0] += 300 + 500                                               # 5 dk vadesi tolerans dışında

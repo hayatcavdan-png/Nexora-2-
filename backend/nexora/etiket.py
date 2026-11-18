@@ -18,6 +18,9 @@ from nexora.market import QuoteError
 ETIKET_USD = float(os.getenv("ETIKET_USD", "5"))
 UCRET = 0.01
 GUNLUK = int(os.getenv("ETIKET_GUNLUK", "400"))
+GOLGE_GUNLUK = int(os.getenv("ETIKET_GOLGE_GUNLUK", "300"))   # gölge havuz/izlenen sinyaller için ayrı sınır: kopyalanan sinyali dışarıda bırakmaz
+IZLENEN = "cüzdan yalnızca izleniyor"
+TEYIT_SN = 900
 TEKRAR_SN = 1800
 UFUKLAR = {"5dk": (300, 120), "30dk": (1800, 300)}          # ufuk: (gecikme sn, tolerans sn)
 KAYNAK_ZAMAN_ASIMI = 86400
@@ -42,7 +45,10 @@ class Etiketci:
     def __init__(self, db_path, quoter, bilgi=None, cuzdanlar=None, clock=time.time, sleep=time.sleep, model=None):
         self.db = sqlite3.connect(db_path, check_same_thread=False, timeout=10)
         self.db.row_factory = sqlite3.Row
-        self.db.executescript(SEMA); self.db.commit()
+        self.db.executescript(SEMA)
+        try: self.db.execute("ALTER TABLE etiket_olay ADD COLUMN teyit INTEGER")   # 18.11: aynı token'ı 15 dk içinde alan cüzdan sayısı
+        except sqlite3.OperationalError: pass
+        self.db.commit()
         self.quoter, self.bilgi, self.cuzdanlar = quoter, bilgi, cuzdanlar or {}
         self.model = model                              # N19: varsa her sinyale gölge model kararı yazılır (işleme dokunmaz)
         self.clock, self.sleep = clock, sleep
@@ -90,10 +96,16 @@ class Etiketci:
             if self.db.execute("SELECT 1 FROM etiket_olay WHERE wallet=? AND token=? AND ts > ?",
                                (wallet, token, t0 - TEKRAR_SN)).fetchone(): return "tekrar"
             gun_bas = t0 - (t0 % 86400)
-            if self.db.execute("SELECT COUNT(*) FROM etiket_olay WHERE ts >= ?", (gun_bas,)).fetchone()[0] >= GUNLUK: return "sinir"
+            izlenen = gerekce == IZLENEN
+            n = self.db.execute("SELECT COUNT(*) FROM etiket_olay WHERE ts >= ? AND (COALESCE(gerekce,'') = ?) = ?",
+                                (gun_bas, IZLENEN, 1 if izlenen else 0)).fetchone()[0]
+            if n >= (GOLGE_GUNLUK if izlenen else GUNLUK): return "sinir"
+            teyit = 1 + self.db.execute("SELECT COUNT(DISTINCT wallet) FROM etiket_olay WHERE token=? AND wallet != ? AND ts BETWEEN ? AND ?",
+                                        (token, wallet, t0 - TEYIT_SN, t0)).fetchone()[0]
         g = time.gmtime(t0)
         satir = dict(event_id=event_id, ts=t0, wallet=wallet, token=token, sig=sig, block_time=bt, gecikme_sn=gecikme,
-                     karar=karar, gerekce=gerekce, saat_utc=g.tm_hour, gun=g.tm_wday, cuzdan=json.dumps(self.cuzdanlar.get(wallet) or {}))
+                     karar=karar, gerekce=gerekce, saat_utc=g.tm_hour, gun=g.tm_wday, cuzdan=json.dumps(self.cuzdanlar.get(wallet) or {}),
+                     teyit=teyit)
         tutar = int(round(ETIKET_USD * 1e6))
         try:
             self._bekle_bos(); q = self.quoter.quote(USDC_MINT, token, tutar)

@@ -78,3 +78,10 @@ class ModelTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class GolgeOzellikTests(unittest.TestCase):
+    def test_izlenen_bot_karari_bilinmiyor_ve_teyit(self):
+        o = ozellikler(dict(karar="REDDEDİLDİ", gerekce="cüzdan yalnızca izleniyor", teyit=3))
+        self.assertIsNone(o["bot_kopyaladi"]); self.assertGreater(o["log_teyit"], 0)
+        self.assertEqual(ozellikler(dict(karar="KOPYALANDI", gerekce="geçti"))["bot_kopyaladi"], 1.0)

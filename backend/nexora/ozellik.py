@@ -8,13 +8,13 @@ import json, math, os, sqlite3
 # Alım anında bilinen, özellik üretiminde kullanılmasına izin verilen etiket_olay sütunları.
 T0_SUTUNLAR = ("event_id", "ts", "wallet", "token", "gecikme_sn", "karar", "gerekce", "saat_utc", "gun", "giris_etki",
                "al_sat_kaybi_pct", "tb_yas_sn", "tb_likidite", "tb_mcap", "tb_sahip", "tb_organik", "tb_top_pct",
-               "tb_dev_pct", "tb_sus", "cuzdan", "durum")
+               "tb_dev_pct", "tb_sus", "cuzdan", "durum", "teyit")
 
 TUTARSIZ_ESIK = -2.0
 
 OZELLIKLER = ["log_gecikme", "al_sat_kaybi", "giris_etki", "log_likidite", "log_yas_saat", "log_mcap", "log_sahip",
               "organik", "top_pay", "dev_pay", "supheli", "c_kazanma", "c_kar_faktoru", "c_ort_getiri", "c_skor",
-              "c_dusus", "c_sifir_tur", "saat_sin", "saat_cos", "bot_kopyaladi"]
+              "c_dusus", "c_sifir_tur", "saat_sin", "saat_cos", "bot_kopyaladi", "log_teyit"]
 
 
 def _f(v):
@@ -48,8 +48,24 @@ def ozellikler(satir):
         c_skor=_f(c.get("skor")), c_dusus=_f(c.get("dusus_kazanc_orani")), c_sifir_tur=_f(c.get("sifir_tur_orani")),
         saat_sin=None if saat is None else math.sin(2 * math.pi * saat / 24),
         saat_cos=None if saat is None else math.cos(2 * math.pi * saat / 24),
-        bot_kopyaladi=1.0 if satir.get("karar") == "KOPYALANDI" else 0.0,
+        # gölge havuz/izlenen cüzdan: bot kuralları hiç sorulmadı -> bilinmiyor (0 yazmak 'izlenen' bilgisini sızdırırdı)
+        bot_kopyaladi=None if satir.get("gerekce") == "cüzdan yalnızca izleniyor" else (1.0 if satir.get("karar") == "KOPYALANDI" else 0.0),
+        log_teyit=_log(satir.get("teyit")),                     # 15 dk içinde aynı token'ı alan farklı cüzdan sayısı (t0'da bilinir)
     )
+
+
+def _teyit_doldur(olaylar, db_path, pencere=900):
+    """'teyit' sütunu eklenmeden önceki satırlar için aynı tanımla geriye doldurur: o ana kadar (t0 dahil, öncesi 15 dk)
+    aynı token'ı alan farklı cüzdan sayısı. Yalnızca geçmiş satırlar kullanılır (sızıntı yok)."""
+    eksik = [o for o in olaylar.values() if o.get("teyit") is None]
+    if not eksik: return
+    c = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+    try: tum = c.execute("SELECT ts, wallet, token FROM etiket_olay").fetchall()
+    finally: c.close()
+    tok = {}
+    for ts, w, t in tum: tok.setdefault(t, []).append((ts, w))
+    for o in eksik:
+        o["teyit"] = 1 + len({w for ts, w in tok.get(o["token"], ()) if w != o["wallet"] and o["ts"] - pencere <= ts <= o["ts"]})
 
 
 def veri_seti(db_path, ufuk="kaynak"):
@@ -64,6 +80,7 @@ def veri_seti(db_path, ufuk="kaynak"):
     finally:
         c.close()
     # Tutarsız teklifle (al-sat 'kazancı' > %2) başlayan örnekler dışarıda: etiketleri gerçekleşemeyecek kârla şişer.
+    _teyit_doldur(olaylar, db_path)
     out = [(o["ts"], e, o["wallet"], ozellikler(o), etiket[e]) for e, o in olaylar.items()
            if e in etiket and not (o.get("al_sat_kaybi_pct") is not None and o["al_sat_kaybi_pct"] < TUTARSIZ_ESIK)]
     out.sort(key=lambda x: x[0])

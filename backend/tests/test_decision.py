@@ -309,7 +309,7 @@ class GuclendirmeTests(unittest.TestCase):
     def test_ayni_cuzdan_teyit_sayilmaz_ve_sure(self):
         self.d.decide("e1", "W1", TOK, "buy", 1)
         self.assertEqual(self.d.decide("e2", "W1", TOK, "buy", 1)["reason"], "bu token'da zaten pozisyon var")
-        self.d._alimlar[TOK]["W1"] -= 2000                                   # 15 dk'dan eski alım teyit sayılmaz
+        self.d._alimlar[TOK]["W1"] = (self.d._alimlar[TOK]["W1"][0] - 2000, False)                                   # 15 dk'dan eski alım teyit sayılmaz
         self.assertEqual(self.d.decide("e3", "W2", TOK, "buy", 1)["reason"], "bu token'da zaten pozisyon var")
 
     def test_tutulmayan_teyitli_tokena_iki_kat(self):
@@ -328,3 +328,13 @@ class GuclendirmeTests(unittest.TestCase):
         self.d.GUC_KAT = 1.0
         self.d.decide("e1", "W1", TOK, "buy", 1)
         self.assertEqual(self.d.decide("e2", "W2", TOK, "buy", 1)["reason"], "bu token'da zaten pozisyon var")
+
+
+class GolgeTeyitTests(unittest.TestCase):
+    def test_golge_alimi_canli_teyidi_degistirmez(self):
+        from nexora.decision import Decider
+        d = Decider.__new__(Decider); d.GUC_SN = 900
+        d._teyit("G1", "T", now=100, golge=True)
+        self.assertEqual(d._teyit("W1", "T", now=110), (1, 2))          # kopyalanan 1, gölge dahil 2
+        self.assertEqual(d._teyit("W2", "T", now=120), (2, 3))
+        self.assertEqual(d._teyit("W3", "T", now=2000), (1, 1))         # 15 dk'dan eskiler düşer

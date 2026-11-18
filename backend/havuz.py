@@ -3,6 +3,7 @@
   python3 havuz.py                  # rapor (Helius kredisi HARCAMAZ): tarama durumu, analiz kararları, takipte olanlar
   python3 havuz.py analiz 60        # analiz edilmemiş aday cüzdanlardan 60'ını analiz et (~20 kredi/cüzdan)
   python3 havuz.py ekle             # analizden 'kopyalanabilir' çıkıp takipte olmayanları kadroya ekle (liste sınırına kadar)
+  python3 havuz.py golge            # gölge havuzu doldur (kâr etmiş ama kopyalanamayanlar: yalnızca izlenir, KOPYALANMAZ) ve karnesi
 
 Kadro 'herkes' modunda eklenenler doğrudan kopyalanır; takip servisi liste değişince kendini yeniden başlatır."""
 import csv, os, sys, tempfile
@@ -86,8 +87,22 @@ def ekle(d=None):
            ("" if len(oz["eklenen"]) == len(sira) else f" (liste sınırı {kadro.LISTE_SINIRI}: {len(sira) - len(oz['eklenen'])} eklenemedi)")
 
 
+def golge_rapor():
+    from nexora import golge
+    r = golge.doldur()
+    k = golge.karne(os.getenv("ETIKET_DB", "nexora_etiket.db"))
+    L = [f"Gölge havuz: {r['toplam']} cüzdan (sınır {golge.SINIR}); eklenen {len(r['eklenen'])}, çıkan {len(r['cikan'])}"
+         + (" — takip servisi yeni listeyle yeniden başlayacak" if r["degisti"] else ""),
+         f"İleriye dönük ölçüm (14 gün, kaynak ufku): {k['olculen']} cüzdan, {k['sinyal']} sinyal; terfi adayı {len(k['terfi'])}"]
+    for w, m in k["satirlar"][:10]:
+        L.append(f"  {w[:4]}…{w[-4:]}  n={m['n']:<3} ort %{m['ort']:+.1f}  medyan %{m['medyan']:+.1f}  pozitif %{100 * m['pozitif']:.0f}"
+                 + ("  <- terfi adayı" if w in k["terfi"] else ""))
+    return "\n".join(L)
+
+
 if __name__ == "__main__":
     komut = sys.argv[1] if len(sys.argv) > 1 else "rapor"
     if komut == "analiz": print(analiz_et(int(sys.argv[2]) if len(sys.argv) > 2 else 20))
     elif komut == "ekle": print(ekle())
+    elif komut == "golge": print(golge_rapor())
     else: print(rapor())
