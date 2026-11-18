@@ -18,6 +18,14 @@ jobs:
           fonttools varLib.instancer /tmp/orbitron_var.ttf wght=900 -o android/app/src/main/res/font/orbitron_black.ttf
           fonttools varLib.instancer /tmp/orbitron_var.ttf wght=700 -o android/app/src/main/res/font/orbitron_bold.ttf
           ls -la android/app/src/main/res/font
+      # Strategy Lab graph is a local APK asset; never load a CDN at runtime.
+      - name: Bundle local Lightweight Charts 5.1 into APK
+        run: |
+          mkdir -p /tmp/nexora-lightweight android/app/src/main/assets/strategy_lab
+          npm install --prefix /tmp/nexora-lightweight --no-save --ignore-scripts --no-audit --no-fund lightweight-charts@5.1.0
+          cp /tmp/nexora-lightweight/node_modules/lightweight-charts/dist/lightweight-charts.standalone.production.js android/app/src/main/assets/strategy_lab/
+          test -s android/app/src/main/assets/strategy_lab/lightweight-charts.standalone.production.js
+          test -s android/app/src/main/assets/strategy_lab/chart.html
       - run: gradle -p android assembleRelease --no-daemon
       - uses: actions/upload-artifact@v4
         with: { name: nexora-apk, path: android/app/build/outputs/apk/release/app-release.apk }
