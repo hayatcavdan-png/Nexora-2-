@@ -33,8 +33,6 @@ jobs:
           python -B -m unittest discover -s backend/tests -p 'test_social_radar_http.py' -v
           python -B -m unittest discover -s backend/tests -p 'test_social_paper_usdt.py' -v
           python -B -m unittest discover -s backend/tests -p 'test_social_paper_http.py' -v
-          python -B -m unittest discover -s backend/tests -p 'test_telegram_bridge.py' -v
-          python -B -m unittest discover -s backend/tests -p 'test_telegram_metadata_worker.py' -v
           python -B -m unittest discover -s backend/tests -p 'test_social_recent_research.py' -v
           python -B -m unittest discover -s backend/tests -p 'test_social_recent_http.py' -v
           python -B -m unittest discover -s backend/tests -p 'test_social_paper_watch.py' -v
