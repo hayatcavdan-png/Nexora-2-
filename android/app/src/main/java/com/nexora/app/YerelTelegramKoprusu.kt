@@ -59,7 +59,7 @@ private fun yerelTelegramOku(): TelegramDurum {
         require(data.opt("social_ai_transfer") == false)
         val stamp = Instant.parse(data.getString("updated_at"))
         val age = Instant.now().epochSecond - stamp.epochSecond
-        val recent = age in -5..90
+        val recent = age in -5L..90L
 
         val rows = data.getJSONArray("source_status")
         require(rows.length() == 2)
