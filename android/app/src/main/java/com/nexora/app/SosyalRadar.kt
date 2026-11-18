@@ -24,11 +24,11 @@ private data class SosyalKaynak(
 )
 
 private val SOSYAL_KAYNAKLAR = listOf(
-    SosyalKaynak("tg_solearlytrending", "Solana Early Trending", "Telegram", "solearlytrending", "Yeni Solana trendleri"),
-    SosyalKaynak("tg_kolscope", "KOLscope", "Telegram", "KOLscope", "Influencer çağrıları"),
-    SosyalKaynak("x_blknoiz06", "Ansem", "X", "blknoiz06", "Sosyal anlatı ve paylaşımlar"),
-    SosyalKaynak("x_lookonchain", "Lookonchain", "X", "lookonchain", "Zincir analizi ve büyük işlemler"),
-    SosyalKaynak("x_bubblemaps", "Bubblemaps", "X", "bubblemaps", "İlişkili cüzdan riskleri"),
+    SosyalKaynak("solana_early_trending", "Solana Early Trending", "Telegram", "solearlytrending", "Yeni Solana trendleri"),
+    SosyalKaynak("kolscope", "KOLscope", "Telegram", "KOLscope", "Influencer çağrıları"),
+    SosyalKaynak("ansem", "Ansem", "X", "blknoiz06", "Sosyal anlatı ve paylaşımlar"),
+    SosyalKaynak("lookonchain", "Lookonchain", "X", "lookonchain", "Zincir analizi ve büyük işlemler"),
+    SosyalKaynak("bubblemaps", "Bubblemaps", "X", "bubblemaps", "İlişkili cüzdan riskleri"),
 )
 
 private fun kaynakBul(kaynaklar: JSONArray?, kaynak: SosyalKaynak): JSONObject? {
@@ -100,6 +100,16 @@ fun SosyalRadarEkrani(url: String, key: String) {
             Text("Canlı bağlantı bekleniyor", color = Nx.Sari, fontWeight = FontWeight.SemiBold)
             Text(hata, color = Nx.Soluk, fontSize = 13.sp)
             Text("Beş kaynak yalnızca izleme kataloğudur; aşağıda gösterilmeleri mesajlarının okunduğu anlamına gelmez.",
+                color = Nx.Soluk, fontSize = 12.sp)
+        }
+    }
+
+    if (veri != null && !veri!!.optBoolean("live_enabled", false)) {
+        Kart(Modifier.fillMaxWidth()) {
+            Text("Gerçek zamanlı sosyal veri henüz etkin değil", color = Nx.Sari, fontWeight = FontWeight.SemiBold)
+            Text("Sunucu durumu: " + veri!!.optString("snapshot_status", "UNKNOWN"),
+                color = Nx.Soluk, fontSize = 12.sp)
+            Text("Kaynak bağlantısı doğrulanmadan sosyal uyarı gösterilmez.",
                 color = Nx.Soluk, fontSize = 12.sp)
         }
     }
