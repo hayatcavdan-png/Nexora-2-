@@ -63,6 +63,8 @@ class Veri {
     var ayarlar by mutableStateOf(JSONObject())
     var modelFiltre by mutableStateOf(JSONObject())
     var yz by mutableStateOf<JSONObject?>(null)
+    /** Üyenin /uye/bakiye yanıtı; ortak sistem paper portföyüne eşit değildir. */
+    var uyeBakiye by mutableStateOf<JSONObject?>(null)
 
     var nakit by mutableStateOf(0.0)
     var toplam by mutableStateOf(0.0)
@@ -103,13 +105,19 @@ class Veri {
     val basariOrani: Double? get() = kapananlar.let { k -> if (k.isEmpty()) null else k.count { it.kz > 0 } * 100.0 / k.size }
 
     /** "kurucu" (API anahtarı ya da kurucu oturumu) ya da "uye". Üye ekranlarında kurucu kontrolleri gizlenir. */
-    var rol by mutableStateOf("kurucu")
+    var rol by mutableStateOf("bilinmiyor")
     val kurucu get() = rol == "kurucu"
 
     fun yukle(url: String, key: String) {
         val eksik = mutableListOf<String>()
         val d = JSONObject(api(url, key, "/durum"))
         rol = d.optString("rol", "kurucu")
+        // Üye paneli için yalnızca giriş yapan kişinin kişisel SANAL bilançosu.
+        // Yetki verilmediyse veya uç nokta yoksa eski değeri göstermeyiz.
+        if (rol == "uye") {
+            try { uyeBakiye = JSONObject(api(url, key, "/uye/bakiye")) }
+            catch (e: Exception) { uyeBakiye = null; eksik += "üye bakiyesi" }
+        } else uyeBakiye = null
         acilDurdurma = d.optBoolean("acil_durdurma")
         ayarlar = d.optJSONObject("ayarlar") ?: JSONObject()
         modelFiltre = d.optJSONObject("model_filtre") ?: JSONObject()
