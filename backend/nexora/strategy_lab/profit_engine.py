@@ -152,6 +152,7 @@ def _walk_forward(rows, *, as_of):
     chosen = 0
     observed = 0
     stressed = 0.0
+    stressed_observations = []
     wins = 0
     equity = peak = INITIAL_EQUITY
     max_dd = 0.0
@@ -168,17 +169,24 @@ def _walk_forward(rows, *, as_of):
         if outcome is not None:
             observed += 1
         pnl = _stress_net(item, choice, as_of=as_of)
+        stressed_observations.append(pnl)
         wins += int(pnl > 0)
         stressed += pnl
         equity += pnl
         peak = max(peak, equity)
         max_dd = max(max_dd, (peak - equity) / peak if peak > 0 else 1.0)
+    forward_lower = None
+    if chosen >= 2:
+        forward_avg = mean(stressed_observations)
+        forward_lower = (forward_avg -
+                         CONFIDENCE_Z * pstdev(stressed_observations) / sqrt(chosen))
     return {
         "selected_paper_studies": chosen,
         "observed_exit_quotes": observed,
         "quote_coverage": round(observed / chosen, 4) if chosen else None,
         "stress_net_usdt": round(stressed, 6),
         "stress_average_net_usdt": round(stressed / chosen, 6) if chosen else None,
+        "stress_lower_bound_usdt": round(forward_lower, 6) if forward_lower is not None else None,
         "stress_winning_fraction": round(wins / chosen, 4) if chosen else None,
         "sequential_stress_max_drawdown_pct": round(max_dd * 100, 3),
         "realized_profit": False,
@@ -209,7 +217,8 @@ def review(state, *, as_of):
     status = "INSUFFICIENT_DATA" if n < MIN_TRAIN else (
         "NO_VALID_EDGE" if choice is None else "EDGE_UNVALIDATED")
     if choice is not None and out["selected_paper_studies"] >= MIN_VALIDATION_TRADES:
-        if (out["stress_average_net_usdt"] > 0 and
+        if (out["stress_lower_bound_usdt"] is not None and
+                out["stress_lower_bound_usdt"] > 0 and
                 out["quote_coverage"] >= MIN_COVERAGE and
                 out["sequential_stress_max_drawdown_pct"] <= 10.0):
             status = "PAPER_EDGE_CANDIDATE"
