@@ -116,3 +116,46 @@ def read_snapshot(path):
         return sanitize(json.loads(raw))
     except (OSError, ValueError, TypeError, KeyError, OverflowError):
         return empty("UNAVAILABLE")
+
+
+def auto_paper_status(path, *, enabled=False):
+    """Founder-private aggregate from separate paper JSON, never an order flag.
+
+    A readable ledger is NOT evidence that the background worker is running.
+    Do not return token addresses, wallets, keys or raw provider responses.
+    """
+    base = {
+        "schema_version": 1, "mode": "QUOTE_PAPER_RESEARCH",
+        "status": "DISABLED", "real_order": False, "live_trading": False,
+        "total_studies": 0, "active_recent_studies": 0,
+        "recent_sell_signals": 0, "recent_exit_unavailable": 0,
+        "available_research_cash_usdt": None,
+        "worker_running_verified": False,
+    }
+    if not enabled:
+        return base
+    if not path:
+        return dict(base, status="PATH_NOT_CONFIGURED")
+    try:
+        from nexora.social_ai.paper_watch import Store
+        public = Store(path).read()
+        entries = public.get("entries", [])
+        if not isinstance(entries, list):
+            raise ValueError("invalid entries")
+        signals = [
+            v.get("lab_exit_signal", {})
+            for row in entries if isinstance(row, dict)
+            for v in row.get("horizons", {}).values() if isinstance(v, dict)
+        ]
+        return dict(
+            base, status="LEDGER_AVAILABLE",
+            total_studies=public["total_studies"],
+            active_recent_studies=sum(row.get("reserved") is True for row in entries),
+            recent_sell_signals=sum(v.get("action") == "PAPER_SELL_SIGNAL"
+                                    for v in signals if isinstance(v, dict)),
+            recent_exit_unavailable=sum(v.get("action") == "EXIT_UNAVAILABLE"
+                                        for v in signals if isinstance(v, dict)),
+            available_research_cash_usdt=public["available_research_cash_usdt"],
+        )
+    except (OSError, ValueError, TypeError, KeyError, AttributeError):
+        return dict(base, status="LEDGER_UNAVAILABLE")
