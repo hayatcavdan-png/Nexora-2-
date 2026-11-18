@@ -329,6 +329,14 @@ def refresh_due(store, quoter, *, now=None, max_quotes=3):
     request_time = time.time() if real_clock else _now(now)
     current = store._read()
     due = due_horizons(current, now=request_time, max_results=max_quotes)
+    if not due:
+        if not expire_missed(current, now=request_time):
+            return public_status(current)
+        def expire_only(state):
+            expire_missed(state, now=request_time)
+            release_completed(state)
+            return public_status(state)
+        return store.mutate(expire_only)
     quotes = {}
     for mint, horizon, qty in due:
         try:
