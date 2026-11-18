@@ -193,8 +193,14 @@ class H(BaseHTTPRequestHandler):
         social_radar = parts.path == "/admin/social-radar"
         social_paper = parts.path == "/admin/social-paper"
         social_watch = parts.path == "/admin/social-paper-watch"
-        izin, yetki = self._izin(parts.path, False, private=social_radar or social_paper or social_watch)
+        strategy_lab = parts.path == "/admin/strategy-lab"
+        izin, yetki = self._izin(parts.path, False, private=social_radar or social_paper or social_watch or strategy_lab)
         if not izin: return
+        if strategy_lab:
+            from nexora.strategy_lab.report import read_snapshot
+            # No automatic provider call, no sqlite reads and no live order.
+            self._send(200, read_snapshot(os.getenv("STRATEGY_LAB_SNAPSHOT", "")), private=True)
+            return
         if social_watch:
             from nexora.social_ai.paper_watch import Store, initial_state, public_status
             path = os.getenv("SOCIAL_PAPER_WATCH_PATH", "")
