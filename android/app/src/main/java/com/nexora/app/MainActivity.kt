@@ -294,7 +294,7 @@ fun App() {
                         GorunumAyari(sp)
                     }
                     "hazir" -> item(key = "hazir") { HazirlikEkrani(v) }
-                    "uye" -> item(key = "uye") { UyeEkrani(url, key, sp) { cekYenile() } }
+                    "uye" -> item(key = "uye") { UyeEkrani(url, key, sp) { v.uyeBakiye = null; cekYenile() } }
                     "rapor" -> {
                         if (v.kurucu && v.bagli) item(key = "teshis") { TeshisKarti(url, key) }
                         item(key = "rapor") { Column(verticalArrangement = Arrangement.spacedBy(12.dp)) { RaporEkrani(v) } }
