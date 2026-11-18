@@ -22,14 +22,14 @@ class LabInputError(ValueError):
     pass
 
 
-def decimal(value):
-    if type(value) not in (str, int, float):
+def decimal(value, *, allow_zero=False):
+    if type(value) not in (str, int, float, Decimal):
         raise LabInputError("number must be finite")
     try:
         val = Decimal(str(value))
     except (InvalidOperation, ValueError):
         raise LabInputError("invalid number") from None
-    if not val.is_finite() or val <= 0:
+    if not val.is_finite() or val < 0 or (not allow_zero and val == 0):
         raise LabInputError("positive finite number required")
     return val
 
@@ -63,8 +63,8 @@ def backtest(bars, *, fee_bps=FEE_BPS, slippage_bps=SLIPPAGE_BPS):
     this conservative model only checks prior close and exits on NEXT open.
     """
     parsed = candles_checked(bars)
-    fee = decimal(fee_bps) / Decimal("10000")
-    slip = decimal(slippage_bps) / Decimal("10000")
+    fee = decimal(fee_bps, allow_zero=True) / Decimal("10000")
+    slip = decimal(slippage_bps, allow_zero=True) / Decimal("10000")
     if fee > Decimal("0.02") or slip > Decimal("0.10"):
         raise LabInputError("unrealistic costs")
     cash = CASH
@@ -72,7 +72,7 @@ def backtest(bars, *, fee_bps=FEE_BPS, slippage_bps=SLIPPAGE_BPS):
     entry_price = Decimal("0")
     entry_total = Decimal("0")
     trades = []
-    equity = [{"ts": parsed[0][0], "equity": "100"}]
+    equity = []
     pending = None
     for i, (ts, op, hi, lo, cl) in enumerate(parsed):
         if pending == "BUY" and tokens == 0 and cash >= ENTRY_BUDGET_USDT:
