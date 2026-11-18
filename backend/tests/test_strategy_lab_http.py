@@ -65,6 +65,9 @@ class StrategyLabHttpTests(unittest.TestCase):
         self.assertFalse(data["founder"][1]["real_order"])
         self.assertEqual(data["founder"][1]["equity"], [])
         self.assertEqual(len(data["founder"][1]["capabilities"]), 7)
+        self.assertEqual(data["founder"][1]["auto_paper"]["status"], "DISABLED")
+        self.assertFalse(data["founder"][1]["auto_paper"]["real_order"])
+        self.assertFalse(data["founder"][1]["auto_paper"]["worker_running_verified"])
         for row in data.values():
             self.assertEqual(row[2], "no-store")
 
