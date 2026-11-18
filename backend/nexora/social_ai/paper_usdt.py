@@ -7,10 +7,12 @@ All positive results remain **simulated evidence**, not live buy signals.
 from __future__ import annotations
 
 from decimal import Decimal, InvalidOperation
-from pathlib import Path
 import json
 import math
+import os
 import stat
+
+from nexora.token_safety import TOKEN_2022
 
 from nexora.token_safety import evaluate as token_safety
 from .events import valid_address
@@ -135,6 +137,23 @@ def simulate(candidate, *, now):
     if not isinstance(info, dict) or info.get("isInitialized") is not True:
         out["reason"] = "NOT_INITIALIZED"
         return out
+    decimals = info.get("decimals")
+    if type(decimals) is not int or not 0 <= decimals <= 18:
+        out["reason"] = "MINT_DECIMALS_UNKNOWN"
+        return out
+    for authority in ("mintAuthority", "freezeAuthority"):
+        if authority not in info or (info[authority] is not None
+                                    and not valid_address(info[authority])):
+            out["reason"] = "MINT_AUTHORITY_UNKNOWN"
+            return out
+    if value.get("owner") == TOKEN_2022:
+        extensions = info.get("extensions")
+        if not isinstance(extensions, list) or not all(
+            isinstance(ext, dict) and isinstance(ext.get("extension"), str)
+            for ext in extensions
+        ):
+            out["reason"] = "TOKEN_2022_EXTENSIONS_UNKNOWN"
+            return out
     verdict = token_safety(value)
     if verdict.get("verdict") != "UYGUN":
         out["reason"] = "MINT_RISK_OR_UNKNOWN"
@@ -202,7 +221,9 @@ def portfolio(candidates, *, now):
             continue
         mint = candidate.get("mint")
         event_id = candidate.get("event_id")
-        dedup = (mint, event_id) if isinstance(mint, str) and isinstance(event_id, str) and 0 < len(event_id) <= 128 else None
+        signature = (event_id if isinstance(event_id, str) and 0 < len(event_id) <= 128
+                     else "t0:" + str(candidate.get("observed_at")))
+        dedup = (mint, signature) if valid_address(mint) else None
         if dedup is not None and dedup in seen:
             row = simulate(None, now=now)
             row["reason"] = "DUPLICATE_EVENT"
@@ -235,17 +256,17 @@ def from_file(path, *, now):
                     initial_cash_usdt=str(INITIAL_CASH_USDT),
                     remaining_cash_usdt=str(INITIAL_CASH_USDT),
                     positions=0, results=[], snapshot_status="NOT_CONFIGURED")
-    flags = __import__("os").O_RDONLY | getattr(__import__("os"), "O_NOFOLLOW", 0) | __import__("os").O_NONBLOCK
-    fd = __import__("os").open(path, flags)
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | os.O_NONBLOCK
+    fd = os.open(path, flags)
     try:
-        if not stat.S_ISREG(__import__("os").fstat(fd).st_mode):
+        if not stat.S_ISREG(os.fstat(fd).st_mode):
             raise ValueError("fixture must be a regular file")
-        with __import__("os").fdopen(fd, "rb") as f:
+        with os.fdopen(fd, "rb") as f:
             fd = -1
             raw = f.read(200_001)
     finally:
         if fd >= 0:
-            __import__("os").close(fd)
+            os.close(fd)
     if len(raw) > 200_000:
         raise ValueError("fixture too large")
     data = json.loads(raw)
