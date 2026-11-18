@@ -7,6 +7,7 @@ earliest possible paper fill. Never present simulation as proven live profit.
 from __future__ import annotations
 from decimal import Decimal, InvalidOperation
 from math import isfinite
+from nexora.social_ai.events import valid_address
 
 MAX_BARS = 10000
 CASH = Decimal("100")
@@ -133,7 +134,7 @@ def rank_candidates(rows):
         raise LabInputError("invalid candidate batch")
     output = []
     for row in rows:
-        if not isinstance(row, dict) or not isinstance(row.get("mint"), str):
+        if not isinstance(row, dict) or not valid_address(row.get("mint")):
             continue
         evidences = ("mint_checked", "sell_route_checked", "liquidity_checked",
                      "holders_checked", "quote_fresh")
