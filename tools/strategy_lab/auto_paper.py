@@ -21,6 +21,15 @@ def cycle(*, research, store, now):
     """
     from nexora.social_ai.paper_watch import open_study
     from nexora.strategy_lab.auto_decision import entry_signal
+    from nexora.strategy_lab.profit_engine import review as profit_review
+
+    # Check the FULL private paper history before making network requests.
+    # No future outcomes, production DBs, signing keys or real orders.
+    profit = profit_review(store._read(), as_of=now)
+    if not profit["intake"]["allow_new_paper"]:
+        return {"status": "PROFIT_GUARD_PAUSED", "scanned": 0,
+                "paper_opened": 0, "lab_rejected": 0,
+                "profit_guard": profit["intake"]["reason"], "real_order": False}
 
     response = research(enabled=True, limit=2)
     if not isinstance(response, dict) or response.get("mode") != "READ_ONLY_RESEARCH":
