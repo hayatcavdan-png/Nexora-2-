@@ -52,6 +52,8 @@ Model en az 2 hafta canlı sinyallere paralel karar verir; işlemlere dokunmaz. 
 
 **Ön koşul:** API anahtarı ve aylık maliyet için sizin onayınız.
 
+Solana Social AI V1 sentetik veriyle ayrı bir gölge raporu üretir. [Çevrimdışı kullanım ve entegrasyon tasarımı](Solana_Social_AI_V1.md).
+
 ## Bağımlılıklar
 N16 → N17 → N18 → N19 → N20. N21, N16'dan sonra paralel yürüyebilir.
 Ana hatla bağlantı: N10 (eşik kararları) N17'nin temel çizgisi olur; N3 keşfi N16'nın veri hızını artırır; gerçek para yalnızca N12 onayıyla.
