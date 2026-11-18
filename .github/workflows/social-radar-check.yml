@@ -9,6 +9,7 @@ on:
       - "backend/**"
       - "android/**"
       - "tools/strategy_lab/**"
+      - "tools/apk_audit/**"
       - ".github/workflows/social-radar-check.yml"
 permissions:
   contents: read
@@ -84,6 +85,8 @@ jobs:
           npm install --prefix /tmp/nexora-lightweight --no-save --ignore-scripts --no-audit --no-fund lightweight-charts@5.1.0
           cp /tmp/nexora-lightweight/node_modules/lightweight-charts/dist/lightweight-charts.standalone.production.js android/app/src/main/assets/strategy_lab/
           test -s android/app/src/main/assets/strategy_lab/lightweight-charts.standalone.production.js
+      - name: Android static credential and backup safety guard
+        run: python3 tools/apk_audit/static_gate.py
       - name: Kotlin APK derle
         run: gradle -p android assembleRelease --no-daemon
       - name: Android transport security JVM tests
