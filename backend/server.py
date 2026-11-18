@@ -345,15 +345,44 @@ class H(BaseHTTPRequestHandler):
     def do_POST(self):
         path = urlsplit(self.path).path
         token_research = path == "/admin/token-discovery"
-        izin, _ = self._izin(path, True, private=token_research)
+        paper_refresh = path == "/admin/social-paper-watch-refresh"
+        izin, _ = self._izin(path, True, private=token_research or paper_refresh)
         if not izin: return
         try:
             n = int(self.headers.get("Content-Length", 0) or 0)
         except (TypeError, ValueError):
             self._send(400, {"hata": "gecersiz istek boyutu"}, private=token_research); return
-        if token_research and not 0 <= n <= 2048:
+        if (token_research or paper_refresh) and not 0 <= n <= 2048:
             self._send(413, {"hata": "istek siniri"}, private=True); return
         raw = self.rfile.read(n) if n else b"{}"
+        if paper_refresh:
+            from nexora.social_ai.paper_watch import Store, initial_state, public_status, refresh_due
+            empty = public_status(initial_state())
+            enabled = (os.getenv("SOCIAL_RESEARCH_LIVE_ENABLED") == "1"
+                       and os.getenv("SOCIAL_PAPER_WATCH_ENABLED") == "1")
+            state_path = os.getenv("SOCIAL_PAPER_WATCH_PATH", "")
+            if not enabled:
+                empty["snapshot_status"] = "DISABLED"
+                self._send(200, empty, private=True)
+            elif not state_path or not os.getenv("JUPITER_API_KEY"):
+                empty["snapshot_status"] = "KEY_OR_PATH_MISSING"
+                self._send(200, empty, private=True)
+            else:
+                from nexora.social_ai.recent_research import _admission
+                if not _admission(_time.monotonic()):
+                    self._send(429, {"hata": "arastirma hiz siniri"}, private=True)
+                else:
+                    try:
+                        from nexora.market import JupiterQuoter
+                        quoter = JupiterQuoter(timeout=8)
+                        try:
+                            data = refresh_due(Store(state_path), quoter, max_quotes=3)
+                        finally:
+                            quoter.session.close()
+                        self._send(200, data, private=True)
+                    except (OSError, ValueError, TypeError, KeyError):
+                        self._send(503, {"hata": "sanal arastirma dosyasi kullanilamiyor"}, private=True)
+            return
         if token_research:
             try:
                 from nexora.social_ai.recent_research import research_manual, research_recent
