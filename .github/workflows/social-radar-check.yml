@@ -1,0 +1,33 @@
+name: Social Radar Kontrol
+on:
+  push:
+    branches:
+      - codex/social-radar-server-v1
+  pull_request:
+    paths:
+      - "backend/nexora/social_ai/**"
+      - "backend/tests/test_social_ai.py"
+      - "backend/tests/test_social_radar.py"
+      - "backend/tests/test_social_radar_api.py"
+      - ".github/workflows/social-radar-check.yml"
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install -r backend/requirements.txt
+      - name: Social AI ve Radar testleri (offline)
+        env:
+          PYTHONPATH: backend
+          PYTHONDONTWRITEBYTECODE: "1"
+          SOCIAL_LIVE_ENABLED: "0"
+        run: |
+          python -B -m unittest discover -s backend/tests -p 'test_social_ai.py' -v
+          python -B -m unittest discover -s backend/tests -p 'test_social_radar.py' -v
+          python -B -m unittest discover -s backend/tests -p 'test_social_radar_api.py' -v
