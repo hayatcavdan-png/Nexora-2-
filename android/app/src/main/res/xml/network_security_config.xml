@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- No cleartext to LAN, Tailscale peers, public hosts or exchanges. -->
+    <base-config cleartextTrafficPermitted="false" />
+    <!-- Only phone-local Termux remains compatible with HTTP. -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">localhost</domain>
+        <domain includeSubdomains="false">127.0.0.1</domain>
+    </domain-config>
+</network-security-config>
