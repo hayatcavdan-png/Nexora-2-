@@ -181,6 +181,21 @@ def rapor(now=None, GUN=3.0):
     except Exception as ex:
         L.append(f"[11] gölge havuz hesaplanamadı: {type(ex).__name__}")
 
+    try:                                   # 12) Yapay zekâ gölge kararı (N19): model ileriye dönük ne seçti, ne oldu
+        from nexora.model_kapisi import golge_rapor
+        g = golge_rapor(os.getenv("ETIKET_DB", "nexora_etiket.db"))
+        if g.get("n"):
+            f = lambda v: "—" if v is None else f"%{v:+.2f}"
+            k = g["kopya"]
+            L.append(f"[12] YZ gölge karar ({g['gun']} gün, {g['n']} sinyal, {g['etiketli']} sonuçlandı, seçim oranı %{100 * g['secim_orani']:.0f}): "
+                     f"seçtikleri {f(g['secili_ort'])}, seçmedikleri {f(g['secilmeyen_ort'])}, hepsi {f(g['hepsi_ort'])}")
+            L.append(f"    kopyalananlarda: {k['etiketli']} sonuç, seçtikleri ({k['secilen']}) {f(k['secili_ort'])}, "
+                     f"seçmedikleri {f(k['secilmeyen_ort'])}" + ("" if g["yeterli"] else " · karar için en az 14 gün ve 100 sonuç gerekli"))
+        else:
+            L.append("[12] YZ gölge karar: henüz kayıt yok (model kabul edilince başlar)")
+    except Exception as ex:
+        L.append(f"[12] YZ gölge karar hesaplanamadı: {type(ex).__name__}")
+
     # 6b) Kısmi satış ölçümü
     km = _q(p, "SELECT * FROM kismi_olcum WHERE acilis_ts>=?", (bas,))
     if km:

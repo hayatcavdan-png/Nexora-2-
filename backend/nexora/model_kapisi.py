@@ -62,11 +62,15 @@ def golge_rapor(etiket_db, ufuk="kaynak"):
     if not os.path.exists(etiket_db): return dict(n=0)
     c = sqlite3.connect(f"file:{etiket_db}?mode=ro", uri=True); c.row_factory = sqlite3.Row
     try:
-        try:
-            rows = [dict(r) for r in c.execute("""SELECT g.*, s.getiri_pct FROM golge_karar g
-                     LEFT JOIN etiket_sonuc s ON s.event_id=g.event_id AND s.ufuk=? AND s.hata IS NULL ORDER BY g.ts""", (ufuk,))]
-        except sqlite3.OperationalError:
-            return dict(n=0)
+        rows = None
+        for sorgu in ("""SELECT g.*, s.getiri_pct, o.gerekce FROM golge_karar g
+                     LEFT JOIN etiket_sonuc s ON s.event_id=g.event_id AND s.ufuk=? AND s.hata IS NULL
+                     LEFT JOIN etiket_olay o ON o.event_id=g.event_id ORDER BY g.ts""",
+                      """SELECT g.*, s.getiri_pct FROM golge_karar g
+                     LEFT JOIN etiket_sonuc s ON s.event_id=g.event_id AND s.ufuk=? AND s.hata IS NULL ORDER BY g.ts"""):
+            try: rows = [dict(r) for r in c.execute(sorgu, (ufuk,))]; break
+            except sqlite3.OperationalError: continue
+        if rows is None: return dict(n=0)
     finally:
         c.close()
     if not rows: return dict(n=0)
@@ -87,6 +91,11 @@ def golge_rapor(etiket_db, ufuk="kaynak"):
                 secim_orani=round(sum(r["secerdi"] for r in rows) / len(rows), 3),
                 hepsi_ort=ort([r["getiri_pct"] for r in et]), secili_ort=ort([r["getiri_pct"] for r in sec]),
                 secilmeyen_ort=ort([r["getiri_pct"] for r in et if not r["secerdi"]]), kayma=kayma, kalibrasyon=kalib,
+                # kopyalanan cüzdanlar (gölge havuz/izlenen hariç): canlı filtre yalnızca bunlara uygulanır
+                kopya=(lambda k: dict(etiketli=len(k), secilen=sum(1 for r in k if r["secerdi"]), hepsi_ort=ort([r["getiri_pct"] for r in k]),
+                                      secili_ort=ort([r["getiri_pct"] for r in k if r["secerdi"]]),
+                                      secilmeyen_ort=ort([r["getiri_pct"] for r in k if not r["secerdi"]])))(
+                    [r for r in et if r.get("gerekce") != "cüzdan yalnızca izleniyor"]),
                 yeterli=gun >= EN_AZ_GOLGE_GUN and len(et) >= EN_AZ_GOLGE_ETIKET)
 
 
