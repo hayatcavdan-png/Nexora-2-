@@ -1,5 +1,7 @@
 package com.nexora.app
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -19,7 +21,8 @@ import java.time.Instant
 /**
  * Yalnızca aynı Android cihazının Termux loopback hizmetinden alınan anonim
  * Telegram KANAL DURUMU metadatasını gösterir. Kullanıcı/token/mesaj metni,
- * mesaj ID'si veya hesap oturumu bu uygulamaya iletilmez.
+ * hesap oturumu bu uygulamaya iletilmez. İsteğe bağlı yalnızca sayısal
+ * son genel kanal mesaj ID'si, kullanıcı tarafından Telegram'da açılabilir.
  *
  * Bu köprü NEXORA /admin/social-radar canlı kaynak kanıtı DEĞİLDİR.
  * Gerçek Social AI akışı ve paper karar motoru bu veriyi tüketmez.
@@ -31,6 +34,8 @@ private data class TelegramDurum(
     val kanal2: Int,
     val guncel: Boolean,
     val islemlerCalisiyor: Boolean,
+    val last1: String?,
+    val last2: String?,
 )
 
 private fun yerelTelegramOku(): TelegramDurum {
@@ -65,6 +70,9 @@ private fun yerelTelegramOku(): TelegramDurum {
         require(rows.length() == 2)
         var first: Int? = null
         var second: Int? = null
+        var last1: String? = null
+        var last2: String? = null
+        val numericMessageId = Regex("[0-9]{1,22}")
         for (i in 0 until rows.length()) {
             val row = rows.getJSONObject(i)
             require(row.optString("platform") == "telegram")
@@ -72,16 +80,22 @@ private fun yerelTelegramOku(): TelegramDurum {
             require(row.opt("social_ai_transfer") == false)
             val countValue = row.opt("metadata_count")
             require(countValue is Int && countValue in 0..1000000)
+            val lastRaw = row.opt("last_message_id")
+            require(lastRaw == null || (lastRaw is String &&
+                numericMessageId.matches(lastRaw) && lastRaw.any { it != '0' }))
+            val lastId = lastRaw as? String
             when (row.getString("source_id")) {
                 "solana_early_trending" -> {
                     require(row.getString("handle").equals("@solearlytrending", ignoreCase = true))
                     require(first == null)
                     first = countValue
+                    last1 = lastId
                 }
                 "kolscope" -> {
                     require(row.getString("handle").equals("@KOLscope", ignoreCase = true))
                     require(second == null)
                     second = countValue
+                    last2 = lastId
                 }
                 else -> error("Unknown local source")
             }
@@ -90,7 +104,7 @@ private fun yerelTelegramOku(): TelegramDurum {
         val running = data.opt("listener_running") == true &&
             data.opt("updater_running") == true &&
             data.opt("sync_running") == true
-        return TelegramDurum(first, second, recent, running)
+        return TelegramDurum(first, second, recent, running, last1, last2)
     } finally {
         connection.disconnect()
     }
@@ -98,6 +112,7 @@ private fun yerelTelegramOku(): TelegramDurum {
 
 @Composable
 fun YerelTelegramKoprusu() {
+    val context = androidx.compose.ui.platform.LocalContext.current
     var status by remember { mutableStateOf<TelegramDurum?>(null) }
     var checked by remember { mutableStateOf(false) }
 
@@ -129,6 +144,19 @@ fun YerelTelegramKoprusu() {
         if (active) {
             Satir("@solearlytrending · bildirim", status!!.kanal1.toString())
             Satir("@KOLscope · bildirim", status!!.kanal2.toString())
+            val id1 = status?.last1
+            val id2 = status?.last2
+            if (id1 != null) OutlinedButton(onClick = {
+                context.startActivity(Intent(Intent.ACTION_VIEW,
+                    Uri.parse("https://t.me/solearlytrending/" + id1)))
+            }) { Text("Solana Early · son paylaşımı aç", fontSize = 12.sp) }
+            if (id2 != null) OutlinedButton(onClick = {
+                context.startActivity(Intent(Intent.ACTION_VIEW,
+                    Uri.parse("https://t.me/KOLscope/" + id2)))
+            }) { Text("KOLscope · son paylaşımı aç", fontSize = 12.sp) }
+            if (id1 != null || id2 != null) Text(
+                "Paylaşımı Telegram'da aç; gördüğün CA'yı NEXORA'ya kendin yapıştır.",
+                color = Nx.Soluk, fontSize = 11.sp)
             Text("Dinleyici, T8 ve T10 çalışıyor; durum dosyası güncel.",
                 color = Nx.Yesil, fontSize = 12.sp)
         } else {
