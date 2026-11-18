@@ -197,9 +197,14 @@ class H(BaseHTTPRequestHandler):
         izin, yetki = self._izin(parts.path, False, private=social_radar or social_paper or social_watch or strategy_lab)
         if not izin: return
         if strategy_lab:
-            from nexora.strategy_lab.report import read_snapshot
-            # No automatic provider call, no sqlite reads and no live order.
-            self._send(200, read_snapshot(os.getenv("STRATEGY_LAB_SNAPSHOT", "")), private=True)
+            from nexora.strategy_lab.report import read_snapshot, auto_paper_status
+            # No provider call, no production SQLite access and no real order.
+            snapshot = read_snapshot(os.getenv("STRATEGY_LAB_SNAPSHOT", ""))
+            snapshot["auto_paper"] = auto_paper_status(
+                os.getenv("SOCIAL_PAPER_WATCH_PATH", ""),
+                enabled=os.getenv("SOCIAL_PAPER_WATCH_ENABLED") == "1",
+            )
+            self._send(200, snapshot, private=True)
             return
         if social_watch:
             from nexora.social_ai.paper_watch import Store, initial_state, public_status
