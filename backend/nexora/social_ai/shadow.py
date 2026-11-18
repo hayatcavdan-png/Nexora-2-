@@ -1,5 +1,6 @@
 """Sonuç ve N16 karşılaştırması. Bu kayıtlar t0 sınıflandırmasına girmez."""
 from collections import defaultdict
+from math import fsum
 
 from nexora.olcum import GIRIS_TOLERANS, UFUKLAR, etiket_sonucu, ham_miktar, net_getiri, politika, sayi, zaman
 
@@ -9,6 +10,7 @@ from .providers import MAX_AGE, known_times
 
 HORIZONS = {5: UFUKLAR["5dk"][1], 15: 120, 30: UFUKLAR["30dk"][1], 60: 300}
 MAX_ENTRY_USDC = 5.0
+NET_USDC_DECIMALS = 6
 
 
 def _first_quote(batch, mint, side, due, tolerance, as_of, qty=None):
@@ -51,7 +53,8 @@ def _result(due, reason, entry=None, exit_=None, net=None):
                     ))
 
     return dict(durum="OK" if net is not None else "UNKNOWN", gerekce=reason, vade=due,
-                giris=detail(entry), cikis=detail(exit_), net_usdc=round(net[0], 6) if net is not None else None,
+                giris=detail(entry), cikis=detail(exit_),
+                net_usdc=round(net[0], NET_USDC_DECIMALS) if net is not None else None,
                 getiri_pct=net[1] if net is not None else None)
 
 
@@ -133,18 +136,34 @@ def summarize(events):
         key = f"{minutes}dk"
         nets = [e["golge_sonuclari"][key]["net_usdc"] for e in events]
         classes = [e["karar"]["sinif"] for e in events]
-        paired = any(label != "BELIRSIZ" and net is not None for label, net in zip(classes, nets))
-        selected = politika([None if c == "BELIRSIZ" else c == "SOSYAL_ERKEN_UYARI" for c in classes], nets)
+        choices = [None if c == "BELIRSIZ" else c == "SOSYAL_ERKEN_UYARI" for c in classes]
+        selected = politika(choices, nets)
         baseline = politika([True] * len(nets), nets)
         no_action = politika([False] * len(nets), nets)
-        selection_net = selected["sinyal_basi_usdc"]
-        baseline_net = baseline["sinyal_basi_usdc"]
+        vs_no_action, vs_all = None, None
+        if selected["sinyal_basi_usdc"] is not None:
+            # Farkları, rapor için yuvarlanan politika ortalamaları yerine olayların netlerinden hesapla.
+            selected_total = round(fsum(net for choice, net in zip(choices, nets) if choice is True),
+                                   NET_USDC_DECIMALS)
+            vs_no_action = selected_total / len(nets)
+            if baseline["sinyal_basi_usdc"] is not None:
+                # Seçilen işlemler iki politikada da aynı olduğu için farkı yalnızca atlanan işlemler belirler.
+                skipped_total = round(fsum(net for choice, net in zip(choices, nets) if choice is False),
+                                      NET_USDC_DECIMALS)
+                vs_all = -skipped_total / len(nets)
+
+        advantage = "UNKNOWN"
+        if vs_all is None or not 0 < selected["secili"] < len(nets):
+            reason = "KARSILASTIRMA_YETERSIZ"
+        elif vs_all <= 0 or vs_no_action <= 0:
+            advantage = "AVANTAJ YOK"
+            reason = "NET_FARK_POZITIF_DEGIL"
+        else:
+            reason = "POZITIF_FARK_DOGRULANMADI"
         summary[key] = dict(
             olculen=sum(net is not None for net in nets), unknown=sum(net is None for net in nets),
             sosyal_erken_uyari=selected, tum_olaylar=baseline, islem_yok=no_action,
-            tum_olaylara_gore_fark_usdc=round(selection_net - baseline_net, 5)
-            if selection_net is not None and baseline_net is not None else None,
-            islem_yoka_gore_fark_usdc=selection_net,
-            avantaj="AVANTAJ YOK" if paired else "UNKNOWN",
+            tum_olaylara_gore_fark_usdc=vs_all, islem_yoka_gore_fark_usdc=vs_no_action,
+            avantaj=advantage, avantaj_gerekcesi=reason,
         )
     return summary

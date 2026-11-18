@@ -11,6 +11,7 @@ from nexora.ed25519 import b58
 from nexora.social_ai.__main__ import main
 from nexora.social_ai.events import valid_address
 from nexora.social_ai.report import report
+from nexora.social_ai.shadow import HORIZONS, summarize
 from nexora.token_safety import TOKEN_2022
 
 FIXTURE = Path(__file__).with_name("fixtures") / "social_ai_v1.json"
@@ -32,6 +33,12 @@ class SocialAITests(unittest.TestCase):
     def event(self, source="x"):
         return next(r for r in report(self.fixture)["olaylar"] if r["olay"]["source"] == source)
 
+    def five_minute_summary(self, *samples):
+        events = [dict(karar=dict(sinif=label), golge_sonuclari={
+            f"{m}dk": dict(net_usdc=net) for m in HORIZONS
+        }) for label, net in samples]
+        return summarize(events)["5dk"]
+
     def test_cli_is_deterministic_offline_and_reports_evidence(self):
         stdout = io.StringIO()
         original = FIXTURE.read_bytes()
@@ -44,7 +51,8 @@ class SocialAITests(unittest.TestCase):
         self.assertEqual(data, report(self.fixture))
         self.assertEqual(FIXTURE.read_bytes(), original)
         self.assertEqual(data["api_maliyeti"], dict(dis_ag_cagrisi=0, tahmini_usd=0))
-        self.assertEqual(data["avantaj"], "AVANTAJ YOK")
+        self.assertEqual(data["avantaj"], "UNKNOWN")
+        self.assertEqual(data["ufuk_ozeti"]["5dk"]["avantaj"], "AVANTAJ YOK")
         self.assertEqual(data["ufuk_ozeti"]["5dk"]["tum_olaylara_gore_fark_usdc"], 0.06)
         self.assertEqual(data["ufuk_ozeti"]["5dk"]["islem_yoka_gore_fark_usdc"], -0.06)
         self.assertIsNone(data["ufuk_ozeti"]["60dk"]["tum_olaylara_gore_fark_usdc"])
@@ -253,6 +261,26 @@ class SocialAITests(unittest.TestCase):
                                         block_time=self.t0 + 10, fetched_at=self.t0 + 11))
         self.assertEqual(previous, self.event()["karar"])
 
+    def test_social_confirmation_must_be_published_after_event_and_observed_before_t0(self):
+        peer = self.items("telegram")[0]
+        published = self.post["published_at"]
+        cases = (
+            (published - 1, self.t0 - 1, False),
+            (published, self.t0 - 1, False),
+            (published + 1, self.t0 - 1, True),
+            (published + 1, self.t0, False),
+            (published + 1, self.t0 + 1, False),
+        )
+        for peer_published, peer_observed, confirms in cases:
+            with self.subTest(published=peer_published, observed=peer_observed):
+                peer.update(published_at=peer_published, observed_at=peer_observed, fetched_at=peer_observed)
+                result = self.event()
+                decision = result["karar"]
+                self.assertEqual(result["t0_zincir"]["yayin_ile_gozlem_arasi"]["bagimsiz_alici_grubu"], 2)
+                self.assertEqual(decision["bagimsiz_topluluk_grubu"], 2 if confirms else 1)
+                self.assertEqual(decision["sinif"], "SOSYAL_ERKEN_UYARI" if confirms else "GOLGE_IZLE")
+                self.assertEqual(peer["source_url"] in decision["kanit_linkleri"], confirms)
+
     def test_shadow_costs_horizons_and_no_best_quote_selection(self):
         quote = self.items("quotes")[1]
         self.items("quotes").extend([
@@ -277,6 +305,45 @@ class SocialAITests(unittest.TestCase):
         self.assertEqual(outcomes["30dk"]["gerekce"], "UFUK_BEKLIYOR")
         del self.providers["quotes"]
         self.assertEqual(report(self.fixture)["avantaj"], "UNKNOWN")
+
+    def test_shadow_advantage_compares_both_net_baselines_and_qualifies_the_report(self):
+        quotes = self.items("quotes")
+        quotes[-1]["executable"] = True
+        self.assertEqual(report(self.fixture)["avantaj"], "AVANTAJ YOK")
+
+        x_exit = quotes[1]
+        quotes.append(dict(x_exit, measured_at=self.t0 + 290, fetched_at=self.t0 + 291))
+        x_exit["usdc"] = 5.2
+        data = report(self.fixture)
+        five = data["ufuk_ozeti"]["5dk"]
+        self.assertEqual(five["tum_olaylara_gore_fark_usdc"], 0.06)
+        self.assertEqual(five["islem_yoka_gore_fark_usdc"], 0.09)
+        self.assertEqual(five["avantaj"], "UNKNOWN")
+        self.assertEqual(five["avantaj_gerekcesi"], "POZITIF_FARK_DOGRULANMADI")
+        self.assertEqual(data["ufuk_ozeti"]["15dk"]["avantaj"], "AVANTAJ YOK")
+        self.assertEqual(data["avantaj"], "UNKNOWN")
+
+        quotes[-1]["usdc"] = 5.1
+        five = report(self.fixture)["ufuk_ozeti"]["5dk"]
+        self.assertEqual(five["tum_olaylara_gore_fark_usdc"], -0.04)
+        self.assertEqual(five["islem_yoka_gore_fark_usdc"], 0.09)
+        self.assertEqual(five["avantaj"], "AVANTAJ YOK")
+
+    def test_shadow_advantage_requires_complete_selected_and_unselected_outcomes(self):
+        alert, watch, unknown = "SOSYAL_ERKEN_UYARI", "GOLGE_IZLE", "BELIRSIZ"
+        for samples in ((), ((alert, -0.12),), ((watch, -0.12),), ((alert, -0.12), (watch, None)),
+                        ((alert, None), (watch, -0.12)), ((alert, -0.12), (unknown, -0.12))):
+            with self.subTest(samples=samples):
+                five = self.five_minute_summary(*samples)
+                self.assertEqual(five["avantaj"], "UNKNOWN")
+                self.assertEqual(five["avantaj_gerekcesi"], "KARSILASTIRMA_YETERSIZ")
+
+    def test_shadow_advantage_uses_net_differences_before_policy_summary_rounding(self):
+        five = self.five_minute_summary(("SOSYAL_ERKEN_UYARI", 0.000001), ("GOLGE_IZLE", -0.000001))
+        self.assertEqual(five["tum_olaylara_gore_fark_usdc"], 0.0000005)
+        self.assertEqual(five["islem_yoka_gore_fark_usdc"], 0.0000005)
+        self.assertEqual(five["avantaj"], "UNKNOWN")
+        self.assertEqual(five["avantaj_gerekcesi"], "POZITIF_FARK_DOGRULANMADI")
 
     def test_n16_joins_exact_chain_proof_and_uses_separate_label_clock(self):
         result = self.event()["n16"]

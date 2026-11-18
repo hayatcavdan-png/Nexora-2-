@@ -50,6 +50,6 @@ def _report(provider: Provider, as_of):
         mod="OFFLINE_GOLGE", as_of=as_of, durum="OK" if results else "UNKNOWN",
         saglayicilar={s: dict(durum=b.status, kayit_sayisi=len(b.items)) for s, b in batches.items()},
         reddedilen_olaylar=rejected, olaylar=results, ufuk_ozeti=summary,
-        avantaj="AVANTAJ YOK" if any(r["avantaj"] == "AVANTAJ YOK" for r in summary.values()) else "UNKNOWN",
+        avantaj="AVANTAJ YOK" if all(r["avantaj"] == "AVANTAJ YOK" for r in summary.values()) else "UNKNOWN",
         api_maliyeti=dict(dis_ag_cagrisi=0, tahmini_usd=0),
     )
