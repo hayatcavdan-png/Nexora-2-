@@ -14,7 +14,8 @@ import javax.crypto.spec.GCMParameterSpec
  * Gizli değerlerin (sunucu API anahtarı, oturum anahtarı) telefonda şifreli saklanması (N35).
  * Anahtar Android Keystore'da üretilir ve cihazdan çıkarılamaz; değerler AES-256-GCM ile şifrelenip
  * SharedPreferences'a "k1:iv:veri" biçiminde yazılır. Eski düz metin değer ilk okumada şifrelenip yeniden yazılır.
- * Keystore kullanılamazsa (çok nadir cihaz hatası) uygulama çökmez: değer düz metin kalır ve bir sonraki sefer yeniden denenir.
+ * Keystore kullanılamazsa yeni gizli değer kesinlikle düz metin saklanmaz.
+ * Eski düz metin bir kez güvenli şekilde taşınır; anahtar üretilemezse okunmaz.
  */
 object Kasa {
     private const val AD = "nexora_kasa_v1"
@@ -51,12 +52,18 @@ object Kasa {
     fun oku(sp: SharedPreferences, ad: String): String {
         val k = sp.getString(ad, null) ?: return ""
         val d = coz(k) ?: return ""
-        if (!k.startsWith(ON) && d.isNotEmpty()) sifrele(d)?.let { sp.edit().putString(ad, it).apply() }
+        if (!k.startsWith(ON) && d.isNotEmpty()) {
+            val encrypted = sifrele(d) ?: return ""
+            sp.edit().putString(ad, encrypted).apply()
+        }
         return d
     }
 
-    fun yaz(sp: SharedPreferences, ad: String, deger: String) {
-        if (deger.isEmpty()) { sp.edit().remove(ad).apply(); return }
-        sp.edit().putString(ad, sifrele(deger) ?: deger).apply()
+    /** False means no secret was persisted; an existing encrypted value remains untouched. */
+    fun yaz(sp: SharedPreferences, ad: String, deger: String): Boolean {
+        if (deger.isEmpty()) { sp.edit().remove(ad).apply(); return true }
+        val wrapped = sifrele(deger) ?: return false
+        sp.edit().putString(ad, wrapped).apply()
+        return true
     }
 }
