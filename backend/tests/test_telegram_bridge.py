@@ -54,6 +54,22 @@ class TelegramBridgeTests(unittest.TestCase):
             self.assertNotIn(forbidden, dumped)
         self.assertTrue(all(row["live_verified"] is False for row in result["source_status"]))
 
+    def test_only_numeric_public_message_id_is_forwarded(self):
+        payload = fixture()
+        payload["source_status"][0]["last_id"] = "490576"
+        payload["source_status"][1]["last_id"] = "1389233"
+        payload["source_status"][0]["text"] = "THIS_IS_NOT_A_TOKEN"
+        result = from_t10(payload, now=NOW)
+        self.assertEqual(result["source_status"][1]["last_message_id"], "490576")
+        self.assertEqual(result["source_status"][0]["last_message_id"], "1389233")
+        self.assertNotIn("THIS_IS_NOT_A_TOKEN", json.dumps(result))
+        for invalid in ("javascript:alert(1)", "../../abc", "0", "", "12/34", 123):
+            with self.subTest(value=invalid):
+                bad = fixture()
+                bad["source_status"][0]["last_id"] = invalid
+                with self.assertRaises(BridgeUnavailable):
+                    from_t10(bad, now=NOW)
+
     def test_status_not_claimed_from_untrusted_data(self):
         source = fixture()
         source["listener_running"] = True
