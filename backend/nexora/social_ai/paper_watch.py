@@ -325,20 +325,24 @@ class Store:
 
 def refresh_due(store, quoter, *, now=None, max_quotes=3):
     """On-demand read-only quote refresh, bounded; external orchestration optional."""
-    now = time.time() if now is None else _now(now)
+    real_clock = now is None
+    request_time = time.time() if real_clock else _now(now)
     current = store._read()
-    due = due_horizons(current, now=now, max_results=max_quotes)
+    due = due_horizons(current, now=request_time, max_results=max_quotes)
     quotes = {}
     for mint, horizon, qty in due:
         try:
-            quotes[(mint, horizon)] = quoter.quote(mint, USDT_MINT, qty)
+            value = quoter.quote(mint, USDT_MINT, qty)
         except Exception:
-            quotes[(mint, horizon)] = None
+            value = None
+        measured_at = time.time() if real_clock else request_time
+        quotes[(mint, horizon)] = (value, measured_at)
     def apply(state):
-        expire_missed(state, now=now)
+        expire_missed(state, now=time.time() if real_clock else request_time)
         for mint, horizon, _ in due:
-            settle_horizon(state, mint, horizon, now=now,
-                           quote=quotes[(mint, horizon)])
+            quote, measured_at = quotes[(mint, horizon)]
+            settle_horizon(state, mint, horizon, now=measured_at,
+                           quote=quote)
         release_completed(state)
         return public_status(state)
     return store.mutate(apply)
