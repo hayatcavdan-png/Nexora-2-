@@ -14,6 +14,8 @@ from nexora import evm_kesif as K
 TOKEN = int(os.getenv("EVM_KESIF_TOKEN", "25")); EN_AZ = int(os.getenv("EVM_KESIF_EN_AZ", "2")); EKLE = 5
 ANALIZ = int(os.getenv("EVM_ANALIZ_ADAY", "20")); GUN = int(os.getenv("EVM_ANALIZ_GUN", "5"))
 AKTIF_MIN, AKTIF_MAKS = 3, 300
+MIN_LIK = float(os.getenv("EVM_KESIF_MIN_LIK", "25000"))     # 18.11: 50 bin -> 25 bin $ (BNB'de yalnızca 3 token geçiyordu)
+MIN_HACIM = float(os.getenv("EVM_KESIF_MIN_HACIM", "25000"))  # aday kaynağıdır; kopyalama kararı yine kârlılık analizinden
 UZUN = 3                                                 # "eksik veri" çıkan aday 3 kat uzun pencereyle yeniden denenir
 
 
@@ -22,9 +24,9 @@ def main(argv, rpc=None, s=None, ekle_en_fazla=EKLE, liste_siniri=None):
     if z not in ZINCIRLER: sys.exit("zincir: bnb ya da base")
     c = ZINCIRLER[z]; rpc = rpc or EvmRpc(os.getenv(c["rpc_env"]) or c["rpc"]); s = s or requests.Session()
     ist = {}
-    tok = K.sicak_tokenler(s, z, TOKEN, istatistik=ist)
+    tok = K.sicak_tokenler(s, z, TOKEN, min_likidite=MIN_LIK, min_hacim=MIN_HACIM, istatistik=ist)
     print(f"Kaynaklar: DexScreener {ist.get('dexscreener', 0)} token, GeckoTerminal {ist.get('geckoterminal', 0)} token; "
-          f"filtreden geçen {len(tok)} (likidite ≥ 50 bin $, hacim ≥ 50 bin $, son 30 gün)", flush=True)
+          f"filtreden geçen {len(tok)} (likidite ≥ {MIN_LIK / 1000:.0f} bin $, hacim ≥ {MIN_HACIM / 1000:.0f} bin $, son 30 gün)", flush=True)
     if not tok: sys.exit("Uygun yükselen token bulunamadı.")
     print(f"{c['ad']}: {len(tok)} yükselen token, her birinin ilk ~30 dakikasındaki alıcılar inceleniyor…", flush=True)
     mevcut = ekosistem.cuzdanlar(z)

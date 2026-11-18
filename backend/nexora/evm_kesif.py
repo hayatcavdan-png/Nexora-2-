@@ -26,7 +26,8 @@ def _iso(v):
 def gt_havuzlari(s, zincir, timeout=15, uyku=time.sleep):
     """GeckoTerminal (anahtarsız): zincirin yükselen ve yeni havuzları -> {token: dict(lik, cift, ts, hacim)}."""
     out = {}
-    for i, yol in enumerate(("trending_pools", "trending_pools?page=2", "new_pools", "pools", "pools?page=2")):
+    for i, yol in enumerate(("trending_pools", "trending_pools?page=2", "trending_pools?page=3", "new_pools", "new_pools?page=2",
+                             "new_pools?page=3", "pools", "pools?page=2")):
         if i: uyku(2.1)                                          # herkese açık hız sınırı (dakikada ~30)
         try:
             d = s.get(GT.format(GT_ZINCIR[zincir], yol), timeout=timeout).json()
