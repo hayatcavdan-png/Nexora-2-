@@ -18,6 +18,9 @@ def calistir(db, ufuk="kaynak", zorla=False, yol="yz_model.json"):
          f"Sınamada 'hepsini kopyala' ortalaması %{s['sinama_hepsi_ort']:+.2f}",
          f"Model seçtiklerinin ({s['secilen']}) ortalaması " + ("—" if s["sinama_secili_ort"] is None else f"%{s['sinama_secili_ort']:+.2f}"),
          f"Farkın %95 güven aralığı: {s['fark_guven_araligi']}",
+         (lambda k: f"Yalnızca kopyalanan cüzdanlar (canlı filtre bunlara uygulanır): {k['n']} sinyal, hepsi "
+                    + ("—" if k["hepsi"] is None else f"%{k['hepsi']:+.2f}") + f"; model seçtikleri ({k['secilen']}) "
+                    + ("—" if k["secili"] is None else f"%{k['secili']:+.2f}"))(s.get("kopya") or dict(n=0, hepsi=None, secilen=0, secili=None)),
          f"Olasılık doğruluğu (Brier, düşük iyi): model {s['brier']} · sabit tahmin {s['brier_taban']}",
          "", "En etkili özellikler (standart etki; + kârlılık olasılığını artırır):"]
     L += [f"  {k:<16} {w:+.3f}" for k, w in s["agirliklar"]]

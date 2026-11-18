@@ -118,9 +118,14 @@ def degerlendir(veri, egitim_orani=0.7, bootstrap=1000, tohum=7, zorla=False):
         b = [(p, g) for p, g in zip(ps, ys) if lo <= p < lo + 0.2 or (lo == 0.8 and p == 1.0)]
         if b: kalib.append(dict(aralik=f"{lo:.1f}-{lo + 0.2:.1f}", n=len(b), tahmin=round(sum(p for p, _ in b) / len(b), 3),
                                gercek=round(sum(1 for _, g in b if g > 0) / len(b), 3)))
+    # Kopyalanan cüzdanların sinyalleri (gölge/izlenen hariç): canlı filtre yalnızca bunlara uygulanır
+    kp = [(p, g) for p, g, x in zip(ps, ys, Xs) if x.get("bot_kopyaladi") is not None]
+    kp_sec = [g for p, g in kp if p >= esik]
+    kopya = dict(n=len(kp), hepsi=round(sum(g for _, g in kp) / len(kp), 3) if kp else None, secilen=len(kp_sec),
+                 secili=round(sum(kp_sec) / len(kp_sec), 3) if kp_sec else None)
     kabul = secili is not None and secili > hepsi and alt is not None and alt > 0
     sonuc = dict(karar="avantaj var" if kabul else "avantaj bulunamadı", n=n, egitim=len(egt), sinama=len(sin),
                  esik=esik, secilen=len(sec), sinama_hepsi_ort=round(hepsi, 3), sinama_secili_ort=None if secili is None else round(secili, 3),
                  fark_guven_araligi=None if alt is None else [round(alt, 3), round(ust, 3)],
-                 brier=round(brier, 4), brier_taban=round(brier_taban, 4), kalibrasyon=kalib, agirliklar=m.agirliklar()[:10])
+                 brier=round(brier, 4), brier_taban=round(brier_taban, 4), kalibrasyon=kalib, agirliklar=m.agirliklar()[:10], kopya=kopya)
     return sonuc, (m if kabul else None)
