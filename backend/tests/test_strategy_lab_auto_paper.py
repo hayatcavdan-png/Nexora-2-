@@ -80,5 +80,42 @@ class StrategyLabAutoPaperTests(unittest.TestCase):
             self.assertEqual(store.read()["total_studies"], 0)
 
 
+    def test_profit_circuit_breaker_skips_provider_entirely(self):
+        from nexora.social_ai.paper_watch import initial_state
+        from nexora.strategy_lab.profit_engine import MATURITY_S
+        now = 1_800_500_000
+        history = initial_state()
+        history["entries"] = [
+            {
+                "mint": MINT,
+                "observed_at": now - MATURITY_S - 20 - i * 7200,
+                "reserved_cost_usdt": "4.08",
+                "horizons": {f"{m}dk": {"status": "UNKNOWN",
+                                         "net_usdt": None}
+                             for m in (5, 15, 30, 60)},
+            }
+            for i in range(35)
+        ]
+
+        class FixedHistoryStore:
+            def _read(self):
+                return history
+
+            def mutate(self, callback):
+                self_ref = self
+                raise AssertionError("no paper write allowed during cooldown")
+
+        def forbidden_provider(**kwargs):
+            raise AssertionError("no live provider call during cooldown")
+
+        result = auto.cycle(research=forbidden_provider,
+                            store=FixedHistoryStore(), now=now)
+        self.assertEqual(result["status"], "PROFIT_GUARD_PAUSED")
+        self.assertEqual(result["paper_opened"], 0)
+        self.assertEqual(result["scanned"], 0)
+        self.assertEqual(result["profit_guard"], "CIRCUIT_BREAKER_COOLDOWN")
+        self.assertFalse(result["real_order"])
+
+
 if __name__ == "__main__":
     unittest.main()
