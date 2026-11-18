@@ -13,6 +13,7 @@ backend/yedekler/
 backend/kesif_adaylar.csv
 backend/yz_veri.csv
 backend/yz_model.json
+yz_model_v1.json
 backend/nexora_etiket.db
 android/app/src/main/res/font/
 backend/kesif_son.json
