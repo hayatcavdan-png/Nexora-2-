@@ -11,6 +11,7 @@ Aşağıdaki örnek, varsayılan yanıtın tek kaynaklı bir kesitidir.
 
 ```json
 {
+  "schema_version": 1,
   "read_only": true,
   "live_enabled": false,
   "snapshot_status": "BAGLANTI_BEKLENIYOR",
@@ -18,6 +19,7 @@ Aşağıdaki örnek, varsayılan yanıtın tek kaynaklı bir kesitidir.
     {
       "source_id": "solana_early_trending",
       "handle": "@solearlytrending",
+      "status": "ERISIM_YOK",
       "access_status": "ERISIM_YOK",
       "live_verified": false,
       "last_seen": null
@@ -29,7 +31,7 @@ Aşağıdaki örnek, varsayılan yanıtın tek kaynaklı bir kesitidir.
 
 Beş `source_id`: `solana_early_trending`, `kolscope`, `ansem`, `lookonchain`, `bubblemaps`.
 
-`live_verified` yalnızca doğru kimliği doğrulanmış ve yetkili sağlayıcıdan erişimi gerçekten test edilmişse `true` olmalıdır. Yanıtta `sources`/`kaynaklar` ve `alerts`/`uyarilar` desteklenir. Uyarıda `classification`/`sinif`, `token_symbol`/`token`, `mint`/`token_mint` alanları bulunabilir. Eksik alanlar otomatik `BELIRSIZ` veya boş biçimde gösterilir.
+Android, `schema_version=1` ve `read_only=true` olan yanıtta `sources` ve `alerts` dizilerini okur. Kaynak yalnızca sunucu canlı erişim bildiriyorsa ve katalog kimliği, `status=OK`, `access_status=LIVE_AUTHORIZED`, `live_verified=true` birlikte eşleşiyorsa bağlı görünür. Kart, uyarının Solana mintini (`token_mint`), gözlem zamanını, sınıfını ve gerekçelerini gösterir. 5/15/30/60 dk seçimi, `shadow_results` içindeki ilgili sonuç için ölçümü, bekleme zamanını veya eksik veri durumunu gösterir.
 
 ## Durum
 

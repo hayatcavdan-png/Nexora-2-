@@ -93,9 +93,10 @@ def _yz_ozet():
 
 
 class H(BaseHTTPRequestHandler):
-    def _send(self, code, obj):
+    def _send(self, code, obj, *, private=False):
         b = json.dumps(obj).encode()
         self.send_response(code); self.send_header("Content-Type", "application/json")
+        if private: self.send_header("Cache-Control", "no-store")
         self.send_header("Content-Length", str(len(b))); self.end_headers(); self.wfile.write(b)
     def _yedek_gonder(self):
         dosyalar = sorted(glob.glob(os.path.join("yedekler", "nexora_*.tar.gz")))
@@ -125,13 +126,13 @@ class H(BaseHTTPRequestHandler):
         if not u: return None
         return "kurucu" if u.get("rol") == "kurucu" else "uye"
 
-    def _izin(self, yol, post):
+    def _izin(self, yol, post, *, private=False):
         """Bu isteğe izin var mı? Yoksa yanıtı gönderir ve (False, None) döner."""
         if post and yol in self.ACIK_POST: return True, self._yetki()
         y = self._yetki()
-        if y is None: self._send(401, {"hata": "yetkisiz"}); return False, None
+        if y is None: self._send(401, {"hata": "yetkisiz"}, private=private); return False, None
         if y == "kurucu" or (post and yol.startswith("/uye/")) or (not post and yol in self.UYE_GET): return True, y
-        self._send(403, {"hata": "bu işlem yalnızca kurucu içindir"}); return False, y
+        self._send(403, {"hata": "bu işlem yalnızca kurucu içindir"}, private=private); return False, y
 
     @staticmethod
     def _cuzdansiz(o):
@@ -189,8 +190,14 @@ class H(BaseHTTPRequestHandler):
 
     def do_GET(self):
         parts = urlsplit(self.path)
-        izin, yetki = self._izin(parts.path, False)
+        social_radar = parts.path == "/admin/social-radar"
+        izin, yetki = self._izin(parts.path, False, private=social_radar)
         if not izin: return
+        if social_radar:
+            from nexora.social_ai.radar.api import dashboard
+            self._send(200, dashboard(os.getenv("SOCIAL_RADAR_SNAPSHOT", ""),
+                                      live_enabled=os.getenv("SOCIAL_LIVE_ENABLED") == "1"), private=True)
+            return
         if yetki == "uye":                                  # üye: sınırlı ve cüzdansız görünüm
             if parts.path == "/durum":
                 self._send(200, dict(mod="PAPER", gercek_islem="KAPALI", acil_durdurma=paper.killed(), takip_nabiz=paper.son_nabiz(),
@@ -255,12 +262,6 @@ class H(BaseHTTPRequestHandler):
             if self._uye():
                 u = uyelik.uye((self.headers.get("X-Oturum") or "").strip())
                 self._send(200, uyelik.uye_bakiye(u["id"], paper.equity(), KOMISYON_PCT))
-            return
-        if parts.path == "/admin/social-radar":
-            # Kurucu erişimi yukarıdaki _izin() kontrolünden geçer.
-            # Bu uç nokta dış API çağrısı, DB yazımı veya otomatik işlem yapmaz.
-            from nexora.social_ai.radar.api import dashboard
-            self._send(200, dashboard(os.getenv("SOCIAL_RADAR_SNAPSHOT", "")))
             return
         if parts.path == "/radar":
             from nexora.token_bilgi import toplu

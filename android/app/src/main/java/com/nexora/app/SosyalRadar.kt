@@ -1,6 +1,7 @@
 package com.nexora.app
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -13,12 +14,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
-/**
- * NEXORA Social Radar - yalnızca kurucu için salt okunur ekran.
- * Sunucuda /admin/social-radar bulunmuyorsa bağlantı bekleniyor gösterir.
- * Demo veri, fiyat tahmini, alım emri veya otomatik bildirim üretmez.
- */
 private data class SosyalKaynak(
     val kimlik: String, val ad: String, val platform: String,
     val hesap: String, val amac: String
@@ -31,143 +31,210 @@ private val SOSYAL_KAYNAKLAR = listOf(
     SosyalKaynak("lookonchain", "Lookonchain", "X", "lookonchain", "Zincir analizi ve büyük işlemler"),
     SosyalKaynak("bubblemaps", "Bubblemaps", "X", "bubblemaps", "İlişkili cüzdan riskleri"),
 )
+private val SINIFLAR = mapOf(
+    "SOSYAL_ERKEN_UYARI" to "Sosyal erken uyarı",
+    "RISK_VETOSU_ADAYI" to "Risk vetosu adayı",
+    "GOLGE_IZLE" to "Gölge izle",
+    "BELIRSIZ" to "Belirsiz",
+)
+private val UFUKLAR = listOf(5, 15, 30, 60)
+private val MINT_BICIMI = Regex("[1-9A-HJ-NP-Za-km-z]{32,44}")
+private val SOSYAL_TARIH = DateTimeFormatter.ofPattern("dd.MM HH:mm")
+    .withZone(ZoneId.systemDefault())
 
-private fun kaynakBul(kaynaklar: JSONArray?, kaynak: SosyalKaynak): JSONObject? {
-    if (kaynaklar == null) return null
-    for (i in 0 until kaynaklar.length()) {
-        val satir = kaynaklar.optJSONObject(i) ?: continue
-        val kimlik = satir.optString("source_id", satir.optString("id"))
-        val hesap = satir.optString("handle").trim().removePrefix("@")
-        if (kimlik == kaynak.kimlik || (kimlik.isBlank() && hesap.equals(kaynak.hesap, ignoreCase = true))) return satir
+private fun JSONArray?.satirlar(): List<JSONObject> =
+    if (this == null) emptyList() else (0 until length()).mapNotNull { optJSONObject(it) }
+
+private fun JSONObject?.sayi(alan: String): Double? =
+    (this?.opt(alan) as? Number)?.toDouble()?.takeIf { it.isFinite() }
+
+private fun tarih(saniye: Double?): String? =
+    saniye?.takeIf { it > 0 && it < 253402300800.0 }?.let {
+        SOSYAL_TARIH.format(Instant.ofEpochSecond(it.toLong()))
     }
-    return null
+
+private fun JSONObject?.dogrulanmisKaynak(): Boolean =
+    this != null && opt("live_verified") == true && str("status") == "OK" && str("access_status") == "LIVE_AUTHORIZED"
+
+private fun sonucDurumu(kod: String): String = when (kod) {
+    "GIRIS_TEKLIFI_UNKNOWN" -> "Giriş teklifi doğrulanamadı"
+    "CIKIS_TEKLIFI_UNKNOWN" -> "Çıkış teklifi doğrulanamadı"
+    "CIKIS_YOLU_YOK" -> "Uygulanabilir çıkış yolu yok"
+    "TEKLIF_TUTARSIZ" -> "Teklif ölçümü tutarsız"
+    else -> "Ölçüm verisi yok"
+}
+
+private fun sunucuDurumu(kod: String): String = when (kod) {
+    "CANLI_IZLEME_KAPALI" -> "Canlı izleme kapalı."
+    "SNAPSHOT_OKUNAMADI" -> "Gözlem dosyası okunamadı."
+    "SNAPSHOT_GECERSIZ" -> "Gözlem dosyası geçersiz."
+    "SNAPSHOT_ESKI" -> "Gözlem verisi güncel değil."
+    "CANLI_KANIT_YOK" -> "Canlı kaynak kanıtı yok."
+    "ERISIM_DOGRULANMADI" -> "Kaynak erişimi doğrulanamadı."
+    else -> "Kaynak bağlantısı bekleniyor."
 }
 
 @Composable
 fun SosyalRadarEkrani(url: String, key: String) {
-    var veri by remember(url, key) { mutableStateOf<JSONObject?>(null) }
-    var hata by remember(url, key) { mutableStateOf("") }
-    var yukleniyor by remember { mutableStateOf(false) }
+    val oturum = if (key.isBlank()) Oturum.deger else ""
+    var veri by remember(url, key, oturum) { mutableStateOf<JSONObject?>(null) }
+    var hata by remember(url, key, oturum) { mutableStateOf("") }
+    var yukleniyor by remember { mutableStateOf(true) }
     var yenile by remember { mutableIntStateOf(0) }
+    var ufuk by remember { mutableIntStateOf(UFUKLAR.first()) }
 
-    // Ekran açıldığında ve kullanıcı istediğinde tek okuma isteği.
-    // Otomatik tarama veya ücretli sosyal API isteği Android içinde yapılmaz.
-    LaunchedEffect(url, key, yenile) {
+    LaunchedEffect(url, key, oturum, yenile) {
         yukleniyor = true
+        veri = null
+        hata = ""
         try {
             veri = withContext(Dispatchers.IO) {
-                JSONObject(api(url, key, "/admin/social-radar", zamanAsimi = 12_000))
+                JSONObject(api(url, key, "/admin/social-radar", zamanAsimi = 12_000, oturum = oturum)).also {
+                    require(it.opt("schema_version") == 1 && it.opt("read_only") == true &&
+                        it.optJSONArray("sources") != null && it.optJSONArray("alerts") != null)
+                }
             }
-            hata = ""
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            veri = null
             hata = when {
                 e.message?.startsWith("HTTP 404") == true -> "Sosyal Radar sunucuya henüz eklenmedi."
                 e.message?.startsWith("HTTP 403") == true -> "Bu ekran yalnızca kurucu yetkisiyle okunabilir."
                 e.message?.startsWith("HTTP 401") == true -> "Sosyal Radar için giriş yapmanız gerekiyor."
-                else -> "Sosyal Radar verisine erişilemiyor; canlı sinyal doğrulanamadı."
+                else -> "Sosyal Radar verisine erişilemiyor."
             }
         } finally {
             yukleniyor = false
         }
     }
 
-    val kaynaklar = veri?.optJSONArray("sources") ?: veri?.optJSONArray("kaynaklar")
-    val uyarilar = veri?.optJSONArray("alerts") ?: veri?.optJSONArray("uyarilar")
-    val bagliSayisi = SOSYAL_KAYNAKLAR.count {
-        val k = kaynakBul(kaynaklar, it)
-        k != null && k.optBoolean("live_verified", false)
-    }
+    val radar = veri
+    val kaynaklar = radar?.optJSONArray("sources").satirlar()
+        .groupBy { it.str("source_id") }
+    val bagliKaynaklar = SOSYAL_KAYNAKLAR.filter { kaynak ->
+        radar?.opt("live_enabled") == true && kaynaklar[kaynak.kimlik]?.singleOrNull().dogrulanmisKaynak()
+    }.associateBy { it.kimlik }
+    val uyarilar = radar?.optJSONArray("alerts").satirlar().filter {
+        it.str("source_id") in bagliKaynaklar && it.str("mint_status") == "VERIFIED" &&
+            MINT_BICIMI.matches(it.str("token_mint")) && it.str("classification") in SINIFLAR
+    }.take(20)
 
-    NeonKart(Modifier.fillMaxWidth(), kenar = Nx.KenarParlak, dolgu = Nx.DolguMor) {
-        Text("NEXORA Social AI", color = Nx.Metin, fontSize = 23.sp, fontWeight = FontWeight.Bold)
-        Text("Solana sosyal sinyalleri • zincir teyidi • manipülasyon analizi",
-            color = Nx.Soluk, fontSize = 13.sp)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Etiket("Gölge araştırma", Nx.Camgobegi)
-            Etiket(bagliSayisi.toString() + "/5 kaynak", if (bagliSayisi > 0) Nx.Yesil else Nx.Sari)
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        NeonKart(Modifier.fillMaxWidth(), kenar = Nx.KenarParlak, dolgu = Nx.DolguMor) {
+            Text("NEXORA Social AI", color = Nx.Metin, fontSize = 23.sp, fontWeight = FontWeight.Bold)
+            Etiket("${bagliKaynaklar.size}/${SOSYAL_KAYNAKLAR.size} bağlı kaynak",
+                if (bagliKaynaklar.isEmpty()) Nx.Sari else Nx.Yesil)
+            Text("Solana mint doğrulaması, sosyal riskler ve gölge sonuçları",
+                color = Nx.Soluk, fontSize = 13.sp)
+            OutlinedButton(onClick = { yenile++ }, enabled = !yukleniyor) {
+                Text(if (yukleniyor) "Kontrol ediliyor…" else "Kaynakları yenile")
+            }
         }
-        Text(
-            "Sosyal paylaşım tek başına alım sinyali değildir. Bu ekran hiçbir işlemi başlatmaz ve AI filtresini açmaz.",
-            color = Nx.Soluk, fontSize = 12.sp
-        )
-        OutlinedButton(onClick = { yenile++ }, enabled = !yukleniyor) {
-            Text(if (yukleniyor) "Kontrol ediliyor..." else "Kaynakları yenile")
-        }
-    }
 
-    if (hata.isNotBlank()) {
-        Kart(Modifier.fillMaxWidth()) {
-            Text("Canlı bağlantı bekleniyor", color = Nx.Sari, fontWeight = FontWeight.SemiBold)
-            Text(hata, color = Nx.Soluk, fontSize = 13.sp)
-            Text("Beş kaynak yalnızca izleme kataloğudur; aşağıda gösterilmeleri mesajlarının okunduğu anlamına gelmez.",
-                color = Nx.Soluk, fontSize = 12.sp)
-        }
-    }
-
-    if (veri != null && !veri!!.optBoolean("live_enabled", false)) {
-        Kart(Modifier.fillMaxWidth()) {
-            Text("Gerçek zamanlı sosyal veri henüz etkin değil", color = Nx.Sari, fontWeight = FontWeight.SemiBold)
-            Text("Sunucu durumu: " + veri!!.optString("snapshot_status", "UNKNOWN"),
-                color = Nx.Soluk, fontSize = 12.sp)
-            Text("Kaynak bağlantısı doğrulanmadan sosyal uyarı gösterilmez.",
-                color = Nx.Soluk, fontSize = 12.sp)
-        }
-    }
-
-    Text("İzlenen kaynaklar", color = Nx.Metin, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
-    SOSYAL_KAYNAKLAR.forEach { kaynak ->
-        val k = kaynakBul(kaynaklar, kaynak)
-        val dogrulandi = k?.optBoolean("live_verified", false) == true
         val durum = when {
-            dogrulandi -> "Canlı erişim doğrulandı"
-            k?.optString("access_status") == "RATE_LIMITED" -> "Kota sınırı"
-            k?.optString("access_status") == "UNAVAILABLE" -> "Erişim yok"
-            else -> "Erişim bekleniyor"
+            hata.isNotBlank() -> hata
+            radar != null && bagliKaynaklar.isEmpty() -> sunucuDurumu(radar.str("snapshot_status"))
+            else -> ""
         }
-        Kart(Modifier.fillMaxWidth()) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text(kaynak.ad, color = Nx.Metin, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
-                    Text(kaynak.platform + " · @" + kaynak.hesap, color = Nx.Soluk, fontSize = 12.sp)
-                }
-                Etiket(if (dogrulandi) "Bağlı" else "Bekliyor", if (dogrulandi) Nx.Yesil else Nx.Sari)
+        if (durum.isNotEmpty()) {
+            Kart(Modifier.fillMaxWidth()) {
+                Text(durum, color = Nx.Sari, fontSize = 13.sp)
             }
-            Text(kaynak.amac, color = Nx.Soluk, fontSize = 12.sp)
-            Text(durum, color = if (dogrulandi) Nx.Yesil else Nx.Soluk, fontSize = 12.sp)
-            val son = k?.optString("last_seen").orEmpty()
-            if (son.isNotBlank() && son != "null") Text("Son gözlem: " + son.take(40), color = Nx.Soluk, fontSize = 11.sp)
+        }
+
+        Text("Sosyal kaynaklar", color = Nx.Metin, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+        SOSYAL_KAYNAKLAR.forEach { kaynak ->
+            val satir = kaynaklar[kaynak.kimlik]?.singleOrNull()
+            val bagli = kaynak.kimlik in bagliKaynaklar
+            val durumMetni = when {
+                bagli -> "Bağlı"
+                satir?.str("status") == "KOTA" -> "Kota sınırı"
+                satir?.str("status") == "VERI_GECIKTI" -> "Veri gecikti"
+                satir?.str("access_status") == "ERISIM_YOK" -> "Erişim yok"
+                else -> "Bekliyor"
+            }
+            Kart(Modifier.fillMaxWidth()) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(kaynak.ad, color = Nx.Metin, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                        Text("${kaynak.platform} · @${kaynak.hesap}", color = Nx.Soluk, fontSize = 12.sp)
+                    }
+                    Etiket(durumMetni, if (bagli) Nx.Yesil else Nx.Sari)
+                }
+                Text(kaynak.amac, color = Nx.Soluk, fontSize = 12.sp)
+                if (bagli) {
+                    tarih(satir.sayi("last_seen"))?.let {
+                        Text("Son gözlem $it", color = Nx.Soluk, fontSize = 11.sp)
+                    }
+                }
+            }
+        }
+
+        Text("Sosyal uyarılar ve gölge sonuçları", color = Nx.Metin,
+            fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            UFUKLAR.forEach { dakika ->
+                Hap("$dakika dk", ufuk == dakika, Modifier.weight(1f)) { ufuk = dakika }
+            }
+        }
+        if (uyarilar.isEmpty()) {
+            Kart(Modifier.fillMaxWidth()) {
+                Text(if (yukleniyor) "Uyarılar kontrol ediliyor…" else "Doğrulanmış sosyal uyarı yok",
+                    color = Nx.Metin, fontSize = 14.sp)
+                Text("$ufuk dk için ölçüm verisi yok.", color = Nx.Soluk, fontSize = 12.sp)
+            }
+        }
+        uyarilar.forEach { olay ->
+            SosyalUyariKarti(olay, bagliKaynaklar.getValue(olay.str("source_id")), ufuk)
         }
     }
+}
 
-    Text("Doğrulanmış sosyal uyarılar", color = Nx.Metin, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
-    if (uyarilar == null || uyarilar.length() == 0) {
-        Kart(Modifier.fillMaxWidth()) {
-            Text("Henüz doğrulanmış sosyal uyarı yok", color = Nx.Soluk, fontSize = 14.sp)
-            Text("Veri kaynağı yetkisi, Solana mint doğrulaması ve ilk gözlem zamanı olmadan sinyal gösterilmez.",
-                color = Nx.Soluk, fontSize = 12.sp)
+@Composable
+private fun SosyalUyariKarti(olay: JSONObject, kaynak: SosyalKaynak, ufuk: Int) {
+    val sinif = olay.str("classification")
+    val sonuc = olay.optJSONObject("shadow_results")?.optJSONObject("${ufuk}dk")
+    val net = sonuc.sayi("net_usdc")
+    val getiri = sonuc.sayi("return_pct")
+    val nedenler = olay.optJSONArray("reason_codes")
+    Kart(Modifier.fillMaxWidth()) {
+        Text("Solana tokeni", color = Nx.Metin, fontWeight = FontWeight.SemiBold)
+        SelectionContainer {
+            Text(olay.str("token_mint"), color = Nx.Soluk, fontSize = 12.sp)
         }
-    } else {
-        val sayi = minOf(uyarilar.length(), 20)
-        for (i in 0 until sayi) {
-            val olay = uyarilar.optJSONObject(i) ?: continue
-            val sinif = olay.optString("classification", olay.optString("sinif", "BELIRSIZ"))
-            val mint = olay.optString("mint", olay.optString("token_mint"))
-            val baslik = olay.optString("token_symbol", olay.optString("token", "Solana tokeni"))
-            Kart(Modifier.fillMaxWidth()) {
-                Text(baslik.take(50), color = Nx.Metin, fontWeight = FontWeight.SemiBold)
-                Etiket(sinif.take(36), when (sinif) {
-                    "SOSYAL_ERKEN_UYARI" -> Nx.Camgobegi
-                    "RISK_VETOSU_ADAYI" -> Nx.Kirmizi
-                    else -> Nx.Sari
-                })
-                Text(if (mint.isBlank()) "Mint doğrulanmadı" else "Mint: " + kisa(mint),
-                    color = Nx.Soluk, fontSize = 12.sp)
-                Text("Gölge analiz; işlem başlatılmaz.", color = Nx.Soluk, fontSize = 12.sp)
+        val zaman = tarih(olay.sayi("observed_at"))
+        Text(listOfNotNull("Mint doğrulandı", kaynak.ad, zaman).joinToString(" · "),
+            color = Nx.Soluk, fontSize = 12.sp)
+        Etiket(SINIFLAR.getValue(sinif), when (sinif) {
+            "RISK_VETOSU_ADAYI" -> Nx.Kirmizi
+            "SOSYAL_ERKEN_UYARI" -> Nx.Camgobegi
+            else -> Nx.Sari
+        })
+        if (nedenler != null) {
+            for (i in 0 until minOf(nedenler.length(), 10)) {
+                val kod = nedenler.optString(i)
+                if (kod.isNotEmpty()) {
+                    val eksik = kod.endsWith("_UNKNOWN")
+                    val neden = kod.removeSuffix("_UNKNOWN").replace('_', ' ')
+                        .lowercase(Locale.ROOT).replaceFirstChar { it.titlecase(Locale.ROOT) }
+                    Text(if (eksik) "$neden doğrulanamadı" else neden, color = Nx.Soluk, fontSize = 12.sp)
+                }
             }
+        }
+        Text("$ufuk dk gölge sonucu", color = Nx.Metin, fontWeight = FontWeight.SemiBold)
+        when {
+            sonuc?.str("status") == "OK" && net != null && getiri != null -> {
+                Text(String.format(Locale.forLanguageTag("tr-TR"), "%+.6f USDC · %+.2f%%", net, getiri),
+                    color = Nx.Metin, fontSize = 13.sp)
+                Text("Giriş, çıkış ve ağ ücreti dahil teklif ölçümü.", color = Nx.Soluk, fontSize = 12.sp)
+            }
+            sonuc?.str("status") == "PENDING" -> {
+                val vade = tarih(sonuc.sayi("due_at"))
+                Text(if (vade == null) "Ölçüm süresi dolmadı" else "Ölçüm zamanı $vade",
+                    color = Nx.Sari, fontSize = 12.sp)
+            }
+            else -> Text(sonucDurumu(sonuc?.str("reason_code").orEmpty()), color = Nx.Soluk, fontSize = 12.sp)
         }
     }
 }

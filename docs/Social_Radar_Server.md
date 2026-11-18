@@ -1,7 +1,7 @@
 # Social Radar — read-only sunucu adaptörü
 
 `GET /admin/social-radar` NEXORA'nın mevcut `kurucu` rol denetiminden geçer.
-Üye rolüyle erişim 403'tür; API anahtarı veya kurucu oturumu gerekir.
+Üye için 403, geçerli kimlik yoksa 401 döner. Yanıtlara `Cache-Control: no-store` eklenir.
 
 İlk açılışta `SOCIAL_RADAR_SNAPSHOT` tanımlı değildir ve uç nokta beş
 kaynağı `live_verified=false`, `alerts=[]` ve
@@ -14,19 +14,26 @@ sözleşmesinde `schema_version=1, mod=GOZLEM, read_only=true` olan
 snapshot üretebilir. Ancak bu PR **işçi başlatmaz**, API çağrısı yapmaz,
 üretim DB'ye yazmaz, ücretli veri toplamaz.
 
-Sunucu tarafı yalnızca `SOCIAL_RADAR_SNAPSHOT` değişkeniyle belirtilen
-JSON dosyasını her GET isteğinde salt okunur açar. En fazla 2 MB okur.
+Varsayılan `SOCIAL_LIVE_ENABLED=0` iken bir snapshot yolu ayarlanırsa
+`CANLI_IZLEME_KAPALI`, beş kapalı kaynak ve boş uyarı listesi döner.
+İleride açıkça onaylanan `SOCIAL_LIVE_ENABLED=1` yapılandırmasında sunucu
+yalnızca `SOCIAL_RADAR_SNAPSHOT` ile belirtilen normal JSON dosyasını
+salt okunur açar. Boyut sınırı 2 MB'dir.
 Geçerli snapshot son 15 dakika içinde üretilmiş olmalı; `MOCK` ve
 eski kayıtlar canlı olarak kabul edilmez. Bir kaynak ancak
 `status=OK`, `access_mode=LIVE_AUTHORIZED`,
 `trust_status=verified`, `enabled=true`,
-`live_verified=true` kanıt bayraklarının hepsi varsa bağlı sayılır.
+`live_verified=true` kanıt bayraklarının hepsi, benzersiz kaynak kimliği
+ve son 15 dakikada snapshot kesiminden önce yapılmış bir kontrol varsa bağlı sayılır.
 Buradaki bayraklar operatörün kontrollü snapshot üreticisi tarafından
 doldurulmalıdır; tek başına sosyal verinin bağımsız doğruluğunu kanıtlamaz.
 
-Uyarılar en fazla 20 kayıtla, `VERIFIED` Solana mint ve gözlem zamanı
-koşullarıyla sunulur. Ham metin, yazar kimliği ve gizli anahtarlar dışa
-aktarılmaz. İstemci sadece görüntüler; otomatik trade/paper kararını etkilemez.
+API, son 24 saat içindeki zamanında görülmüş ve `VERIFIED` mint kanıtı olan
+en yeni 20 uyarıyı döndürür. Her kayıtta `shadow_results` altında
+`5dk`, `15dk`, `30dk` ve `60dk` sonuçları bulunur. Eksik ölçümler
+`UNKNOWN`, vadesi gelmeyenler `PENDING` ve doğrulanmış ölçümler `OK`
+olarak döner. Yalnızca `OK` için net USDC ve getiri yüzdesi sayısaldır.
+API kontrollü gerekçe kodlarını ve sayısal ölçüm özetlerini döndürür.
 
 **Not:** `SOCIAL_RADAR_SNAPSHOT` özel anahtar veya hassas içerik değil,
 yalnızca operatörün güvenli konuma koyduğu doğrulanmış JSON raporu
