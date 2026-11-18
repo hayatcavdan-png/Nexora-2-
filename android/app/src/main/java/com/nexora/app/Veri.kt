@@ -12,21 +12,35 @@ import java.net.URL
 object Oturum { @Volatile var deger: String = "" }
 
 fun api(base: String, key: String, path: String, post: Boolean = false, govde: String = "{}", zamanAsimi: Int = 8000, oturum: String = ""): String {
-    val c = URL(base.trim().trimEnd('/') + path).openConnection() as HttpURLConnection
-    c.connectTimeout = 8000; c.readTimeout = zamanAsimi
-    if (key.isNotBlank()) c.setRequestProperty("X-API-Key", key.trim())
-    val o = oturum.ifEmpty { if (key.isBlank()) Oturum.deger else "" }
-    if (o.isNotEmpty()) c.setRequestProperty("X-Oturum", o)
-    if (post) {
-        c.requestMethod = "POST"; c.doOutput = true
-        c.setRequestProperty("Content-Type", "application/json")
-        c.outputStream.write(govde.toByteArray())
+    // Validate transport BEFORE putting a founder key or member session on a request.
+    val c = AgGuvenligi.endpoint(base, path).openConnection() as HttpURLConnection
+    c.instanceFollowRedirects = false // Never forward credentials through 30x.
+    c.useCaches = false
+    c.connectTimeout = 8000
+    c.readTimeout = zamanAsimi
+    try {
+        if (key.isNotBlank()) c.setRequestProperty("X-API-Key", key.trim())
+        val o = oturum.ifEmpty { if (key.isBlank()) Oturum.deger else "" }
+        if (o.isNotEmpty()) c.setRequestProperty("X-Oturum", o)
+        if (post) {
+            c.requestMethod = "POST"
+            c.doOutput = true
+            c.setRequestProperty("Content-Type", "application/json; charset=utf-8")
+            c.outputStream.use { it.write(govde.toByteArray(Charsets.UTF_8)) }
+        }
+        val status = c.responseCode
+        if (status != 200) {
+            val neden = try {
+                c.errorStream?.bufferedReader()?.use {
+                    JSONObject(it.readText().take(4096)).optString("hata")
+                } ?: ""
+            } catch (_: Exception) { "" }
+            error("HTTP $status" + if (neden.isNotEmpty()) ": $neden" else "")
+        }
+        return c.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
+    } finally {
+        c.disconnect()
     }
-    if (c.responseCode != 200) {
-        val neden = try { JSONObject(c.errorStream?.bufferedReader()?.readText() ?: "").optString("hata") } catch (e: Exception) { "" }
-        error("HTTP ${c.responseCode}" + if (neden.isNotEmpty()) ": $neden" else "")
-    }
-    return c.inputStream.bufferedReader().readText()
 }
 
 fun JSONObject.str(k: String): String = if (isNull(k)) "" else optString(k, "")
@@ -111,7 +125,8 @@ class Veri {
     fun yukle(url: String, key: String) {
         val eksik = mutableListOf<String>()
         val d = JSONObject(api(url, key, "/durum"))
-        rol = d.optString("rol", "kurucu")
+        // Never grant founder UI privileges when a server omits its role field.
+        rol = when (d.optString("rol")) { "kurucu" -> "kurucu"; "uye" -> "uye"; else -> "bilinmiyor" }
         // Üye paneli için yalnızca giriş yapan kişinin kişisel SANAL bilançosu.
         // Yetki verilmediyse veya uç nokta yoksa eski değeri göstermeyiz.
         if (rol == "uye") {
