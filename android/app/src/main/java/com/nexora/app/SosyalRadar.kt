@@ -142,6 +142,10 @@ fun SosyalRadarEkrani(url: String, key: String) {
             }
         }
 
+        // Yalnızca aynı telefondaki Termux'un anonim metadata durumu.
+        // Sunucunun 0/5 gerçek Social Radar kaynak hesabına KATILMAZ.
+        YerelTelegramKoprusu()
+
         Text("Sosyal kaynaklar", color = Nx.Metin, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
         SOSYAL_KAYNAKLAR.forEach { kaynak ->
             val satir = kaynaklar[kaynak.kimlik]?.singleOrNull()
