@@ -8,6 +8,8 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.*
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.lazy.LazyColumn
@@ -252,10 +254,17 @@ fun App() {
                     }
                     "kesfet" -> {
                         item(key = "k_sekme") {
-                            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(50)).background(Nx.Yuzey2).padding(4.dp),
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Row(
+                                Modifier.fillMaxWidth().clip(RoundedCornerShape(50))
+                                    .background(Nx.Yuzey2)
+                                    .horizontalScroll(rememberScrollState())
+                                    .padding(4.dp),
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
                                 (if (v.kurucu) listOf("Token", "DNA", "Takip", "Sosyal AI", "Lab") else listOf("Token Radar"))
-                                    .forEachIndexed { i, ad -> Hap(ad, kesfetSekme == i, Modifier.weight(1f)) { kesfetSekme = i } }
+                                    .forEachIndexed { i, ad ->
+                                        Hap(ad, kesfetSekme == i, Modifier.widthIn(min = 68.dp)) { kesfetSekme = i }
+                                    }
                             }
                         }
                         when (if (v.kurucu) kesfetSekme else 0) {
