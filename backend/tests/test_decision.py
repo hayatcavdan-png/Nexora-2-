@@ -338,3 +338,9 @@ class GolgeTeyitTests(unittest.TestCase):
         self.assertEqual(d._teyit("W1", "T", now=110), (1, 2))          # kopyalanan 1, gölge dahil 2
         self.assertEqual(d._teyit("W2", "T", now=120), (2, 3))
         self.assertEqual(d._teyit("W3", "T", now=2000), (1, 1))         # 15 dk'dan eskiler düşer
+
+
+class GolgeTeyitEtkinTests(unittest.TestCase):
+    def test_bayrak(self):
+        from nexora.decision import Decider
+        self.assertFalse(Decider.GOLGE_TEYIT)                      # varsayılan kapalı: canlı kural değişmez

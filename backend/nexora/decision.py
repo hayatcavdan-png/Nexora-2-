@@ -142,6 +142,7 @@ class Decider:
     # Toplam açık maliyet her durumda %40'ı aşamaz. GUCLENDIRME_KAT=1 ile kapatılır.
     GUC_SN = 900
     GUC_KAT = float(os.getenv("GUCLENDIRME_KAT", "2"))
+    GOLGE_TEYIT = os.getenv("GOLGE_TEYIT", "0") == "1"     # 1: gölge havuzun alımı da teyit sayılır (kullanıcı onayıyla açılır)
 
     def _teyit(self, wallet, token, now=None, golge=False):
         """Bu alımı da sayarak son GUC_SN içinde token'ı alan farklı cüzdan sayısı (bellekte; servis yeniden başlarsa sıfırlanır).
@@ -175,7 +176,8 @@ class Decider:
                 self._teyit(wallet, token, golge=True)
             if side == "buy" and boyut_usd is None and wallet != "MANUEL" and wallet not in self.izle and self.GUC_KAT > 1:
                 teyit, teyit_tum = self._teyit(wallet, token)
-                if teyit_tum > teyit: iz.append(dict(adim="golge_teyit", teyit=teyit, gölge_dahil=teyit_tum))
+                if teyit_tum > teyit: iz.append(dict(adim="golge_teyit", teyit=teyit, gölge_dahil=teyit_tum, etkin=self.GOLGE_TEYIT))
+                if self.GOLGE_TEYIT: teyit = teyit_tum
                 if teyit >= 2 and reason == "bu token'da zaten pozisyon var":
                     reason, size = p.precheck(side, token, signal_age_s, wallet, ek=True); ek = not reason
                     iz.append(dict(adim="guclendirme", sonuc="ek parça" if ek else f"yok: {reason}", teyit=teyit))
