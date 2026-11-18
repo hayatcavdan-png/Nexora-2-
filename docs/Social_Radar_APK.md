@@ -13,7 +13,7 @@ Android Kotlin/Jetpack Compose uygulamasının **Keşfet > Sosyal AI** ekranına
   "live_enabled": false,
   "sources": [
     {
-      "source_id": "tg_solearlytrending",
+      "source_id": "solana_early_trending",
       "handle": "solearlytrending",
       "access_status": "UNAVAILABLE",
       "live_verified": false,
@@ -24,12 +24,12 @@ Android Kotlin/Jetpack Compose uygulamasının **Keşfet > Sosyal AI** ekranına
 }
 ```
 
-Beş `source_id`: `tg_solearlytrending`, `tg_kolscope`, `x_blknoiz06`, `x_lookonchain`, `x_bubblemaps`.
+Beş `source_id`: `solana_early_trending`, `kolscope`, `ansem`, `lookonchain`, `bubblemaps`.
 
 `live_verified` yalnızca doğru kimliği doğrulanmış ve yetkili sağlayıcıdan erişimi gerçekten test edilmişse `true` olmalıdır. Yanıtta `sources`/`kaynaklar` ve `alerts`/`uyarilar` desteklenir. Uyarıda `classification`/`sinif`, `token_symbol`/`token`, `mint`/`token_mint` alanları bulunabilir. Eksik alanlar otomatik `BELIRSIZ` veya boş biçimde gösterilir.
 
 ## Durum
-Bu dal **Android arayüz entegrasyonudur**. Issue #3 ve #4 içindeki Social AI backend geliştirmeleri şu anda ayrı yerel `codex/solana-social-ai-v1` dalındadır; GitHub'a aktarılıp gerçek, yetkili, salt okunur API uygulanmadan APK canlı sosyal veriye erişemez.
+Bu dal **Android arayüz entegrasyonudur**. Uç nokta ayrı `codex/social-radar-server-v1` dalında hazırlanmıştır; bu dal ve Social AI motoru henüz `main`e birleştirilmemiştir. Issue #3 ve #4 içindeki Social AI backend geliştirmeleri şu anda ayrı yerel `codex/solana-social-ai-v1` dalındadır; GitHub'a aktarılıp gerçek, yetkili, salt okunur API uygulanmadan APK canlı sosyal veriye erişemez.
 
 ## Kabul
 - `Keşfet > Sosyal AI` yalnızca kurucu ekranında görünür.
