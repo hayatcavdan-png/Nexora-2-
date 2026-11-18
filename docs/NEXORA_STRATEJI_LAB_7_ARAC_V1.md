@@ -50,6 +50,14 @@ python -B tools/strategy_lab/run_once.py --input /tmp/ohlc.json --output /tmp/ne
 
 Kısa başlangıç senaryosu hiçbir sunucuda otomatik çalışmaz; böylece mevcut çalışan NEXORA sistemine, veri tabanlarına ve yedeklerine müdahale etmez.
 
+## Ayrı otomatik sanal araştırma (isteğe bağlı)
+
+`tools/strategy_lab/auto_paper.py`, mevcut Jupiter ilk havuz keşfi ve Helius/Jupiter risk kontrollerinden geçen adayları **yalnızca** özel 100 USDT `paper_watch` JSON defterine aktarabilecek şekilde eklendi. Aynı mint tekrar sanal çalışmaya eklenmez. Varsayılan **kapalıdır**, çalışan Termux veya sunucu servisine kendiliğinden bağlanmaz.
+
+Yalnızca ayrı bir operatör ortamında, ilgili API anahtarları zaten güvenli biçimde tanımlanmışsa, `NEXORA_LAB_AUTO_PAPER=1`, `SOCIAL_RESEARCH_LIVE_ENABLED=1`, `SOCIAL_PAPER_WATCH_ENABLED=1` ve `SOCIAL_PAPER_WATCH_PATH` birlikte etkinleştirilerek başlatılabilir. `--once` tek tur; diğer durumda en az 120 saniyelik tur aralığı vardır. Her tur en fazla 2 aday kontrol eder. Üretim ana veritabanına, özel anahtarlara ve gerçek emirlere erişmez. Hatalarda hiçbir sahte sanal alış üretilmez.
+
+Bu kayıtlar **piyasa koşullarına göre gerçekleşmiş alım değildir**; maliyet/çıkış sonuçları ancak ayrıca güncel kotasyonla ölçülür. CI, ağ kapalı/sentetik durumlarla bu otomatik ayrıştırmayı doğrular; gerçek sağlayıcı anahtarıyla tarama CI'da yapılmaz.
+
 ## En önemli sınırlar
 
 1. **NEXORA bu sürümle otomatik gerçek alım-satım yapmaz.** Fon aktarma, emir imzalama, `sendTransaction`, swap execute, private key veya cüzdan bilgisi yok.
