@@ -22,6 +22,7 @@ fun YeniTokenArastirmaKarti(url: String, key: String) {
     val session = if (key.isBlank()) Oturum.deger else ""
     val scope = rememberCoroutineScope()
     var mint by rememberSaveable { mutableStateOf("") }
+    var paperStudy by rememberSaveable { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }
     var result by remember { mutableStateOf<JSONObject?>(null) }
     var error by remember { mutableStateOf("") }
@@ -33,7 +34,7 @@ fun YeniTokenArastirmaKarti(url: String, key: String) {
             result = null
             error = ""
             try {
-                val req = JSONObject().put("mode", mode)
+                val req = JSONObject().put("mode", mode).put("paper", paperStudy)
                 if (mode == "manual") {
                     req.put("mint", mint.trim())
                 } else {
@@ -75,6 +76,12 @@ fun YeniTokenArastirmaKarti(url: String, key: String) {
             color = Nx.Soluk, fontSize = 12.sp)
         Text("Telegram kanal takibi bu araştırmadan ayrıdır; mesaj içerikleri okunmaz.",
             color = Nx.Soluk, fontSize = 11.sp)
+        Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+            Switch(checked = paperStudy, onCheckedChange = { paperStudy = it })
+            Spacer(Modifier.width(8.dp))
+            Text("Uygun adayı ayrı 100 USDT sanal araştırmaya ekle",
+                color = Nx.Soluk, fontSize = 12.sp)
+        }
         OutlinedTextField(
             value = mint,
             onValueChange = { if (it.length <= 64) mint = it.trim() },
@@ -118,6 +125,14 @@ fun YeniTokenArastirmaKarti(url: String, key: String) {
                     color = Nx.Yesil, fontSize = 12.sp)
                 else -> Text("Sağlayıcı sonucu: " + status,
                     color = Nx.Sari, fontSize = 12.sp)
+            }
+            val watch = data.optJSONObject("paper_watch")
+            if (watch != null) {
+                val count = watch.optInt("opened", 0)
+                val status = watch.optString("status")
+                Text("Sanal araştırma: " + if (count > 0)
+                    "$count yeni aday kaydedildi" else status,
+                    color = if (count > 0) Nx.Yesil else Nx.Sari, fontSize = 12.sp)
             }
             val rows: JSONArray? = data.optJSONArray("results")
             for (i in 0 until minOf(rows?.length() ?: 0, 3)) {
