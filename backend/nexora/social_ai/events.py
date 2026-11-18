@@ -81,7 +81,7 @@ class Event:
     author_group: str | None
 
 
-def normalize(source, row, as_of):
+def normalize(source, row, as_of, *, max_age=MAX_AGE, public_links=True, address_candidates=None):
     if source == "telegram" and row.get("authorized") is not True:
         return None, "KANAL_IZNI_UNKNOWN"
     source_id, author = identifier(row.get("source_id")), identifier(row.get("author_id"))
@@ -92,12 +92,13 @@ def normalize(source, row, as_of):
     published, observed, fetched = (zaman(row.get(k)) for k in ("published_at", "observed_at", "fetched_at"))
     if None in (published, observed, fetched) or not published <= fetched <= observed <= as_of:
         return None, "GECERSIZ_ZAMAN"
-    if observed - published > MAX_AGE:
+    if max_age is not None and observed - published > max_age:
         return None, "ESKI_PAYLASIM"
     text = row.get("text")
     text = text if isinstance(text, str) and len(text) <= 16_384 else ""
     normalized = " ".join(unicodedata.normalize("NFKC", text).casefold().split())
-    mints = {x for x in ADDRESS.findall(text) if valid_address(x)}
+    candidates = ADDRESS.findall(text) if address_candidates is None else address_candidates
+    mints = {x for x in candidates if valid_address(x)}
     explicit = row.get("token_mint")
     if explicit is not None:
         if valid_address(explicit):
@@ -111,7 +112,7 @@ def normalize(source, row, as_of):
     group = identifier(row.get("author_group"))
     event_id = digest("event", source, source_key)
     public = source != "telegram" or row.get("public") is True
-    url = _source_url(source, source_id, row.get("source_url")) if public else None
+    url = _source_url(source, source_id, row.get("source_url")) if public and public_links else None
     return Event(
         event_id, source, digest("source", source, source_key), url,
         author_key(source, author), published, observed, digest("text", normalized) if normalized else None,

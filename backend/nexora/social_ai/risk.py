@@ -10,7 +10,7 @@ MIN_LIQUIDITY_USDC = 10_000
 COORDINATION_SECONDS = 120
 
 
-def _social_risks(event, peers, profiles):
+def _social_risks(event, peers, profiles, confirmations):
     risks, unknown = [], []
     for value, code in (
         (event.paid, "UCRETLI_GORUNURLUK"),
@@ -38,7 +38,8 @@ def _social_risks(event, peers, profiles):
     if len(coordinators) >= 3:
         risks.append("BOT_BENZERI_KOORDINASYON")
     # Olaydan sonra yayımlanmış ve t0 öncesinde gözlemlenmiş paylaşımlar teyide girebilir.
-    clean = [p for p in peers if event.published_at < p.published_at and p.text_hash is not None and all(
+    clean = [p for p in peers if (confirmations is None or p.event_id in confirmations)
+             and event.published_at < p.published_at and p.text_hash is not None and all(
         value is False for value in (p.paid, p.misleading, p.impersonation)
     ) and author_verified(p, profiles) is True]
     # Her kopya metin oy dışı kalır. Aynı kimlik ve aynı grup ayrı oy değildir.
@@ -54,11 +55,14 @@ def _social_risks(event, peers, profiles):
     return risks, unknown, len(groups), [p.source_url or p.provenance for p in repeated + related + clean]
 
 
-def classify(event, match, history, batches, profiles, during, overall):
+def classify(event, match, history, batches, profiles, during, overall, *,
+             confirmations=None, extra_risks=(), extra_unknown=()):
     t0 = event.observed_at
     # Risk taraması, olayın yayınından önceki paylaşımları da gözlem penceresi içinde inceler.
     peers = [p for p in history if t0 - MAX_AGE <= p.observed_at < t0 and p.mint_candidates == event.mint_candidates]
-    risks, unknown, voices, refs = _social_risks(event, peers, profiles)
+    risks, unknown, voices, refs = _social_risks(event, peers, profiles, confirmations)
+    risks.extend(extra_risks)
+    unknown.extend(extra_unknown)
     if any(batches[source].status != "OK" for source in SOCIAL_SOURCES):
         unknown.append("SOSYAL_SAGLAYICI_UNKNOWN")
     if match.mint is None:
