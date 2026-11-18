@@ -128,7 +128,7 @@ fun UyeEkrani(url: String, key: String, sp: SharedPreferences, oturumDegisti: ()
                     Text(p?.optString("eposta") ?: "…", color = Nx.Metin, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                     Text("Paper hesabı · gerçek işlem kapalı", color = Nx.Soluk, fontSize = 12.sp)
                 }
-                TextButton({ cagri("/uye/cikis", true) { oturum = ""; Oturum.deger = ""; sp.edit().remove("oturum").apply(); profil = null; bakiye = null } }) {
+                TextButton({ cagri("/uye/cikis", true) { oturum = ""; Oturum.deger = ""; sp.edit().remove("oturum").apply(); profil = null; bakiye = null; oturumDegisti() } }) {
                     Text("Çıkış", color = Nx.Kirmizi)
                 }
             }
@@ -210,7 +210,7 @@ fun UyeEkrani(url: String, key: String, sp: SharedPreferences, oturumDegisti: ()
             GuvenlikKarti(mesgul,
                 parolaDegistir = { eski, yeni -> cagri("/uye/parola", true, JSONObject().put("eski", eski).put("yeni", yeni)) {
                     oturum = JSONObject(it).optString("oturum"); Kasa.yaz(sp, "oturum", oturum); Oturum.deger = oturum; mesaj = "Parola değişti. Diğer tüm cihazlarda oturum kapandı." } },
-                tumOturumlar = { cagri("/uye/oturumlari-kapat", true) { oturum = ""; Oturum.deger = ""; sp.edit().remove("oturum").apply(); profil = null; bakiye = null; mesaj = "Tüm oturumlar kapatıldı. Tekrar giriş yapın." } })
+                tumOturumlar = { cagri("/uye/oturumlari-kapat", true) { oturum = ""; Oturum.deger = ""; sp.edit().remove("oturum").apply(); profil = null; bakiye = null; mesaj = "Tüm oturumlar kapatıldı. Tekrar giriş yapın."; oturumDegisti() } })
             BilgiKutusu("Sistem sunucuları (Helius, Jupiter) sizin adınıza ayrı anahtar gerektirmez. Borsa anahtarınızla şu an yalnızca bakiye okunur; uygulama emir göndermez ve para çekemez.")
         }
     }
