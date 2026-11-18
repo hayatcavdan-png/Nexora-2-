@@ -2,6 +2,7 @@
 import json
 import math
 import unittest
+import importlib.util
 
 from nexora.strategy_lab.integrations import (
     duckdb_summary, vectorbt_study, quantstats_summary,
@@ -21,6 +22,9 @@ def bars(n=60):
     } for i in range(n)]
 
 
+@unittest.skipUnless(all(importlib.util.find_spec(name) is not None for name in
+                             ("duckdb", "solana", "solders", "vectorbt", "quantstats", "pandas")),
+                     "Optional strategy tools not installed in production core")
 class OptionalToolsTests(unittest.TestCase):
     def test_duckdb_aggregate_in_memory(self):
         report = duckdb_summary([
