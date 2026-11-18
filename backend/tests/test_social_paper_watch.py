@@ -133,6 +133,38 @@ class PaperWatchTests(unittest.TestCase):
             self.assertEqual(after["entries"][0]["horizons"]["5dk"]["status"], "OK")
             self.assertEqual(after["entries"][0]["horizons"]["5dk"]["net_usdt"], "0.830000")
 
+    def test_exit_plan_is_frozen_at_entry_and_only_quote_based(self):
+        st = P.initial_state()
+        p = proof()
+        p["planned_exit_horizon_min"] = 5
+        self.assertTrue(P.open_study(st, p, now=T0 + 1)["opened"])
+        self.assertEqual(st["entries"][0]["planned_exit_horizon_min"], 5)
+        self.assertEqual(st["entries"][0]["plan_decided_at"], T0 + 1)
+        five = P.settle_horizon(st, MINT, "5dk", now=T0+301,
+                                quote={"in_amount": 500000, "out_amount": 5_000_000,
+                                       "price_impact_pct": 1})
+        self.assertEqual(five["precommitted_exit"]["status"], "HYPOTHETICAL_QUOTE_ONLY")
+        self.assertEqual(five["precommitted_exit"]["net_usdt"], "0.830000")
+        self.assertFalse(five["precommitted_exit"]["actual_execution"])
+        fifteen = P.settle_horizon(st, MINT, "15dk", now=T0+901,
+                                   quote={"in_amount": 500000, "out_amount": 9_000_000,
+                                          "price_impact_pct": 1})
+        self.assertNotIn("precommitted_exit", fifteen)
+        self.assertEqual(st["entries"][0]["planned_exit_horizon_min"], 5)
+
+    def test_planned_exit_missing_quote_is_not_fabricated(self):
+        st = P.initial_state()
+        p = proof()
+        p["planned_exit_horizon_min"] = 5
+        self.assertTrue(P.open_study(st, p, now=T0)["opened"])
+        five = P.settle_horizon(st, MINT, "5dk", now=T0+301, quote=None)
+        self.assertEqual(five["precommitted_exit"]["status"], "UNAVAILABLE")
+        self.assertIsNone(five["precommitted_exit"]["net_usdt"])
+        st2 = P.initial_state()
+        p["planned_exit_horizon_min"] = 7
+        self.assertEqual(P.open_study(st2, p, now=T0)["reason"],
+                         "INVALID_PRECOMMITTED_HORIZON")
+
     def test_file_validation(self):
         with tempfile.TemporaryDirectory() as folder:
             store = P.Store(str(Path(folder) / "ledger.json"))
