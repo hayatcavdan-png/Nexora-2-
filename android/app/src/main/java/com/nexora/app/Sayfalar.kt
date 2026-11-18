@@ -562,27 +562,44 @@ fun IslemFormu(v: Veri, secili: String, seciliDegis: (String) -> Unit, gonder: (
 // ------------------------------------------------------------------ Profil
 
 fun LazyListScope.profil(v: Veri, git: (String) -> Unit, ayarlar: @Composable () -> Unit) {
-    item(key = "pr_kart") {
-        NeonKart(Modifier.fillMaxWidth(), kenar = Nx.KenarParlak, dolgu = Nx.DolguMor) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                Column {
-                    Logo(28.sp)
-                    Text("Paper hesabı · gerçek işlem kapalı", color = Nx.Soluk, fontSize = 12.sp)
-                    Text("Sürüm ${BuildConfig.VERSION_NAME}", color = Nx.Soluk, fontSize = 11.sp)
-                }
-            }
-        }
-    }
+    item(key = "pr_kart") { RolProfilBasligi(v) }
     item(key = "pr_menu") {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            if (v.kurucu) ProfilSatiri("Otomatik Pilot · Risk · Acil Durdurma", { IkonRobot(Nx.MorAcik) }) { git("bot") }
-            ProfilSatiri("Hesabım · Davet · Bağlantılar", { Icon(Icons.Filled.AccountCircle, null, tint = Nx.MorAcik) }) { git("uye") }
-            ProfilSatiri("Günlük Rapor", { Icon(Icons.Filled.DateRange, null, tint = Nx.MorAcik) }) { git("rapor") }
-            ProfilSatiri("Yol Haritası", { Icon(Icons.Filled.List, null, tint = Nx.MorAcik) }) { git("yol") }
-            if (v.kurucu) ProfilSatiri("Takip Edilen Cüzdanlar", { IkonDna(Nx.MorAcik) }) { git("takip") }
+            if (v.kurucu) {
+                Text("OPERASYON VE DENETİM", color = Nx.Nane, fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold, letterSpacing = 1.2.sp)
+                ProfilSatiri("Otomatik Pilot · Risk · Acil Durdurma",
+                    { IkonRobot(Nx.MorAcik) }) { git("bot") }
+                ProfilSatiri("Takip edilen cüzdanlar",
+                    { IkonDna(Nx.MorAcik) }) { git("takip") }
+                ProfilSatiri("Günlük rapor ve kanıtlar",
+                    { Icon(Icons.Filled.DateRange, null, tint = Nx.MorAcik) }) { git("rapor") }
+                ProfilSatiri("Proje yol haritası",
+                    { Icon(Icons.Filled.List, null, tint = Nx.MorAcik) }) { git("yol") }
+            } else {
+                Text("ÜYE ALANI", color = Nx.Gok, fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold, letterSpacing = 1.2.sp)
+                ProfilSatiri("Kişisel sanal hesap ve bağlantılar",
+                    { Icon(Icons.Filled.AccountCircle, null, tint = Nx.Gok) }) { git("uye") }
+                ProfilSatiri("Token keşfi",
+                    { Icon(Icons.Filled.Search, null, tint = Nx.Gok) }) { git("kesfet") }
+                ProfilSatiri("Sistem paper karnesi",
+                    { Icon(Icons.Filled.Star, null, tint = Nx.Gok) }) { git("karne") }
+                BilgiKutusu("Üye hesapları yalnızca kendi net sanal bakiyesini gösterir. Risk kuralları ve bot kontrolleri yöneticide kalır.")
+            }
+            Text("HESAP VE TERCİHLER", color = Nx.Soluk, fontSize = 11.sp,
+                fontWeight = FontWeight.Bold, letterSpacing = 1.2.sp,
+                modifier = Modifier.padding(top = 8.dp))
+            ProfilSatiri("Hesabım · Güvenlik · Davet",
+                { Icon(Icons.Filled.Person, null, tint = Nx.MorAcik) }) { git("uye") }
         }
     }
-    item(key = "pr_ayar") { Column(verticalArrangement = Arrangement.spacedBy(12.dp)) { ayarlar() } }
+    item(key = "pr_ayar") {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Baslik("Uygulama ayarları", "Bağlantı, bildirim ve görünüm")
+            ayarlar()
+        }
+    }
 }
 
 @Composable
