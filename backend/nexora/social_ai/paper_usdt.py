@@ -82,7 +82,7 @@ def _quote(row, mint, *, side, cutoff, start=0, seconds=MAX_AGE_SECONDS):
     value = _decimal(row.get("input_usdt") if side == "buy" else row.get("output_usdt"))
     if value is None or qty is None:
         return None
-    return value, qty, network + dex
+    return value, qty, network + dex, slip
 
 
 def simulate(candidate, *, now):
@@ -179,8 +179,10 @@ def simulate(candidate, *, now):
     if entry is None:
         out["reason"] = "ENTRY_QUOTE_UNKNOWN"
         return out
-    input_usdt, qty, fees = entry
-    spent = input_usdt + fees
+    input_usdt, qty, fees, buy_slip = entry
+    # Conservative price protection. Quoted price impact is already in the
+    # executable quote; slippage tolerance is an additional paper buffer.
+    spent = input_usdt * (Decimal("1") + buy_slip / Decimal("10000")) + fees
     if spent > MAX_ENTRY_USDT:
         out["reason"] = "ENTRY_LIMIT_EXCEEDED"
         return out
@@ -208,7 +210,8 @@ def simulate(candidate, *, now):
                       start=due, seconds=EXIT_TOLERANCE_SECONDS)
         if sell is None or sell[1] != qty:
             continue
-        proceeds, _, exit_fees = sell
+        quoted_proceeds, _, exit_fees, sell_slip = sell
+        proceeds = quoted_proceeds * (Decimal("1") - sell_slip / Decimal("10000"))
         net = proceeds - exit_fees - spent
         out["horizons"][key] = dict(
             status="OK", net_usdt=str(net.quantize(Decimal("0.000001")))
