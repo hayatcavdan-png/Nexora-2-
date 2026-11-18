@@ -11,6 +11,7 @@ from decimal import Decimal, InvalidOperation
 from math import isfinite
 
 from nexora.social_ai.events import valid_address
+from nexora.constants import USDC_MINT
 from nexora.social_ai.recent_research import USDT_MINT
 
 PAPER_USDT = Decimal("4")
@@ -76,10 +77,14 @@ def entry_signal(research, *, now):
         "paper_entry": False,
         "social_ai_transfer": False,
     }.items():
-        if research.get(name) is not value if type(value) is bool else research.get(name) != value:
+        actual = research.get(name)
+        mismatch = (type(actual) is not bool or actual is not value) if type(value) is bool else actual != value
+        if mismatch:
             return _decision("SKIP", "PROOF_MISSING")
     mint = research.get("mint")
-    if not valid_address(mint) or mint == USDT_MINT:
+    if not valid_address(mint) or mint in (
+        USDT_MINT, USDC_MINT, "So11111111111111111111111111111111111111112"
+    ):
         return _decision("SKIP", "MINT_INVALID")
     if not _fresh(research.get("observed_at"), now, MAX_SIGNAL_AGE_S):
         return _decision("SKIP", "QUOTE_STALE")
@@ -101,7 +106,8 @@ def entry_signal(research, *, now):
         return _decision("SKIP", "ROUNDTRIP_COST_TOO_HIGH_OR_INCONSISTENT")
     if not all(Decimal("0") <= impact <= MAX_IMPACT_PCT for impact in (buy_impact, sell_impact)):
         return _decision("SKIP", "PRICE_IMPACT_TOO_HIGH")
-    if not Decimal("0") < back_quote <= PAPER_USDT:
+    implied_sell = PAPER_USDT * (Decimal("1") - roundtrip / Decimal("100"))
+    if not Decimal("0") < back_quote <= PAPER_USDT or abs(back_quote - implied_sell) > Decimal("0.05"):
         return _decision("SKIP", "SELL_QUOTE_INCONSISTENT")
     # Descriptive quality ordering only; *not* a predicted return probability.
     liq_points = min(25, int(25 * liquidity / Decimal("100000")))
