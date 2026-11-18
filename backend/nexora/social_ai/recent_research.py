@@ -283,10 +283,13 @@ def research_recent(*, enabled=False, limit=3, rpc=None, quoter=None,
     try:
         rows = _get_recent(session, key)[:limit]
         for row in rows:
-            measured_at = now()
-            results.append(analyze(
+            result = analyze(
                 row["id"], row, rpc_call=rpc.call, quote=quoter.quote,
-                measured_at=measured_at))
+                measured_at=None)
+            # Quote-only observation starts AFTER both network reads complete.
+            if result["status"] == "RESEARCH_CANDIDATE":
+                result["observed_at"] = now()
+            results.append(result)
     except Exception as exc:
         error = type(exc).__name__
     finally:
@@ -349,9 +352,12 @@ def research_manual(mint, *, enabled=False, rpc=None, quoter=None,
         if profile is None:
             results.append(_deny(mint, "TOKEN_PROFILE_NOT_FOUND"))
         else:
-            results.append(analyze(
+            result = analyze(
                 mint, profile, rpc_call=rpc.call, quote=quoter.quote,
-                measured_at=now()))
+                measured_at=None)
+            if result["status"] == "RESEARCH_CANDIDATE":
+                result["observed_at"] = now()
+            results.append(result)
     except Exception as exc:
         error = type(exc).__name__
     finally:
