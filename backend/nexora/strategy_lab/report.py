@@ -56,6 +56,45 @@ def sanitize(data):
         "profitable_proven": False,
         "notice": "Historical and simulated; NOT investment profit evidence",
     }
+    metrics = data.get("historical_test")
+    if isinstance(metrics, dict):
+        allowed = ("final_mark_usdt", "trades", "fee_bps", "slippage_bps")
+        valid = {}
+        from math import isfinite
+        for key in allowed:
+            val = metrics.get(key)
+            if key == "trades" and type(val) is int and 0 <= val <= 10000:
+                valid[key] = val
+            elif key != "trades" and type(val) in (int, float, str):
+                try:
+                    x = float(val)
+                except (ValueError, OverflowError):
+                    continue
+                if isfinite(x) and 0 <= x <= 1000000:
+                    valid[key] = round(x, 6)
+        if valid:
+            res["historical_test"] = dict(valid,
+                price_basis="NEXT_BAR_OPEN", actual_execution=False,
+                pnl_is_hypothetical=True)
+    optional = data.get("optional_reports")
+    if isinstance(optional, dict):
+        cleaned = {}
+        for tool, keys in {
+            "vectorbt": ("final_equity_usdt", "total_return_pct", "max_drawdown_pct", "trades"),
+            "quantstats": ("max_drawdown_pct", "daily_sharpe", "sample_bars"),
+            "duckdb": ("evaluated_rows",),
+        }.items():
+            val = optional.get(tool)
+            if not isinstance(val, dict) or val.get("real_order") is not False:
+                continue
+            row = {}
+            for field in keys:
+                number = val.get(field)
+                if type(number) in (int, float) and isfinite(number) and abs(number) < 1_000_000:
+                    row[field] = round(number, 6) if isinstance(number, float) else number
+            if row:
+                cleaned[tool] = row
+        res["optional_reports"] = cleaned
     return res
 
 
