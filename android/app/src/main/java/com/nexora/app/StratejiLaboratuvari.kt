@@ -123,6 +123,44 @@ fun StratejiLaboratuvari(url: String, key: String) {
                     color = Nx.Soluk, fontSize = 11.sp)
             }
 
+            val metrics = report.optJSONObject("historical_test")
+            val optional = report.optJSONObject("optional_reports")
+            if (metrics != null) {
+                Kart(Modifier.fillMaxWidth()) {
+                    Text("100 USDT · Tarihsel strateji testi",
+                        color = Nx.Metin, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                    Text("Sanal son değer: " + metrics.optString("final_mark_usdt") + " USDT",
+                        color = Nx.Metin, fontWeight = FontWeight.SemiBold)
+                    Text("Sanal işlem adımları: " + metrics.optInt("trades"),
+                        color = Nx.Soluk, fontSize = 12.sp)
+                    Text("Maliyet varsayımı: " + metrics.optString("fee_bps") +
+                         " baz puan ücret + " + metrics.optString("slippage_bps") +
+                         " baz puan fiyat kayması", color = Nx.Soluk, fontSize = 12.sp)
+                    Text("Geçmiş çalışma; gerçek alım, satış veya getiri kanıtı değildir.",
+                        color = Nx.Sari, fontSize = 11.sp)
+                }
+            }
+            if (optional != null && optional.length() > 0) {
+                Kart(Modifier.fillMaxWidth()) {
+                    Text("İleri analiz", color = Nx.Metin,
+                        fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                    optional.optJSONObject("vectorbt")?.let {
+                        Text("VectorBT · sanal son değer: " +
+                            it.optString("final_equity_usdt") + " USDT",
+                            color = Nx.Soluk, fontSize = 12.sp)
+                    }
+                    optional.optJSONObject("quantstats")?.let {
+                        Text("QuantStats · maksimum geri çekilme: %" +
+                            it.optString("max_drawdown_pct"),
+                            color = Nx.Soluk, fontSize = 12.sp)
+                    }
+                    optional.optJSONObject("duckdb")?.let {
+                        Text("DuckDB · analiz edilen sanal kayıt: " +
+                            it.optString("evaluated_rows"),
+                            color = Nx.Soluk, fontSize = 12.sp)
+                    }
+                }
+            }
             val ranking = report.optJSONArray("candidates")
             Kart(Modifier.fillMaxWidth()) {
                 Text("Araştırılan tokenlar", fontSize = 17.sp,
