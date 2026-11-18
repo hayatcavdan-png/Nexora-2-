@@ -113,6 +113,18 @@ class ProfitEngineTests(unittest.TestCase):
         self.assertEqual(result["status"], "EVIDENCE_INVALID")
         self.assertFalse(result["intake"]["allow_new_paper"])
 
+    def test_corrupt_horizons_and_extreme_time_pause_new_studies(self):
+        state, now = state_with(35)
+        state["entries"][0]["horizons"] = []
+        invalid = review(state, as_of=now)
+        self.assertEqual(invalid["status"], "EVIDENCE_INVALID")
+        self.assertFalse(invalid["intake"]["allow_new_paper"])
+        state["entries"][0]["horizons"] = {"5dk": {"status": "UNKNOWN"}}
+        state["entries"][0]["observed_at"] = 10 ** 1000
+        again = review(state, as_of=now)
+        self.assertEqual(again["status"], "EVIDENCE_INVALID")
+        self.assertFalse(again["intake"]["allow_new_paper"])
+
     def test_last_horizon_cannot_enter_earlier_training(self):
         state, now = state_with(60, spacing=3600)
         result = review(state, as_of=now)
