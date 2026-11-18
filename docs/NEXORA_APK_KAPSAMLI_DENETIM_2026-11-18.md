@@ -39,7 +39,7 @@
 | SEC-04 | **Yüksek** | `Veri.kt` rol alanı yoksa `kurucu` varsayıyordu | Belirsiz rol => `bilinmiyor`; backend yetki hâlâ asli kontrol | 401,403, rol değişimi, oturum süresi sınaması |
 | SEC-05 | **Yüksek** | `Yedek.kt` tüm `tar.gz` dosyasını RAM'de tutuyordu, sonra eski telefon yedeklerini silebiliyordu | `YedekAkis.kt` akış halinde yazar, yeni dosya haricini silmez; eski temizleme kaldırıldı | Kesik bağlantı, disk dolması, büyük yedek ve aynı isimli dosya cihaz testi |
 | SEC-06 | **Yüksek** | Telefon `İndirilenler/NEXORA` içinde **şifresiz tar.gz** arşivi kalabilir | **AÇIK**: eski davranış korunuyor, kimlik/özel anahtar yedeğe katılmıyor; dosya yine hassas olabilir | Arşiv şifreleme, uygulama-özel alan/dışa aktarım izni ve geri yükleme güvenliği |
-| SEC-07 | **Orta** | Dört–sekiz rakam PIN SHA-256(salt + PIN), 5 hata bekleme süreci sadece Compose `remember` içinde | **AÇIK** | Cihaz yeniden başlatma sonrası deneme sınırlama, güvenli PIN türetme, biyometrik tehdit modeli |
+| SEC-07 | **Orta** | Dört–sekiz rakam PIN SHA-256(salt + PIN), 5 hata bekleme süreci başlangıçta sadece Compose `remember` içindeydi | Yanlış deneme ve 30 saniyelik bekleme SharedPreferences üzerinden yeniden başlatmaya karşı kalıcılaştırıldı; biyometrik başarıda sayaç temizleniyor | PBKDF2/Argon2 tabanlı güvenli PIN türetme, saat değiştirme ve gerçek cihaz tehdit modeli hâlâ açık |
 | SEC-08 | **Orta** | Ana ekran `Veri.yukle` yaklaşık 15+ HTTP uç noktasını sırayla her 15 saniyede okuyor | **AÇIK**, sürpriz regresyondan kaçınmak için yeniden yazılmadı | Toplu snapshot, paralel güvenli GET, iptal/timeout, yavaş bağlantı yük testi |
 | SEC-09 | **Orta** | `BildirimServisi` foreground 30 saniye yoklama, 6 saat yedek kontrolü | **AÇIK** | Android 12/13/14 izin/pil/servis yaşam döngüsü testi |
 | SEC-10 | **Orta** | GitHub CI APK'yı derliyor ancak dokunmatik, erişilebilirlik, gerçek TLS ve ekran görüntüsü testi yapmıyor | JVM transport testleri ve statik güvenlik CI kapısı eklendi | Android emülatör ve gerçek cihaz smoke testleri |
@@ -85,6 +85,9 @@
 - **Yedekleri silmeyin veya üzerine yazmayın:** yedek otomatik temizleme PR #17'de telefon için kaldırıldı; sunucudaki 14 dosyalı otomatik retention varlığını ayrıca göz önünde bulundurun.
 - **Düzeltmeleri PR #17 ile koruyun:** PR #16'yı/PR #17'yi `main`e otomatik birleştirmeyin. HTTPS geçişi tamamlanmadan PR #17'yi üretime almak, eski `http://100.x:8000` bağlantısı olan kullanıcıları erişimsiz bırakır.
 - **Kârlılık:** Ortaya çıkan uygulama bir araştırma ve 100 USDT sanal işlem sistemidir. Gerçek kârlılık veya yatırım performansı iddia edilmez.
+- **Dar ekran kullanımı:** `Keşfet` ekranındaki beş alt sekme eşit dar ağırlık yerine yatay kaydırılabilir hale getirildi; küçük telefon ekranında yazıların sıkışmasını azaltır. Gerçek cihaz/görsel kabul testi hâlâ gereklidir.
+- **Giriş güvenliği:** Borsa API anahtarı giriş alanı maskelendi; JSON metrik yardımcıları NaN ve Infinity değerlerini reddediyor.
+
 
 ### Referanslar
 
