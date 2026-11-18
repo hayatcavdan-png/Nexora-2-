@@ -14,27 +14,50 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "backend"))
 
 
 def cycle(*, research, store, now):
-    """Pure orchestration with injectable provider. Only vetted quote candidates."""
+    """Read-only provider -> independent lab risk gate -> bounded paper ledger.
+
+    Safe, deterministic ordering by observed quality (not forecast win rate).
+    Only one new study per cycle; a replayed mint cannot consume a slot.
+    """
     from nexora.social_ai.paper_watch import open_study
+    from nexora.strategy_lab.auto_decision import entry_signal
+
     response = research(enabled=True, limit=2)
     if not isinstance(response, dict) or response.get("mode") != "READ_ONLY_RESEARCH":
-        return {"status": "PROVIDER_UNAVAILABLE", "scanned": 0, "paper_opened": 0}
+        return {"status": "PROVIDER_UNAVAILABLE", "scanned": 0,
+                "paper_opened": 0, "lab_rejected": 0, "real_order": False}
     if response.get("status") != "OK" or response.get("real_order") is not False:
         return {"status": response.get("status", "PROVIDER_UNAVAILABLE"),
-                "scanned": 0, "paper_opened": 0}
-    found = 0
+                "scanned": 0, "paper_opened": 0,
+                "lab_rejected": 0, "real_order": False}
+
+    vetted = []
+    scanned = 0
+    rejected = 0
+    rows = response.get("results", [])
+    if not isinstance(rows, list):
+        return {"status": "PROVIDER_UNAVAILABLE", "scanned": 0,
+                "paper_opened": 0, "lab_rejected": 0, "real_order": False}
+    for candidate in rows[:2]:
+        if not isinstance(candidate, dict):
+            continue
+        scanned += 1
+        verdict = entry_signal(candidate, now=now)
+        if verdict["action"] != "OPEN_PAPER_STUDY":
+            rejected += 1
+            continue
+        vetted.append((verdict["screening_score_not_win_probability"],
+                       candidate))
+    vetted.sort(key=lambda item: item[0], reverse=True)
+
     opened = 0
-    for row in response.get("results", [])[:2]:
-        if not isinstance(row, dict):
-            continue
-        found += 1
-        if row.get("status") != "RESEARCH_CANDIDATE":
-            continue
-        result = store.mutate(lambda state: open_study(state, row, now=now))
+    for _, candidate in vetted:
+        result = store.mutate(lambda state: open_study(state, candidate, now=now))
         if result.get("opened") is True:
-            opened += 1
-    return {"status": "QUOTE_PAPER_RESEARCH", "scanned": found, "paper_opened": opened,
-            "real_order": False}
+            opened = 1
+            break
+    return {"status": "QUOTE_PAPER_RESEARCH", "scanned": scanned,
+            "paper_opened": opened, "lab_rejected": rejected, "real_order": False}
 
 
 def main(args=None):
