@@ -325,10 +325,42 @@ class H(BaseHTTPRequestHandler):
             self._send(200, build_report(os.getenv("NEXORA_DB", "nexora_paper.db"), os.getenv("TRACKER_DB", "nexora_tracker.db")))
         else: self._send(404, {"hata": "yok"})
     def do_POST(self):
-        izin, _ = self._izin(urlsplit(self.path).path, True)
+        path = urlsplit(self.path).path
+        token_research = path == "/admin/token-discovery"
+        izin, _ = self._izin(path, True, private=token_research)
         if not izin: return
-        n = int(self.headers.get("Content-Length", 0) or 0)
+        try:
+            n = int(self.headers.get("Content-Length", 0) or 0)
+        except (TypeError, ValueError):
+            self._send(400, {"hata": "gecersiz istek boyutu"}, private=token_research); return
+        if token_research and not 0 <= n <= 2048:
+            self._send(413, {"hata": "istek siniri"}, private=True); return
         raw = self.rfile.read(n) if n else b"{}"
+        if token_research:
+            try:
+                from nexora.social_ai.recent_research import research_manual, research_recent
+                data = json.loads(raw)
+                if not isinstance(data, dict): raise ValueError("JSON nesnesi gerekli")
+                mode = data.get("mode", "recent")
+                enabled = os.getenv("SOCIAL_RESEARCH_LIVE_ENABLED") == "1"
+                if mode == "manual":
+                    mint = data.get("mint")
+                    if not isinstance(mint, str) or len(mint) > 64:
+                        raise ValueError("gecersiz mint")
+                    result = research_manual(mint, enabled=enabled)
+                elif mode == "recent":
+                    limit = data.get("limit", 2)
+                    if type(limit) is not int or not 1 <= limit <= 3:
+                        raise ValueError("limit 1 ile 3 arasi olmali")
+                    result = research_recent(enabled=enabled, limit=limit)
+                else:
+                    raise ValueError("bilinmeyen analiz modu")
+                self._send(200, result, private=True)
+            except (ValueError, TypeError):
+                self._send(400, {"hata": "gecersiz token arastirma istegi"}, private=True)
+            except Exception as exc:
+                self._send(503, {"hata": f"arastirma saglayicisi: {type(exc).__name__}"}, private=True)
+            return
         if self.path.startswith("/uye/"): self._uye_islem(self.path, raw); return
         if self.path == "/acil-durdur": paper.set_kill(True); self._send(200, {"acil_durdurma": True})
         elif self.path == "/devam": paper.set_kill(False); self._send(200, {"acil_durdurma": False})
