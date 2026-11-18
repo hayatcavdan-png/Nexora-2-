@@ -26,12 +26,25 @@ def load_input(path):
     return data
 
 
+
+def sample_equity_for_chart(equity, limit=1000):
+    """Keep a bounded, strictly ordered UI series without changing backtest math.
+
+    The original full-resolution equity history remains available to optional
+    analytics. Both endpoints are preserved for any length above the UI limit.
+    """
+    if len(equity) <= limit:
+        return equity
+    last = len(equity) - 1
+    return [equity[i * last // (limit - 1)] for i in range(limit)]
+
+
 def analyze(data, *, optional=False):
     result = backtest(data.get("bars"))
     summary = {
         "schema_version": 1, "mode": "PAPER_STRATEGY_LAB",
         "real_order": False, "initial_usdt": "100",
-        "equity": result["equity"],
+        "equity": sample_equity_for_chart(result["equity"]),
         "candidates": data.get("candidates", []),
     }
     # Strict output contract removes every unrecognized key/sensitive input.
