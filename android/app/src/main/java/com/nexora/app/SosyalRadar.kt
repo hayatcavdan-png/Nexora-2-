@@ -153,6 +153,10 @@ fun SosyalRadarEkrani(url: String, key: String) {
         // düğmesiyle çalışan ayrı salt-okunur araştırma. Telegram içeriği yok.
         YeniTokenArastirmaKarti(url, key)
 
+        // Bağımsız sanal araştırma defteri. Hangi vadede gerçek quote
+        // okunduysa yalnızca onu ölçer; geçmiş fiyat uydurulmaz.
+        CanliPaperIzlemeKarti(url, key)
+
         Text("Sosyal kaynaklar", color = Nx.Metin, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
         SOSYAL_KAYNAKLAR.forEach { kaynak ->
             val satir = kaynaklar[kaynak.kimlik]?.singleOrNull()
