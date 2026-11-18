@@ -148,8 +148,9 @@ fun App() {
         try {
             val yer = withContext(Dispatchers.IO) {
                 api(url, key, "/yedek", true)
-                val (ad, veri) = Yedek.indir(url, key)
-                Yedek.kaydet(ctx, ad, veri).also { sp.edit().putString("yedek_son_ad", ad).apply() }
+                val (ad, yer) = YedekAkis.indirKaydet(ctx, url, key)
+                sp.edit().putString("yedek_son_ad", ad).apply()
+                yer
             }
             mesaj("Yedek kaydedildi: $yer")
         } catch (e: Exception) {
