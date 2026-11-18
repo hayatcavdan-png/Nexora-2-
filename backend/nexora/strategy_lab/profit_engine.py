@@ -30,7 +30,10 @@ class ProfitEvidenceError(ValueError):
 def _finite_number(value):
     if type(value) not in (int, float):
         return None
-    number = float(value)
+    try:
+        number = float(value)
+    except (ValueError, OverflowError):
+        return None
     return number if isfinite(number) and number > 0 else None
 
 
@@ -48,7 +51,10 @@ def _money(value):
 
 def _observed_net(row, minutes, *, as_of):
     """A usable quote needs both a finite net and timely measurement proof."""
-    horizon = (row["raw"].get("horizons") or {}).get(f"{minutes}dk")
+    histories = row["raw"].get("horizons")
+    if not isinstance(histories, dict):
+        return None
+    horizon = histories.get(f"{minutes}dk")
     if not isinstance(horizon, dict) or horizon.get("status") != "OK":
         return None
     timestamp = _finite_number(horizon.get("measured_at"))
@@ -87,6 +93,8 @@ def _samples(state, as_of):
         cost = _money(record.get("reserved_cost_usdt"))
         if ts is None or cost is None or cost <= 0 or cost > 5.0:
             raise ProfitEvidenceError("INVALID_COST_OR_TIME")
+        if not isinstance(record.get("horizons"), dict):
+            raise ProfitEvidenceError("INVALID_HORIZONS")
         if ts + MATURITY_S > as_of:
             continue
         matured.append({"ts": ts, "cost": cost, "raw": record})
