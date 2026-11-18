@@ -33,7 +33,7 @@ Gerçek işlem yine KAPALIDIR; taşıma yalnızca paper sistemini taşır.
    Not: SSH oturumu, telefon ağ değiştirince (mobil veri ↔ Wi-Fi, Tailscale aç/kapa) kopar; yeniden bağlanın.
 6. **Telefonda eski sistemi durdur** (yedekten ÖNCE yapın): `./nexora durdur` (ikisi aynı anda çalışırsa Helius kotası iki kat harcanır
    ve iki ayrı paper defteri oluşur).
-7. **Uygulamada** Ayarlar → Sunucu adresi `http://SUNUCU_TAILSCALE_IP:8000`, API anahtarı:
+7. **Uygulamada** Ayarlar → Sunucu adresi: **yeni güvenlik sertleştirmesiyle HTTPS zorunlu**. Önce [TLS/HTTPS geçiş kılavuzunu](TLS_HTTPS_GECIS.md) kullanarak Tailscale Serve ile özel ağda sertifikalı `https://SUNUCU_ADI.tailnet.ts.net` endpointini ayrı doğrulayın. Eski APK'nın `http://SUNUCU_TAILSCALE_IP:8000` bağlantısı sadece geçmiş sürüm davranışıdır; yeni APK uzak HTTP'yi reddeder. Üretim sunucusu kendiliğinden değiştirilmez. API anahtarı:
    `sudo grep NEXORA_API_KEY /etc/nexora.env`
 
 ## Günlük kullanım
