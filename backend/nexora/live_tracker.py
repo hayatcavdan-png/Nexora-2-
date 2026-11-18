@@ -137,7 +137,8 @@ class LiveTracker:
         rec = decode_swap(tx, wallet)
         if rec.get("event_type") not in ("BUY", "SELL"): return None
         bt = tx.get("blockTime") or 0
-        age = max(0.0, self.clock() - bt) if bt else 1e9      # algılama gecikmesi (karar öncesi)
+        t0 = self.clock()
+        age = max(0.0, t0 - bt) if bt else 1e9      # algılama gecikmesi (karar öncesi)
         event_id, side = f"{wallet}:{sig}", rec["event_type"].lower()
         if self.decider:                                       # gerçek teklifle paper karar (ağ: kilit dışında)
             oran = None
@@ -154,7 +155,7 @@ class LiveTracker:
                 pass
         if self.etiketci is not None:
             try:
-                self.etiketci.sinyal(event_id, wallet, rec["token_mint"], side, sig, bt, age, r["decision"], r["reason"])
+                self.etiketci.sinyal(event_id, wallet, rec["token_mint"], side, sig, bt, age, r["decision"], r["reason"], t0=t0)
             except Exception:
                 pass
         with self.lock:

@@ -94,6 +94,7 @@ class EtiketTests(unittest.TestCase):
         try:
             self.e.sinyal("G1:a", "G1", "TOK", "buy", "a", 0, 1, "REDDEDİLDİ", E.IZLENEN); self.run_all()
             self.e.sinyal("G2:b", "G2", "TOK", "buy", "b", 0, 1, "REDDEDİLDİ", E.IZLENEN); self.run_all()   # gölge sınırı dolu
+            self.t[0] += 1
             self.e.sinyal("W:c", "W", "TOK", "buy", "c", 0, 1, "KOPYALANDI", "geçti"); self.run_all()       # kopyalanan etkilenmez
             d = {r["event_id"]: r["teyit"] for r in self.rows("SELECT event_id, teyit FROM etiket_olay")}
             self.assertEqual(d, {"G1:a": 1, "W:c": 2})
@@ -109,10 +110,14 @@ class EtiketTests(unittest.TestCase):
         self.assertEqual(s["5dk"]["hata"], "kaçırıldı"); self.assertIsNone(s["5dk"]["getiri_pct"])
         self.at(1000)                                                        # 30 dk vadesinde satılamıyor
         s = {r["ufuk"]: r for r in self.rows("SELECT * FROM etiket_sonuc")}
-        self.assertTrue(s["30dk"]["hata"].startswith("satılamadı")); self.assertAlmostEqual(s["30dk"]["getiri_pct"], -100.4)
+        self.assertTrue(s["30dk"]["hata"].startswith("satılamadı"))
+        self.assertIsNone(s["30dk"]["getiri_pct"])
+        self.assertIsNone(s["30dk"]["cikis_usdc"])
         self.q.fail = set(); self.at(E.KAYNAK_ZAMAN_ASIMI)
         s = {r["ufuk"]: r for r in self.rows("SELECT * FROM etiket_sonuc")}
-        self.assertIn("zaman aşımı", s["kaynak"]["hata"]); self.assertIsNotNone(s["kaynak"]["getiri_pct"])
+        self.assertIn("zaman aşımı", s["kaynak"]["hata"])
+        self.assertIsNone(s["kaynak"]["getiri_pct"])
+        self.assertIsNone(s["kaynak"]["cikis_usdc"])
 
     def test_restart_reschedules(self):
         self.e.sinyal("W:a", "W", "TOK", "buy", "a", 0, 1, "x", "x"); self.run_all()

@@ -1,0 +1,249 @@
+{
+  "as_of": 1790003905,
+  "providers": {
+    "x": {
+      "status": "OK",
+      "items": [
+        {
+          "source_id": "1002",
+          "author_id": "demo-reporter",
+          "author_group": "demo-reporter-group",
+          "published_at": 1789999910,
+          "observed_at": 1790000000,
+          "fetched_at": 1790000000,
+          "text": "Sentetik protokol duyurusu 4wBqpZM9xaSheZzJSMawUKKwhdpChKbZ5eu5ky4Vigw",
+          "paid": false,
+          "misleading": false,
+          "impersonation": false,
+          "claimed_role": "none",
+          "metrics": {
+            "likes": 12
+          }
+        }
+      ]
+    },
+    "telegram": {
+      "status": "OK",
+      "items": [
+        {
+          "source_id": "1001",
+          "author_id": "demo-community",
+          "author_group": "demo-community-group",
+          "published_at": 1789999911,
+          "observed_at": 1789999980,
+          "fetched_at": 1789999980,
+          "text": "Sentetik topluluk teyidi 4wBqpZM9xaSheZzJSMawUKKwhdpChKbZ5eu5ky4Vigw",
+          "paid": false,
+          "misleading": false,
+          "impersonation": false,
+          "claimed_role": "none",
+          "channel_id": "demo-channel-1",
+          "authorized": true,
+          "public": true,
+          "source_url": "https://t.me/NexoraFixture/1001"
+        }
+      ]
+    },
+    "token_profile": {
+      "status": "OK",
+      "items": [
+        {
+          "kind": "profile",
+          "mint": "4wBqpZM9xaSheZzJSMawUKKwhdpChKbZ5eu5ky4Vigw",
+          "measured_at": 1789999800,
+          "fetched_at": 1789999801,
+          "canonical": true,
+          "symbol": "DEMO",
+          "official_accounts": [
+            {
+              "source": "x",
+              "author_id": "demo-reporter"
+            }
+          ],
+          "endorsers": [
+            {
+              "source": "x",
+              "author_id": "demo-endorsed"
+            }
+          ]
+        }
+      ]
+    },
+    "helius": {
+      "status": "OK",
+      "items": [
+        {
+          "kind": "mint",
+          "mint": "4wBqpZM9xaSheZzJSMawUKKwhdpChKbZ5eu5ky4Vigw",
+          "measured_at": 1789999800,
+          "fetched_at": 1789999801,
+          "program": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+          "account_type": "mint",
+          "initialized": true,
+          "mint_authority": null,
+          "freeze_authority": null
+        },
+        {
+          "kind": "trade",
+          "mint": "4wBqpZM9xaSheZzJSMawUKKwhdpChKbZ5eu5ky4Vigw",
+          "signature": "demo-before",
+          "block_time": 1789999850,
+          "fetched_at": 1789999851,
+          "side": "buy",
+          "wallet": "wallet-before",
+          "cluster_id": "group-before"
+        },
+        {
+          "kind": "trade",
+          "mint": "4wBqpZM9xaSheZzJSMawUKKwhdpChKbZ5eu5ky4Vigw",
+          "signature": "demo-buy-one",
+          "block_time": 1789999940,
+          "fetched_at": 1789999941,
+          "side": "buy",
+          "wallet": "wallet-one",
+          "cluster_id": "group-one"
+        },
+        {
+          "kind": "trade",
+          "mint": "4wBqpZM9xaSheZzJSMawUKKwhdpChKbZ5eu5ky4Vigw",
+          "signature": "demo-buy-two",
+          "block_time": 1789999960,
+          "fetched_at": 1789999961,
+          "side": "buy",
+          "wallet": "wallet-two",
+          "cluster_id": "group-two"
+        },
+        {
+          "kind": "trade",
+          "mint": "4wBqpZM9xaSheZzJSMawUKKwhdpChKbZ5eu5ky4Vigw",
+          "signature": "demo-after",
+          "block_time": 1790000070,
+          "fetched_at": 1790000071,
+          "side": "sell",
+          "wallet": "wallet-three",
+          "cluster_id": "group-three"
+        }
+      ]
+    },
+    "jupiter": {
+      "status": "OK",
+      "items": [
+        {
+          "mint": "4wBqpZM9xaSheZzJSMawUKKwhdpChKbZ5eu5ky4Vigw",
+          "measured_at": 1789999800,
+          "fetched_at": 1789999801,
+          "liquidity_usdc": 80000
+        }
+      ]
+    },
+    "dex": {
+      "status": "OK",
+      "items": [
+        {
+          "mint": "4wBqpZM9xaSheZzJSMawUKKwhdpChKbZ5eu5ky4Vigw",
+          "measured_at": 1789999800,
+          "fetched_at": 1789999801,
+          "liquidity_usdc": 70000
+        }
+      ]
+    },
+    "quotes": {
+      "status": "OK",
+      "items": [
+        {
+          "mint": "4wBqpZM9xaSheZzJSMawUKKwhdpChKbZ5eu5ky4Vigw",
+          "measured_at": 1790000003,
+          "fetched_at": 1790000004,
+          "side": "buy",
+          "executable": true,
+          "qty_raw": "123456",
+          "usdc": 5,
+          "slippage_bps": 50,
+          "price_impact_bps": 20,
+          "network_fee_usdc": 0.01
+        },
+        {
+          "mint": "4wBqpZM9xaSheZzJSMawUKKwhdpChKbZ5eu5ky4Vigw",
+          "measured_at": 1790000302,
+          "fetched_at": 1790000303,
+          "side": "sell",
+          "executable": true,
+          "qty_raw": "123456",
+          "usdc": 4.9,
+          "slippage_bps": 50,
+          "price_impact_bps": 20,
+          "network_fee_usdc": 0.01
+        },
+        {
+          "mint": "4wBqpZM9xaSheZzJSMawUKKwhdpChKbZ5eu5ky4Vigw",
+          "measured_at": 1790000902,
+          "fetched_at": 1790000903,
+          "side": "sell",
+          "executable": true,
+          "qty_raw": "123456",
+          "usdc": 4.8,
+          "slippage_bps": 50,
+          "price_impact_bps": 20,
+          "network_fee_usdc": 0.01
+        },
+        {
+          "mint": "4wBqpZM9xaSheZzJSMawUKKwhdpChKbZ5eu5ky4Vigw",
+          "measured_at": 1790001802,
+          "fetched_at": 1790001803,
+          "side": "sell",
+          "executable": true,
+          "qty_raw": "123456",
+          "usdc": 4.7,
+          "slippage_bps": 50,
+          "price_impact_bps": 20,
+          "network_fee_usdc": 0.01
+        },
+        {
+          "mint": "4wBqpZM9xaSheZzJSMawUKKwhdpChKbZ5eu5ky4Vigw",
+          "measured_at": 1790003602,
+          "fetched_at": 1790003603,
+          "side": "sell",
+          "executable": false,
+          "qty_raw": "123456",
+          "usdc": 4.5,
+          "slippage_bps": 50,
+          "price_impact_bps": 20,
+          "network_fee_usdc": 0.01
+        }
+      ]
+    },
+    "n16": {
+      "status": "OK",
+      "items": [
+        {
+          "olay": {
+            "event_id": "demo-n16",
+            "token": "4wBqpZM9xaSheZzJSMawUKKwhdpChKbZ5eu5ky4Vigw",
+            "sig": "demo-buy-one",
+            "block_time": 1789999940,
+            "ts": 1789999943,
+            "kayit_ts": 1789999947,
+            "giris_ts": 1789999944,
+            "roundtrip_ts": 1789999945,
+            "olcum_v": 1,
+            "ucret_usdc": 0.02,
+            "giris_usdc": 5,
+            "qty_raw": "123456",
+            "al_sat_kaybi_pct": 2,
+            "durum": "izleniyor"
+          },
+          "etiketler": {
+            "5dk": {
+              "event_id": "demo-n16",
+              "ufuk": "5dk",
+              "ts": 1790000245,
+              "cikis_usdc": 4.8,
+              "getiri_pct": -4.4,
+              "hata": null
+            }
+          }
+        }
+      ]
+    }
+  }
+}

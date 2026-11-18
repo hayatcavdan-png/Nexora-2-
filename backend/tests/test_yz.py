@@ -1,6 +1,6 @@
 import json, math, os, random, sqlite3, tempfile, unittest
 from nexora import etiket as E
-from nexora.ozellik import ozellikler, veri_seti, temel_cizgiler, kalite, OZELLIKLER, T0_SUTUNLAR
+from nexora.ozellik import ozellikler, veri_seti, temel_cizgiler, kalite, OZELLIKLER, sinyalleri_oku
 from nexora.model import degerlendir, Model
 import yz_veri, yz_model
 
@@ -12,11 +12,17 @@ def doldur(path, n, isaret=True, tohum=1):
     for i in range(n):
         org = r.uniform(0, 100)
         y = (org - 50) * 0.4 + r.gauss(0, 12) if isaret else r.gauss(-2, 15)
-        c.execute("""INSERT INTO etiket_olay(event_id, ts, wallet, token, gecikme_sn, karar, saat_utc, gun, al_sat_kaybi_pct,
-            tb_organik, tb_likidite, cuzdan, durum) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-            (f"e{i}", 1000 + i * 60, f"W{i % 7}", f"T{i}", r.uniform(0, 5), "KOPYALANDI" if i % 3 else "REDDEDİLDİ",
-             i % 24, 0, r.uniform(1, 10), org, None if i % 10 == 0 else r.uniform(1e3, 1e6), json.dumps({"skor": r.random()}), "tamam"))
-        c.execute("INSERT INTO etiket_sonuc VALUES(?,?,?,?,?,?,?)", (f"e{i}", "kaynak", 0, 5, y, 0, None))
+        ts = 1_000_000 + i // 24 * 86400 + i % 24 * 1800
+        likidite = None if i % 10 == 0 else r.uniform(1e3, 1e6)
+        o = dict(event_id=f"e{i}", ts=ts, wallet=f"W{i % 7}", token=f"T{i}", gecikme_sn=r.uniform(0, 5),
+                 karar="KOPYALANDI" if i % 3 else "REDDEDİLDİ", giris_usdc=5, qty_raw="5000000", al_sat_kaybi_pct=2,
+                 olcum_v=1, giris_ts=ts+2, roundtrip_ts=ts+3, kayit_ts=ts+4, karar_ts=ts+1, ucret_usdc=0.02,
+                 kaynak_vade=ts+100, t0_token_ts=ts-10, t0_token=json.dumps(dict(tb_organik=org, tb_likidite=likidite)),
+                 tb_likidite=likidite, durum="tamam")
+        c.execute(f"INSERT INTO etiket_olay({','.join(o)}) VALUES({','.join('?' for _ in o)})", tuple(o.values()))
+        cikis = round(5.02 + 5 * y / 100, 6)
+        c.execute("INSERT INTO etiket_sonuc VALUES(?,?,?,?,?,?,?)",
+                  (f"e{i}", "kaynak", ts+100, cikis, E.getiri(cikis, 5), 0, None))
     c.commit(); c.close()
 
 
@@ -29,7 +35,7 @@ class SizintiTests(unittest.TestCase):
     def test_features_independent_of_outcomes(self):
         p = os.path.join(tempfile.mkdtemp(), "e.db"); doldur(p, 60)
         once = {e: o for _, e, _, o, _ in veri_seti(p)}
-        c = sqlite3.connect(p); c.execute("UPDATE etiket_sonuc SET getiri_pct = -getiri_pct * 3"); c.commit(); c.close()
+        c = sqlite3.connect(p); c.execute("UPDATE etiket_sonuc SET cikis_usdc=4, getiri_pct=-20.4"); c.commit(); c.close()
         sonra = {e: o for _, e, _, o, _ in veri_seti(p)}
         self.assertEqual(once, sonra)
 
@@ -53,16 +59,19 @@ class TemelTests(unittest.TestCase):
 class ModelTests(unittest.TestCase):
     def test_finds_planted_signal(self):
         p = os.path.join(tempfile.mkdtemp(), "e.db"); doldur(p, 600, isaret=True)
-        s, m = degerlendir(veri_seti(p), bootstrap=300)
+        s, m = degerlendir(sinyalleri_oku(p)[0], bootstrap=300)
         self.assertEqual(s["karar"], "avantaj var"); self.assertIsNotNone(m)
         self.assertEqual(s["agirliklar"][0][0], "organik"); self.assertGreater(s["agirliklar"][0][1], 0)
         self.assertGreater(s["fark_guven_araligi"][0], 0); self.assertLess(s["brier"], s["brier_taban"])
+        self.assertEqual(s["kopya"]["n"], s["net"]["ortak_n"])
+        self.assertGreater(s["kopya"]["n"], 0)
+        self.assertEqual(s["kopya"]["secilen"], s["net"]["ortak_model"]["secili"])
 
     def test_no_signal_no_advantage(self):
         kabul = 0
         for t in range(3):
             p = os.path.join(tempfile.mkdtemp(), "e.db"); doldur(p, 600, isaret=False, tohum=10 + t)
-            s, m = degerlendir(veri_seti(p), bootstrap=300)
+            s, m = degerlendir(sinyalleri_oku(p)[0], bootstrap=300)
             kabul += s["karar"] == "avantaj var"
         self.assertEqual(kabul, 0)
 
@@ -72,6 +81,7 @@ class ModelTests(unittest.TestCase):
         d = tempfile.mkdtemp(); p2 = os.path.join(d, "e.db"); doldur(p2, 600)
         out = yz_model.calistir(p2, yol=os.path.join(d, "m.json"))
         self.assertIn("AVANTAJ VAR", out)
+        self.assertIn("Kopyalanan cüzdanlar", out)
         j = json.load(open(os.path.join(d, "m.json"))); self.assertEqual(j["ozellikler"][0], "log_gecikme")
         self.assertIn("esik", j)
 

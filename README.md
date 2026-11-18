@@ -27,8 +27,9 @@ Anahtarlar `~/.nexora_env` dosyasında, yalnızca sizin okuyabileceğiniz izinle
 | `python zarar_kesme.py` | Kopyalanan pozisyonlarda %10/20/30/50 zararda satsaydık ne olurdu |
 | `python token_filtre.py` | Token yaşı, likidite, organik skor ve sahip payına göre sonuçlar |
 | `python cuzdan_kesif.py` | Kaynakların aldığı token'ları onlardan önce alan yeni aday cüzdanlar (~100 Helius kredisi) |
-| `python yz_veri.py` | N17: etiketli veri kalitesi, temel çizgiler, CSV |
-| `python yz_model.py` | N18: seçim modeli (≥500 etiket); avantaj yoksa bunu söyler |
+| `python yz_veri.py` | N17 etiketli veri kalitesi, temel çizgiler ve kimliksiz CSV |
+| `python yz_denetim.py --db ./etiket_kopyasi.db --sinyaller` | N16–N19 salt okunur V1 veri kalitesi, net sonuç ve gölge karar raporu |
+| `ETIKET_DB=./etiket_kopyasi.db python yz_model.py` | N18 zamana göre doğrulama (≥500 doğrulanmış etiket) ve kabul edilirse ayrı N19 V1 model dosyası |
 | `./nexora yedek` | Veritabanı ve cüzdan listelerinin yedeği (geri yükleme: `python yedek.py --geri DOSYA`) |
 
 ## Uygulama

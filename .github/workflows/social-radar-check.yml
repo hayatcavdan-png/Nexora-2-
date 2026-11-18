@@ -1,0 +1,73 @@
+name: Social Radar Kontrol
+on:
+  push:
+    branches:
+      - codex/social-radar-server-v1
+      - codex/social-radar-release-review
+  pull_request:
+    paths:
+      - "backend/**"
+      - "android/**"
+      - ".github/workflows/social-radar-check.yml"
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install -r backend/requirements.txt
+      - name: Social AI ve Radar testleri (offline)
+        env:
+          PYTHONPATH: backend
+          PYTHONDONTWRITEBYTECODE: "1"
+          SOCIAL_LIVE_ENABLED: "0"
+        run: |
+          python -B -m unittest discover -s backend/tests -p 'test_social_ai.py' -v
+          python -B -m unittest discover -s backend/tests -p 'test_social_radar.py' -v
+          python -B -m unittest discover -s backend/tests -p 'test_social_radar_api.py' -v
+          python -B -m unittest discover -s backend/tests -p 'test_social_radar_http.py' -v
+  full-backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install -r backend/requirements.txt
+      - name: Tam backend regresyon testleri (yalnızca CI)
+        env:
+          PYTHONPATH: backend
+          PYTHONDONTWRITEBYTECODE: "1"
+          SOCIAL_LIVE_ENABLED: "0"
+          NEXORA_DB: ":memory:"
+          UYELIK_DB: ":memory:"
+        run: python -B -m unittest discover -s backend/tests -q
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 17 }
+      - uses: gradle/actions/setup-gradle@v4
+        with: { gradle-version: 8.7 }
+      - name: Orbitron fontlarini hazirla
+        run: |
+          mkdir -p android/app/src/main/res/font
+          curl -fsSL --retry 3 -o /tmp/orbitron_var.ttf "https://github.com/google/fonts/raw/main/ofl/orbitron/Orbitron%5Bwght%5D.ttf"
+          pip install --quiet fonttools
+          fonttools varLib.instancer /tmp/orbitron_var.ttf wght=900 -o android/app/src/main/res/font/orbitron_black.ttf
+          fonttools varLib.instancer /tmp/orbitron_var.ttf wght=700 -o android/app/src/main/res/font/orbitron_bold.ttf
+      - name: Kotlin APK derle
+        run: gradle -p android assembleRelease --no-daemon
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nexora-social-ai-apk
+          path: android/app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error

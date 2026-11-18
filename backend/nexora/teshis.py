@@ -5,6 +5,8 @@ import json, os, sqlite3, sys, time
 from collections import defaultdict
 from statistics import median
 
+from nexora.olcum import eski_getiri_kosulu
+
 
 
 def _ro(path):
@@ -72,10 +74,10 @@ def rapor(now=None, GUN=3.0):
         for r, n in sorted(red.items(), key=lambda kv: -kv[1])[:8]: L.append(f"    {n:>4}  {r}")
 
     # 3) Etiket: kopyalasaydık (gerçek teklif, $5, ücret dahil)
-    son = _q(e, """SELECT o.wallet, o.al_sat_kaybi_pct rt, o.gecikme_sn gec, s.ufuk, s.getiri_pct g FROM etiket_olay o
-                   JOIN etiket_sonuc s ON s.event_id=o.event_id WHERE o.ts>=? AND s.getiri_pct IS NOT NULL""", (bas,))
+    son = _q(e, f"""SELECT o.wallet, o.al_sat_kaybi_pct rt, o.gecikme_sn gec, s.ufuk, s.getiri_pct g FROM etiket_olay o
+                   JOIN etiket_sonuc s ON s.event_id=o.event_id WHERE o.ts>=? AND {eski_getiri_kosulu(e, "s")}""", (bas,))
     if son:
-        L.append("[3] Her sinyali kopyalasaydık (gerçek teklif, ücret dahil):")
+        L.append("[3] Geçerli etiketlerin teklif getirisi (ücret dahil):")
         for u in ("5dk", "30dk", "kaynak"):
             g = [x["g"] for x in son if x["ufuk"] == u]
             if g: L.append(f"    {u:>6}: n={len(g):<4} ort %{_ort(g):+} medyan %{_md(g):+} pozitif %{round(100 * sum(v > 0 for v in g) / len(g))}")
@@ -113,9 +115,9 @@ def rapor(now=None, GUN=3.0):
         L.append(f"[6] zarar kesme hesaplanamadı: {type(ex).__name__}")
 
     # 8) Token özellikleri: hangi token türü kaybettiriyor? (kaynak satınca çıkış getirisi)
-    tk = _q(e, """SELECT o.tb_yas_sn yas, o.tb_likidite lik, o.tb_organik org, o.tb_top_pct top, o.tb_dev_pct dev,
+    tk = _q(e, f"""SELECT o.tb_yas_sn yas, o.tb_likidite lik, o.tb_organik org, o.tb_top_pct top, o.tb_dev_pct dev,
                          o.al_sat_kaybi_pct rt, s.getiri_pct g FROM etiket_olay o JOIN etiket_sonuc s ON s.event_id=o.event_id
-                  WHERE s.ufuk='kaynak' AND s.getiri_pct IS NOT NULL AND o.ts>=?""", (now - max(GUN, 14) * 86400,))
+                  WHERE s.ufuk='kaynak' AND {eski_getiri_kosulu(e, "s")} AND o.ts>=?""", (now - max(GUN, 14) * 86400,))
     if tk:
         L.append(f"[8] Token türüne göre (son {max(GUN, 14):g} gün, kaynak satınca çıkış): n / ort / pozitif")
         boyut = [("Yaş", "yas", [("<1 sa", 0, 3600), ("1-24 sa", 3600, 86400), (">1 gün", 86400, 1e18)]),

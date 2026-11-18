@@ -15,7 +15,7 @@ from nexora.live_tracker import LiveTracker
 from nexora.ws_listener import WSListener
 from nexora.market import JupiterQuoter
 from nexora.token_safety import TokenSafety
-from nexora.model_kapisi import ModelDosyasi, ModelKapisi
+from nexora.model_kapisi import GOLGE_MODEL_YOLU, ModelDosyasi, ModelKapisi
 from nexora.decision import Decider, kaynak_bakiyesi
 from nexora.token_bilgi import TokenBilgi, Toplayici
 from nexora.yurutme import YurutmeOlcer
@@ -82,7 +82,7 @@ def main():
                 cuzdan_ist[r["wallet"]] = {k: r.get(k) for k in ("karar", "kazanma_orani", "kar_faktoru", "ort_getiri", "kapanan",
                                                                   "medyan_tutma_sn", "skor", "dusus_kazanc_orani", "sifir_tur_orani")}
         izle = [w for w in read_list("izle_listesi.txt") if w in wallets] + borsa_cuz + golge_cuz
-        model = ModelDosyasi()                            # N19/N20: yz_model.json (yalnızca N18'de kabul edilmiş model)
+        model = ModelDosyasi()                            # Mevcut N20 modeli ve eski N19 kaydı
         kapi = ModelKapisi(model, bilgi=TokenBilgi(api_key=quoter.api_key, throttle=quoter._throttle), cuzdanlar=cuzdan_ist)
         decider = Decider(paper, quoter, TokenSafety(client), bilgi=bilgi, yurutme=YurutmeOlcer(quoter, paper).baslat(),
                           puanlar=puanlar, izle=izle, kapi=kapi)
@@ -95,7 +95,8 @@ def main():
     etiketci = None
     if decider and os.getenv("ETIKET", "1") != "0":       # N16: her sinyali etiketle (yalnızca ölçüm)
         etiketci = Etiketci(os.getenv("ETIKET_DB", "nexora_etiket.db"), quoter, bilgi=TokenBilgi(api_key=quoter.api_key),
-                            cuzdanlar=cuzdan_ist, model=model).baslat()
+                            cuzdanlar=cuzdan_ist, model=model,
+                            golge_model=ModelDosyasi(GOLGE_MODEL_YOLU, golge=True)).baslat()
     borsa = None
     if os.getenv("BORSA", "1") != "0":                    # Platform 2 (borsa): liste varsa ayrı paper portföy
         from nexora import borsa_liste

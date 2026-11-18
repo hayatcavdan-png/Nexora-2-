@@ -12,6 +12,7 @@ import os, sqlite3, time
 from statistics import median
 
 from nexora import kadro as K
+from nexora.olcum import eski_getiri_kosulu
 
 
 def sinyaller(etiket_db, now=None, gun=14):
@@ -20,8 +21,8 @@ def sinyaller(etiket_db, now=None, gun=14):
     if not etiket_db or not os.path.exists(etiket_db): return []
     c = sqlite3.connect(f"file:{etiket_db}?mode=ro", uri=True, timeout=10)
     try:
-        rows = c.execute("""SELECT o.ts, s.ts, o.wallet, o.token, s.getiri_pct, o.al_sat_kaybi_pct FROM etiket_olay o
-            JOIN etiket_sonuc s ON s.event_id=o.event_id WHERE s.ufuk='kaynak' AND s.getiri_pct IS NOT NULL AND o.ts >= ?
+        rows = c.execute(f"""SELECT o.ts, s.ts, o.wallet, o.token, s.getiri_pct, o.al_sat_kaybi_pct FROM etiket_olay o
+            JOIN etiket_sonuc s ON s.event_id=o.event_id WHERE s.ufuk='kaynak' AND {eski_getiri_kosulu(c, "s")} AND o.ts >= ?
             ORDER BY o.ts""", (now - gun * 86400,)).fetchall()
     except sqlite3.OperationalError:
         rows = []
@@ -155,10 +156,10 @@ def sinyaller_detay(etiket_db, now=None, gun=14, golge=frozenset()):
     if not etiket_db or not os.path.exists(etiket_db): return []
     c = sqlite3.connect(f"file:{etiket_db}?mode=ro", uri=True, timeout=10)
     try:
-        rows = c.execute("""SELECT o.ts, k.ts, o.wallet, o.token, k.getiri_pct, o.al_sat_kaybi_pct, o.giris_usdc, k.cikis_usdc,
+        rows = c.execute(f"""SELECT o.ts, k.ts, o.wallet, o.token, k.getiri_pct, o.al_sat_kaybi_pct, o.giris_usdc, k.cikis_usdc,
                 f.cikis_usdc FROM etiket_olay o
-                JOIN etiket_sonuc k ON k.event_id=o.event_id AND k.ufuk='kaynak' AND k.getiri_pct IS NOT NULL
-                LEFT JOIN etiket_sonuc f ON f.event_id=o.event_id AND f.ufuk='5dk' AND f.getiri_pct IS NOT NULL
+                JOIN etiket_sonuc k ON k.event_id=o.event_id AND k.ufuk='kaynak' AND {eski_getiri_kosulu(c, "k")}
+                LEFT JOIN etiket_sonuc f ON f.event_id=o.event_id AND f.ufuk='5dk' AND {eski_getiri_kosulu(c, "f")}
                 WHERE o.ts >= ? ORDER BY o.ts""", (now - gun * 86400,)).fetchall()
         alim = c.execute("SELECT ts, wallet, token FROM etiket_olay WHERE ts >= ?", (now - gun * 86400 - TEYIT_SN,)).fetchall()
     except sqlite3.OperationalError:
@@ -169,7 +170,8 @@ def sinyaller_detay(etiket_db, now=None, gun=14, golge=frozenset()):
     for ts, w, t in alim: tok.setdefault(t, []).append((ts, w))
     out = []
     for gts, cts, w, t, g, rt, giris, ck, c5 in rows:
-        yakin = {ww for ts, ww in tok.get(t, ()) if gts - TEYIT_SN <= ts <= gts}
+        yakin = {ww for ts, ww in tok.get(t, ()) if gts - TEYIT_SN <= ts < gts}
+        yakin.add(w)
         n = len(yakin - set(golge)) if w not in golge else len(yakin)    # canlı kural: yalnızca kopyalanan cüzdanlar teyit eder
         out.append(dict(giris=gts, cikis=max(gts, cts), w=w, t=t, g=float(g), rt=rt, usd=giris or 5.0, ck=ck, c5=c5,
                         teyit=max(n, 1), teyit_golge=max(len(yakin), 1), golge=w in golge))

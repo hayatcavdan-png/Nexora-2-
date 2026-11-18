@@ -256,6 +256,12 @@ class H(BaseHTTPRequestHandler):
                 u = uyelik.uye((self.headers.get("X-Oturum") or "").strip())
                 self._send(200, uyelik.uye_bakiye(u["id"], paper.equity(), KOMISYON_PCT))
             return
+        if parts.path == "/admin/social-radar":
+            # Kurucu erişimi yukarıdaki _izin() kontrolünden geçer.
+            # Bu uç nokta dış API çağrısı, DB yazımı veya otomatik işlem yapmaz.
+            from nexora.social_ai.radar.api import dashboard
+            self._send(200, dashboard(os.getenv("SOCIAL_RADAR_SNAPSHOT", "")))
+            return
         if parts.path == "/radar":
             from nexora.token_bilgi import toplu
             self._send(200, kesif_api.radar(os.getenv("TRACKER_DB", "nexora_tracker.db"), lambda ms: toplu(servis("bilgi"), ms)))

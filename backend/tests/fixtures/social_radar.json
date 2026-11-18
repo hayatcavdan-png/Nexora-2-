@@ -1,0 +1,325 @@
+{
+  "as_of": 1790003905,
+  "sources": {
+    "solana_early_trending": {
+      "status": "OK",
+      "authorized": true,
+      "expected_account_id": "-100001",
+      "account": {
+        "id": "-100001",
+        "username": "solearlytrending"
+      },
+      "last_checked": 1790003900,
+      "coverage_from": 1789999400,
+      "controller": "demo-community",
+      "items": [
+        {
+          "fetched_at": 1789999979,
+          "observed_at": 1789999980,
+          "post": {
+            "message_id": 81,
+            "chat": {
+              "id": -100001,
+              "type": "channel",
+              "username": "solearlytrending"
+            },
+            "date": 1789999911,
+            "text": "Bağımsız sentetik trend keşfi mint: 4wBqpZM9xaSheZzJSMawUKKwhdpChKbZ5eu5ky4Vigw",
+            "paid": false,
+            "misleading": false
+          }
+        }
+      ]
+    },
+    "kolscope": {
+      "status": "OK",
+      "authorized": true,
+      "expected_account_id": "-100002",
+      "account": {
+        "id": "-100002",
+        "username": "KOLscope"
+      },
+      "last_checked": 1790003900,
+      "coverage_from": 1789999400,
+      "controller": "demo-relay",
+      "items": [
+        {
+          "fetched_at": 1790000009,
+          "observed_at": 1790000010,
+          "post": {
+            "message_id": 82,
+            "chat": {
+              "id": -100002,
+              "type": "channel",
+              "username": "KOLscope"
+            },
+            "date": 1790000000,
+            "text": "Sentetik iletim mint: 4wBqpZM9xaSheZzJSMawUKKwhdpChKbZ5eu5ky4Vigw",
+            "paid": false,
+            "misleading": false,
+            "entities": [
+              {
+                "type": "text_link",
+                "url": "https://x.com/blknoiz06/status/901"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "ansem": {
+      "status": "OK",
+      "authorized": true,
+      "expected_account_id": "601",
+      "account": {
+        "id": "601",
+        "username": "blknoiz06"
+      },
+      "last_checked": 1790003900,
+      "coverage_from": 1789999400,
+      "controller": "demo-origin",
+      "items": [
+        {
+          "fetched_at": 1789999999,
+          "observed_at": 1790000000,
+          "post": {
+            "id": "901",
+            "author_id": "601",
+            "created_at": "2026-09-21T14:11:50+00:00",
+            "text": "Sentetik protokol duyurusu CA: 4wBqpZM9xaSheZzJSMawUKKwhdpChKbZ5eu5ky4Vigw",
+            "paid": false,
+            "misleading": false
+          }
+        }
+      ]
+    },
+    "lookonchain": {
+      "status": "OK",
+      "authorized": true,
+      "expected_account_id": "602",
+      "account": {
+        "id": "602",
+        "username": "lookonchain"
+      },
+      "last_checked": 1790003900,
+      "coverage_from": 1789999400,
+      "controller": "demo-chain",
+      "items": [
+        {
+          "fetched_at": 1790000011,
+          "observed_at": 1790000012,
+          "post": {
+            "id": "902",
+            "author_id": "602",
+            "created_at": "2026-09-21T14:13:21+00:00",
+            "text": "RT @blknoiz06: Sentetik protokol duyurusu CA: 4wBqpZM9xaSheZzJSMawUKKwhdpChKbZ5eu5ky4Vigw",
+            "paid": false,
+            "misleading": false,
+            "referenced_posts": [
+              {
+                "type": "retweeted",
+                "id": "901"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "bubblemaps": {
+      "status": "OK",
+      "authorized": true,
+      "expected_account_id": "603",
+      "account": {
+        "id": "603",
+        "username": "bubblemaps"
+      },
+      "last_checked": 1790003900,
+      "coverage_from": 1789999400,
+      "controller": "demo-wallet-risk",
+      "items": [
+        {
+          "fetched_at": 1790000001,
+          "observed_at": 1790000002,
+          "post": {
+            "id": "903",
+            "author_id": "603",
+            "created_at": "2026-09-21T14:12:00+00:00",
+            "text": "Sentetik cüzdan raporu mint: 4wBqpZM9xaSheZzJSMawUKKwhdpChKbZ5eu5ky4Vigw wallet: So11111111111111111111111111111111111111112 wallet: EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+            "paid": false,
+            "misleading": false
+          }
+        }
+      ]
+    }
+  },
+  "providers": {
+    "token_profile": {
+      "status": "OK",
+      "items": [
+        {
+          "kind": "profile",
+          "mint": "4wBqpZM9xaSheZzJSMawUKKwhdpChKbZ5eu5ky4Vigw",
+          "measured_at": 1789999800,
+          "fetched_at": 1789999801,
+          "canonical": true,
+          "symbol": "DEMO",
+          "official_accounts": [
+            {
+              "source": "x",
+              "author_id": "demo-reporter"
+            }
+          ],
+          "endorsers": [
+            {
+              "source": "x",
+              "author_id": "demo-endorsed"
+            }
+          ]
+        }
+      ]
+    },
+    "helius": {
+      "status": "OK",
+      "items": [
+        {
+          "kind": "mint",
+          "mint": "4wBqpZM9xaSheZzJSMawUKKwhdpChKbZ5eu5ky4Vigw",
+          "measured_at": 1789999800,
+          "fetched_at": 1789999801,
+          "program": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+          "account_type": "mint",
+          "initialized": true,
+          "mint_authority": null,
+          "freeze_authority": null
+        },
+        {
+          "kind": "trade",
+          "mint": "4wBqpZM9xaSheZzJSMawUKKwhdpChKbZ5eu5ky4Vigw",
+          "signature": "demo-before",
+          "block_time": 1789999850,
+          "fetched_at": 1789999851,
+          "side": "buy",
+          "wallet": "wallet-before",
+          "cluster_id": "group-before"
+        },
+        {
+          "kind": "trade",
+          "mint": "4wBqpZM9xaSheZzJSMawUKKwhdpChKbZ5eu5ky4Vigw",
+          "signature": "demo-buy-one",
+          "block_time": 1789999940,
+          "fetched_at": 1789999941,
+          "side": "buy",
+          "wallet": "So11111111111111111111111111111111111111112",
+          "cluster_id": "group-one"
+        },
+        {
+          "kind": "trade",
+          "mint": "4wBqpZM9xaSheZzJSMawUKKwhdpChKbZ5eu5ky4Vigw",
+          "signature": "demo-buy-two",
+          "block_time": 1789999960,
+          "fetched_at": 1789999961,
+          "side": "buy",
+          "wallet": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+          "cluster_id": "group-two"
+        },
+        {
+          "kind": "trade",
+          "mint": "4wBqpZM9xaSheZzJSMawUKKwhdpChKbZ5eu5ky4Vigw",
+          "signature": "demo-after",
+          "block_time": 1790000070,
+          "fetched_at": 1790000071,
+          "side": "sell",
+          "wallet": "wallet-three",
+          "cluster_id": "group-three"
+        }
+      ]
+    },
+    "jupiter": {
+      "status": "OK",
+      "items": [
+        {
+          "mint": "4wBqpZM9xaSheZzJSMawUKKwhdpChKbZ5eu5ky4Vigw",
+          "measured_at": 1789999800,
+          "fetched_at": 1789999801,
+          "liquidity_usdc": 80000
+        }
+      ]
+    },
+    "dex": {
+      "status": "OK",
+      "items": [
+        {
+          "mint": "4wBqpZM9xaSheZzJSMawUKKwhdpChKbZ5eu5ky4Vigw",
+          "measured_at": 1789999800,
+          "fetched_at": 1789999801,
+          "liquidity_usdc": 70000
+        }
+      ]
+    },
+    "quotes": {
+      "status": "OK",
+      "items": [
+        {
+          "mint": "4wBqpZM9xaSheZzJSMawUKKwhdpChKbZ5eu5ky4Vigw",
+          "measured_at": 1790000003,
+          "fetched_at": 1790000004,
+          "side": "buy",
+          "executable": true,
+          "qty_raw": "123456",
+          "usdc": 5,
+          "slippage_bps": 50,
+          "price_impact_bps": 20,
+          "network_fee_usdc": 0.01
+        },
+        {
+          "mint": "4wBqpZM9xaSheZzJSMawUKKwhdpChKbZ5eu5ky4Vigw",
+          "measured_at": 1790000302,
+          "fetched_at": 1790000303,
+          "side": "sell",
+          "executable": true,
+          "qty_raw": "123456",
+          "usdc": 4.9,
+          "slippage_bps": 50,
+          "price_impact_bps": 20,
+          "network_fee_usdc": 0.01
+        },
+        {
+          "mint": "4wBqpZM9xaSheZzJSMawUKKwhdpChKbZ5eu5ky4Vigw",
+          "measured_at": 1790000902,
+          "fetched_at": 1790000903,
+          "side": "sell",
+          "executable": true,
+          "qty_raw": "123456",
+          "usdc": 4.8,
+          "slippage_bps": 50,
+          "price_impact_bps": 20,
+          "network_fee_usdc": 0.01
+        },
+        {
+          "mint": "4wBqpZM9xaSheZzJSMawUKKwhdpChKbZ5eu5ky4Vigw",
+          "measured_at": 1790001802,
+          "fetched_at": 1790001803,
+          "side": "sell",
+          "executable": true,
+          "qty_raw": "123456",
+          "usdc": 4.7,
+          "slippage_bps": 50,
+          "price_impact_bps": 20,
+          "network_fee_usdc": 0.01
+        },
+        {
+          "mint": "4wBqpZM9xaSheZzJSMawUKKwhdpChKbZ5eu5ky4Vigw",
+          "measured_at": 1790003602,
+          "fetched_at": 1790003603,
+          "side": "sell",
+          "executable": false,
+          "qty_raw": "123456",
+          "usdc": 4.5,
+          "slippage_bps": 50,
+          "price_impact_bps": 20,
+          "network_fee_usdc": 0.01
+        }
+      ]
+    }
+  }
+}

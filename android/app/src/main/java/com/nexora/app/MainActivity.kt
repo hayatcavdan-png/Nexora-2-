@@ -233,7 +233,7 @@ fun App() {
                         item(key = "k_sekme") {
                             Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(50)).background(Nx.Yuzey2).padding(4.dp),
                                 horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                (if (v.kurucu) listOf("Token Radar", "Wallet DNA", "Takip") else listOf("Token Radar"))
+                                (if (v.kurucu) listOf("Token", "DNA", "Takip", "Sosyal AI") else listOf("Token Radar"))
                                     .forEachIndexed { i, ad -> Hap(ad, kesfetSekme == i, Modifier.weight(1f)) { kesfetSekme = i } }
                             }
                         }
@@ -242,7 +242,8 @@ fun App() {
                                     { t -> favoriler = if (t in favoriler) favoriler - t else favoriler + t; sp.edit().putStringSet("favori", favoriler).apply() },
                                     { t -> seciliToken = t.token; portfoySekme = 0; ekran = "portfoy" }, eko)
                             1 -> walletDna(v, dnaAdres, { dnaAdres = it; dnaSonuc = null }, dnaYukleniyor, dnaSonuc, dnaHata) { dnaAnaliz() }
-                            else -> takipListesi(v)
+                            2 -> takipListesi(v)
+                            else -> item(key = "sosyal_radar") { SosyalRadarEkrani(url, key) }
                         }
                     }
                     "takip" -> if (v.kurucu) takipListesi(v) else item(key = "takip_uye") { BilgiKutusu(KURUCU_NOTU) }
