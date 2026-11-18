@@ -192,8 +192,26 @@ class H(BaseHTTPRequestHandler):
         parts = urlsplit(self.path)
         social_radar = parts.path == "/admin/social-radar"
         social_paper = parts.path == "/admin/social-paper"
-        izin, yetki = self._izin(parts.path, False, private=social_radar or social_paper)
+        social_watch = parts.path == "/admin/social-paper-watch"
+        izin, yetki = self._izin(parts.path, False, private=social_radar or social_paper or social_watch)
         if not izin: return
+        if social_watch:
+            from nexora.social_ai.paper_watch import Store, initial_state, public_status
+            path = os.getenv("SOCIAL_PAPER_WATCH_PATH", "")
+            if os.getenv("SOCIAL_PAPER_WATCH_ENABLED") != "1":
+                snapshot = public_status(initial_state())
+                snapshot["snapshot_status"] = "DISABLED"
+            elif not path:
+                snapshot = public_status(initial_state())
+                snapshot["snapshot_status"] = "PATH_NOT_CONFIGURED"
+            else:
+                try:
+                    snapshot = Store(path).read()
+                except (OSError, ValueError, TypeError, KeyError):
+                    snapshot = public_status(initial_state())
+                    snapshot["snapshot_status"] = "STATE_UNAVAILABLE"
+            self._send(200, snapshot, private=True)
+            return
         if social_paper:
             from nexora.social_ai.paper_usdt import from_file
             try:
@@ -355,6 +373,30 @@ class H(BaseHTTPRequestHandler):
                     result = research_recent(enabled=enabled, limit=limit)
                 else:
                     raise ValueError("bilinmeyen analiz modu")
+                if data.get("paper") is True:
+                    if os.getenv("SOCIAL_PAPER_WATCH_ENABLED") != "1":
+                        result["paper_watch"] = {"status": "DISABLED", "opened": 0}
+                    else:
+                        from nexora.social_ai.paper_watch import Store, open_study
+                        path = os.getenv("SOCIAL_PAPER_WATCH_PATH", "")
+                        if not path:
+                            result["paper_watch"] = {"status": "PATH_NOT_CONFIGURED", "opened": 0}
+                        elif result.get("status") == "OK":
+                            try:
+                                ledger = Store(path)
+                                outcomes = []
+                                for candidate in result.get("results", [])[:3]:
+                                    if candidate.get("status") == "RESEARCH_CANDIDATE":
+                                        outcomes.append(ledger.mutate(
+                                            lambda state, row=candidate: open_study(
+                                                state, row, now=_time.time())))
+                                result["paper_watch"] = {
+                                    "status": "QUOTE_PAPER_RESEARCH", "opened": sum(
+                                        x.get("opened") is True for x in outcomes
+                                    ), "outcomes": outcomes
+                                }
+                            except (ValueError, OSError, KeyError):
+                                result["paper_watch"] = {"status": "STATE_UNAVAILABLE", "opened": 0}
                 self._send(200, result, private=True)
             except (ValueError, TypeError):
                 self._send(400, {"hata": "gecersiz token arastirma istegi"}, private=True)
