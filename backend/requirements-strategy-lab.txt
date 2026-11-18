@@ -1,0 +1,7 @@
+# OPTIONAL isolated NEXORA strategy lab packages. Not imported by production server by default.
+# Install in a separate virtual environment only; no secret keys / live orders.
+duckdb>=1.0,<3
+solana>=0.34
+vectorbt>=0.26
+quantstats>=0.0.60
+pandas>=2.1
