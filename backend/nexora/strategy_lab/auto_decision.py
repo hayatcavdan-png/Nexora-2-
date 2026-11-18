@@ -30,6 +30,8 @@ USDT_MULTIPLIER = Decimal("1000000")
 def _decimal(value):
     if type(value) not in (str, int, float, Decimal):
         return None
+    if isinstance(value, str) and len(value) > 64:
+        return None
     try:
         number = Decimal(str(value))
     except (ValueError, InvalidOperation):
@@ -91,7 +93,7 @@ def entry_signal(research, *, now):
     if _decimal(research.get("buy_in_usdt")) != PAPER_USDT:
         return _decision("SKIP", "ENTRY_BUDGET_MISMATCH")
     qty = research.get("expected_token_qty_raw")
-    if not isinstance(qty, str) or not qty.isdigit() or not 0 < int(qty) < 10**30:
+    if not isinstance(qty, str) or not qty.isdigit() or len(qty) > 30 or not 0 < int(qty) < 10**30:
         return _decision("SKIP", "QUANTITY_MISSING")
     liquidity = _decimal(research.get("liquidity_usd"))
     roundtrip = _decimal(research.get("quote_roundtrip_pct"))
@@ -132,7 +134,7 @@ def exit_signal(position, quote, *, observed_at, now):
         return _decision("HOLD", "ENTRY_TIME_INVALID")
     qty = position.get("token_qty_raw")
     cost = _decimal(position.get("reserved_cost_usdt"))
-    if not isinstance(qty, str) or not qty.isdigit() or not 0 < int(qty) < 10**30:
+    if not isinstance(qty, str) or not qty.isdigit() or len(qty) > 30 or not 0 < int(qty) < 10**30:
         return _decision("HOLD", "POSITION_QUANTITY_INVALID")
     if cost is None or cost <= 0:
         return _decision("HOLD", "ENTRY_COST_INVALID")
