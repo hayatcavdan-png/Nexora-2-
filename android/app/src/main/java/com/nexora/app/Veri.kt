@@ -44,7 +44,7 @@ fun api(base: String, key: String, path: String, post: Boolean = false, govde: S
 }
 
 fun JSONObject.str(k: String): String = if (isNull(k)) "" else optString(k, "")
-fun JSONObject.dbl(k: String): Double? = if (!has(k) || isNull(k)) null else optDouble(k).takeIf { !it.isNaN() }
+fun JSONObject.dbl(k: String): Double? = if (!has(k) || isNull(k)) null else optDouble(k).takeIf { it.isFinite() }
 
 data class Pozisyon(val token: String, val cuzdan: String, val maliyet: Double, val deger: Double, val durum: String = "ACIK",
                     val acilis: Double? = null, val minPct: Double? = null, val maxPct: Double? = null, val eko: String = "solana")
