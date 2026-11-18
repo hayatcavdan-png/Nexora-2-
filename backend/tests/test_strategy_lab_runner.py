@@ -49,5 +49,34 @@ class StrategyRunnerTests(unittest.TestCase):
             self.assertFalse(data["real_order"])
 
 
+    def test_full_day_chart_is_bounded_and_keeps_endpoints(self):
+        # A normal 24-hour 1-minute feed used to fail report sanitization.
+        sample = [
+            {"ts": 1800000000 + i * 60,
+             "open": "1", "high": "1.01", "low": "0.99", "close": "1"}
+            for i in range(1440)
+        ]
+        with tempfile.TemporaryDirectory() as folder:
+            source = Path(folder) / "full_day.json"
+            source.write_text(json.dumps({
+                "schema_version": 1, "bars": sample, "candidates": []
+            }), encoding="utf-8")
+            env = {"PYTHONPATH": str(Path(__file__).resolve().parents[1]),
+                   "PYTHONDONTWRITEBYTECODE": "1", "PATH": os.defpath}
+            process = subprocess.run(
+                [sys.executable, "-B", str(SCRIPT), "--input", str(source)],
+                capture_output=True, text=True, env=env, cwd=folder, timeout=20)
+            self.assertEqual(process.returncode, 0, process.stderr)
+            report = json.loads(process.stdout)
+            points = report["equity"]
+            self.assertEqual(len(points), 1000)
+            self.assertEqual(points[0]["ts"], sample[0]["ts"])
+            self.assertEqual(points[-1]["ts"], sample[-1]["ts"])
+            self.assertTrue(all(a["ts"] < b["ts"]
+                                for a, b in zip(points, points[1:])))
+            self.assertFalse(report["real_order"])
+
+
+
 if __name__ == "__main__":
     unittest.main()
