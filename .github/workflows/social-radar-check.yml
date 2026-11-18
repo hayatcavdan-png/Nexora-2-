@@ -38,6 +38,7 @@ jobs:
           python -B -m unittest discover -s backend/tests -p 'test_social_recent_research.py' -v
           python -B -m unittest discover -s backend/tests -p 'test_social_recent_http.py' -v
           python -B -m unittest discover -s backend/tests -p 'test_social_paper_watch.py' -v
+          python -B -m unittest discover -s backend/tests -p 'test_social_paper_watch_http.py' -v
   full-backend:
     runs-on: ubuntu-latest
     timeout-minutes: 20
