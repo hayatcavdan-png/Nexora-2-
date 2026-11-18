@@ -275,7 +275,9 @@ def research_recent(*, enabled=False, limit=3, rpc=None, quoter=None,
                     read_only=True, real_order=False, social_ai_transfer=False)
 
     local_rpc = rpc is None
-    session = session or requests.Session()
+    local_session = session is None
+    local_quoter = quoter is None
+    session = session if session is not None else requests.Session()
     rpc = rpc if rpc is not None else HeliusClient(max_retries=0, timeout=8)
     quoter = quoter if quoter is not None else JupiterQuoter(api_key=key, timeout=8)
     now = clock if clock is not None else time.time
@@ -295,6 +297,10 @@ def research_recent(*, enabled=False, limit=3, rpc=None, quoter=None,
     finally:
         if local_rpc:
             rpc.close()
+        if local_quoter and hasattr(quoter.session, "close"):
+            quoter.session.close()
+        if local_session:
+            session.close()
     status = "OK" if error is None else "PROVIDER_UNAVAILABLE"
     return dict(
         schema_version=1, mode=STATUS_MODE, status=status, results=results,
@@ -332,7 +338,9 @@ def research_manual(mint, *, enabled=False, rpc=None, quoter=None,
                     read_only=True, real_order=False, social_ai_transfer=False)
 
     local_rpc = rpc is None
-    session = session or requests.Session()
+    local_session = session is None
+    local_quoter = quoter is None
+    session = session if session is not None else requests.Session()
     rpc = rpc if rpc is not None else HeliusClient(max_retries=0, timeout=8)
     quoter = quoter if quoter is not None else JupiterQuoter(api_key=key, timeout=8)
     now = clock if clock is not None else time.time
@@ -363,6 +371,10 @@ def research_manual(mint, *, enabled=False, rpc=None, quoter=None,
     finally:
         if local_rpc:
             rpc.close()
+        if local_quoter and hasattr(quoter.session, "close"):
+            quoter.session.close()
+        if local_session:
+            session.close()
 
     return dict(
         schema_version=1, mode=STATUS_MODE,
