@@ -159,7 +159,7 @@ fun LazyListScope.uyeAnaPanel(v: Veri, git: (String) -> Unit) {
             kurucu = false
         ) {
             RolUstEtiketi(kurucu = false, bagli = v.bagli)
-            val b = v.uyeBakiye
+            val b = if (v.bagli && Oturum.deger.isNotBlank()) v.uyeBakiye else null
             Text("KİŞİSEL NET SANAL BAKİYE", color = Nx.Soluk, fontSize = 11.sp,
                 fontWeight = FontWeight.SemiBold, letterSpacing = 1.sp)
             Text(b?.dbl("net_bakiye")?.let { "${usd(it)} USDC" } ?: "Veri bekleniyor",
@@ -216,11 +216,11 @@ fun LazyListScope.uyePortfoyPanel(v: Veri, git: (String) -> Unit) {
     item(key = "uye_portfoy_kart") {
         RolVurguKarti(
             ust = "ÜYE / SANAL PORTFÖY",
-            baslik = v.uyeBakiye?.dbl("net_bakiye")?.let { "${usd(it)} USDC" } ?: "Bakiye bekleniyor",
+            baslik = (if (v.bagli && Oturum.deger.isNotBlank()) v.uyeBakiye else null)?.dbl("net_bakiye")?.let { "${usd(it)} USDC" } ?: "Bakiye bekleniyor",
             aciklama = "Kişisel performansınız yalnızca katılımınızdan itibaren hesaplanır.",
             kurucu = false
         ) {
-            val b = v.uyeBakiye
+            val b = if (v.bagli && Oturum.deger.isNotBlank()) v.uyeBakiye else null
             RolUstEtiketi(kurucu = false, bagli = v.bagli)
             if (b != null) {
                 Satir("Başlangıç", b.dbl("baslangic")?.let { "${usd(it)} USDC" } ?: "—")
