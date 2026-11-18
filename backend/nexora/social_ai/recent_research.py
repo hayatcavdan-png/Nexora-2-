@@ -299,3 +299,69 @@ def research_recent(*, enabled=False, limit=3, rpc=None, quoter=None,
         social_ai_transfer=False, paper_position_opened=False,
         source="JUPITER_RECENT_FIRST_POOL_NOT_MINT_BIRTH",
     )
+
+
+API_SEARCH = "https://api.jup.ag/tokens/v2/search"
+
+
+def research_manual(mint, *, enabled=False, rpc=None, quoter=None,
+                    session=None, api_key=None, clock=None):
+    """Operator-supplied CA only; DO NOT read Telegram post text automatically."""
+    if enabled is not True:
+        return dict(mode=STATUS_MODE, status="DISABLED", results=[],
+                    read_only=True, real_order=False, social_ai_transfer=False)
+    if not valid_address(mint) or mint == USDT_MINT:
+        return dict(mode=STATUS_MODE, status="INVALID_MINT", results=[],
+                    read_only=True, real_order=False, social_ai_transfer=False)
+    import requests
+    from nexora.helius_client import HeliusClient
+    from nexora.market import JupiterQuoter
+
+    key = api_key if api_key is not None else os.getenv("JUPITER_API_KEY", "")
+    if not key:
+        return dict(mode=STATUS_MODE, status="JUPITER_KEY_MISSING", results=[],
+                    read_only=True, real_order=False, social_ai_transfer=False)
+    if rpc is None and not os.getenv("HELIUS_API_KEY") and not os.getenv("SOLANA_RPC_URL"):
+        return dict(mode=STATUS_MODE, status="HELIUS_KEY_MISSING", results=[],
+                    read_only=True, real_order=False, social_ai_transfer=False)
+    if not _admission(time.monotonic()):
+        return dict(mode=STATUS_MODE, status="RATE_LIMITED", results=[],
+                    read_only=True, real_order=False, social_ai_transfer=False)
+
+    local_rpc = rpc is None
+    session = session or requests.Session()
+    rpc = rpc if rpc is not None else HeliusClient(max_retries=0, timeout=8)
+    quoter = quoter if quoter is not None else JupiterQuoter(api_key=key, timeout=8)
+    now = clock if clock is not None else time.time
+    results, error = [], None
+    try:
+        response = session.get(
+            API_SEARCH, params={"query": mint},
+            headers={"x-api-key": key}, timeout=8, allow_redirects=False,
+        )
+        if response.status_code != 200 or len(response.content) > 200_000:
+            raise ValueError("JUPITER_TOKEN_SEARCH_FAILED")
+        data = response.json()
+        if not isinstance(data, list):
+            raise ValueError("JUPITER_SEARCH_BAD_SCHEMA")
+        profile = next((row for row in data
+                        if isinstance(row, dict) and row.get("id") == mint), None)
+        if profile is None:
+            results.append(_deny(mint, "TOKEN_PROFILE_NOT_FOUND"))
+        else:
+            results.append(analyze(
+                mint, profile, rpc_call=rpc.call, quote=quoter.quote,
+                measured_at=now()))
+    except Exception as exc:
+        error = type(exc).__name__
+    finally:
+        if local_rpc:
+            rpc.close()
+
+    return dict(
+        schema_version=1, mode=STATUS_MODE,
+        status="OK" if error is None else "PROVIDER_UNAVAILABLE",
+        results=results, provider_error=error, read_only=True,
+        real_order=False, social_ai_transfer=False, paper_position_opened=False,
+        source="MANUAL_SOLANA_MINT",
+    )
