@@ -36,6 +36,13 @@ Anahtarlar `~/.nexora_env` dosyasında, yalnızca sizin okuyabileceğiniz izinle
 
 GitHub Actions her gönderimde APK derler (Actions → en üstteki derleme → Artifacts → nexora-apk).
 
+**Önemli sürüm uyarısı (18.11.2026):** Bu build hâlen depodaki **debug keystore** ile imzalanan, yalnızca araştırma/test amaçlı APK'dır. Gerçek para/halka açık dağıtım için güvenilir üretim imzası, HTTPS bağlantısı, gerçek Android cihaz testi ve hukuki kabul gerekir. Koddaki `assembleRelease` görevinin başarılı olması üretim onayı değildir. NEXORA hâlâ paper-only'dir.
+
+- [Android APK kapsamlı denetim raporu](docs/NEXORA_APK_KAPSAMLI_DENETIM_2026-11-18.md)
+- [Tailscale HTTPS geçişi ve servis güvenliği](deploy/TLS_HTTPS_GECIS.md)
+- `python3 tools/apk_audit/static_gate.py` — ağ, kasalama ve yedekleme regresyon denetimi.
+
+
 ## Sunucuya taşıma (N13)
 Telefon kapalıyken de çalışması için: [deploy/TASIMA.md](deploy/TASIMA.md)
 
