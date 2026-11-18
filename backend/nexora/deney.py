@@ -102,9 +102,9 @@ SEVIYE_BUYUK = dict(kanitlanmis=(3, 0.06), normal=(2, 0.045), yeni=(1, 0.025))
 # "aktif" anahtarı: deney, o anki kopyalanan cüzdan listesiyle başlar (masa() doldurur)
 DENEYLER = [
     ("Eski: 8x%5, al-sat<=%6, herkes", dict(max_poz=8, oran=0.05, rt_max=6.0)),
-    ("8x%5, al-sat<=%3, herkes", dict(max_poz=8, oran=0.05, rt_max=3.0)),
+    ("Şimdiki (18.11): 8x%5, al-sat<=%3, herkes", dict(max_poz=8, oran=0.05, rt_max=3.0)),
     ("16x%2.5, al-sat<=%3, herkes", dict(max_poz=16, oran=0.025, rt_max=3.0)),
-    ("Şimdiki: 10x%4, al-sat<=%3, herkes", dict(max_poz=10, oran=0.04, rt_max=3.0)),
+    ("Önceki: 10x%4, al-sat<=%3, herkes", dict(max_poz=10, oran=0.04, rt_max=3.0)),
     ("Önceki: 16 poz, seviye, %3, kadro", dict(max_poz=16, seviyeler=SEVIYE_SIMDI, rt_max=3.0, kadro=True, aktif="liste")),
     ("Kadro + büyük seviye (6/4.5/2.5), 10 poz", dict(max_poz=10, seviyeler=SEVIYE_BUYUK, rt_max=3.0, kadro=True, aktif="liste")),
     ("8x%5, %3, kadro", dict(max_poz=8, oran=0.05, rt_max=3.0, kadro=True, aktif="liste")),
@@ -138,7 +138,7 @@ def masa(etiket_db=None, now=None, gun=14, deneyler=DENEYLER, aktif=None, golge=
         out.append(dict(ad=ad, **simule(s, **cfg)))
     if len(hepsi) > len(s):
         out.append(dict(ad=f"Şimdiki kural + gölge havuz da kopyalansa ({len(hepsi) - len(s)} gölge sinyali)",
-                        **simule(hepsi, max_poz=10, oran=0.04, rt_max=3.0)))
+                        **simule(hepsi, **MODEL_AYAR)))
     return dict(sinyal=len(s), golge_sinyal=len(hepsi) - len(s), gun=gun, sonuclar=out)
 
 
@@ -203,7 +203,7 @@ def guclendirici(detay, kat, en_az=2, alan="teyit"):
 
 
 MODELLER = [
-    ("Taban: her sinyal (10x%4, %3)", lambda d: model_a(d, 1)),
+    ("Taban: her sinyal (8x%5, %3)", lambda d: model_a(d, 1)),
     ("Güçlendirici: 2+ cüzdanda 2x", lambda d: guclendirici(d, 2.0)),
     ("Güçlendirici: 2+ cüzdanda 3x", lambda d: guclendirici(d, 3.0)),
     ("Güçlendirici 2x, gölge havuz da teyit eder", lambda d: guclendirici(d, 2.0, alan="teyit_golge")),
@@ -213,7 +213,7 @@ MODELLER = [
     ("Model B: 5 dk sonra %3+ düştüyse gir", lambda d: model_b(d, 3.0)),
     ("Model B: 5 dk sonra %8+ düştüyse gir", lambda d: model_b(d, 8.0)),
 ]
-MODEL_AYAR = dict(max_poz=10, oran=0.04, rt_max=3.0)
+MODEL_AYAR = dict(max_poz=8, oran=0.05, rt_max=3.0)        # 18.11.2026: canlı ayar 8x%5 (kullanıcı onayı)
 
 
 def modeller(etiket_db=None, now=None, gun=14, golge=None):

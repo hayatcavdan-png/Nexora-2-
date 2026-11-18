@@ -162,7 +162,7 @@ def rapor(now=None, GUN=3.0):
         from nexora import deney
         m = deney.modeller(os.getenv("ETIKET_DB", "nexora_etiket.db"), now, gun=14)
         if m["sinyal"]:
-            L.append(f"[10b] Giriş modelleri (son 14 gün, 10x%4, al-sat <= %3): model / aday / işlem / K/Z / kazanan / düşüş")
+            L.append(f"[10b] Giriş modelleri (son 14 gün, 8x%5, al-sat <= %3): model / aday / işlem / K/Z / kazanan / düşüş")
             for r in m["sonuclar"]:
                 L.append(f"    {r['ad']}")
                 L.append(f"      {r['aday']:>4} aday {r['islem']:>4} işlem  {r['kz']:+7.2f}$  %{r['kazanan']:<3} düşüş {r['dusus']:.2f}$")
