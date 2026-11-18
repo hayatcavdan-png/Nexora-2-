@@ -119,6 +119,9 @@ def open_study(state, research, *, now):
     raw_qty = research.get("expected_token_qty_raw")
     if not isinstance(raw_qty, str) or not raw_qty.isdigit() or not 0 < int(raw_qty) < 10 ** 30:
         return {"opened": False, "reason": "TOKEN_QUANTITY_UNKNOWN"}
+    planned = research.get("planned_exit_horizon_min")
+    if planned is not None and (type(planned) is not int or planned not in HORIZONS):
+        return {"opened": False, "reason": "INVALID_PRECOMMITTED_HORIZON"}
     entries = state["entries"]
     if any(row["mint"] == mint for row in entries):
         return {"opened": False, "reason": "DUPLICATE_MINT"}
@@ -141,6 +144,9 @@ def open_study(state, research, *, now):
         "assumed_slippage_bps": str(SLIPPAGE_BUFFER_BPS),
         "reserved_cost_usdt": str(ENTRY_COST),
         "reserved": True,
+        # Fixed at entry time, not selected after a winning quote is observed.
+        "planned_exit_horizon_min": planned,
+        "plan_decided_at": now,
         "horizons": {f"{m}dk": {"status": "PENDING", "net_usdt": None}
                      for m in HORIZONS},
     }
@@ -168,6 +174,20 @@ def due_horizons(state, *, now, max_results=5):
     return due
 
 
+def _commit_planned_review(row, key, rec):
+    """Record only a quote-based result for the horizon selected at entry."""
+    planned = row.get("planned_exit_horizon_min")
+    if type(planned) is not int or f"{planned}dk" != key:
+        return
+    success = rec.get("status") == "OK"
+    rec["precommitted_exit"] = {
+        "status": "HYPOTHETICAL_QUOTE_ONLY" if success else "UNAVAILABLE",
+        "net_usdt": rec.get("net_usdt") if success else None,
+        "real_order": False, "actual_execution": False,
+        "horizon_fixed_before_entry": True,
+    }
+
+
 def settle_horizon(state, mint, key, *, now, quote=None):
     """Record a measured quote only during its horizon, never back-fill later."""
     now = _now(now)
@@ -185,14 +205,17 @@ def settle_horizon(state, mint, key, *, now, quote=None):
         return rec
     if now > start + QUOTE_WINDOW_SECONDS:
         rec.update(status="UNKNOWN", reason="WINDOW_MISSED", net_usdt=None)
+        _commit_planned_review(row, key, rec)
         return rec
     if quote is None:
         rec.update(status="UNKNOWN", reason="QUOTE_UNAVAILABLE", net_usdt=None)
+        _commit_planned_review(row, key, rec)
         return rec
     qty = int(row["token_qty_raw"])
     parsed = _quote_value(quote, qty)
     if parsed is None:
         rec.update(status="UNKNOWN", reason="QUOTE_INVALID", net_usdt=None)
+        _commit_planned_review(row, key, rec)
         return rec
     raw_out, _ = parsed
     expected_exit = Decimal(raw_out) / Decimal("1000000")
@@ -205,6 +228,7 @@ def settle_horizon(state, mint, key, *, now, quote=None):
     # existing horizon accounting: these are independent what-if scenarios.
     from nexora.strategy_lab.auto_decision import exit_signal
     rec["lab_exit_signal"] = exit_signal(row, quote, observed_at=now, now=now)
+    _commit_planned_review(row, key, rec)
     return rec
 
 
@@ -220,6 +244,7 @@ def expire_missed(state, *, now):
                 continue
             if now > row["observed_at"] + m * 60 + QUOTE_WINDOW_SECONDS:
                 rec.update(status="UNKNOWN", reason="WINDOW_MISSED", net_usdt=None)
+                _commit_planned_review(row, f"{m}dk", rec)
                 changed = True
     return changed
 
