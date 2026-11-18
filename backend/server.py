@@ -191,8 +191,22 @@ class H(BaseHTTPRequestHandler):
     def do_GET(self):
         parts = urlsplit(self.path)
         social_radar = parts.path == "/admin/social-radar"
-        izin, yetki = self._izin(parts.path, False, private=social_radar)
+        social_paper = parts.path == "/admin/social-paper"
+        izin, yetki = self._izin(parts.path, False, private=social_radar or social_paper)
         if not izin: return
+        if social_paper:
+            from nexora.social_ai.paper_usdt import from_file
+            try:
+                preview = from_file(os.getenv("SOCIAL_PAPER_FIXTURE", ""), now=_time.time())
+            except (OSError, ValueError, TypeError, KeyError, RecursionError):
+                preview = dict(
+                    schema_version=1, read_only=True, mode="OFFLINE_PAPER_ONLY",
+                    real_order=False, social_ai_transfer=False, currency="USDT",
+                    initial_cash_usdt="100", remaining_cash_usdt="100",
+                    positions=0, results=[], snapshot_status="SNAPSHOT_ERROR"
+                )
+            self._send(200, preview, private=True)
+            return
         if social_radar:
             from nexora.social_ai.radar.api import dashboard
             self._send(200, dashboard(os.getenv("SOCIAL_RADAR_SNAPSHOT", ""),
