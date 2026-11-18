@@ -46,13 +46,26 @@ class SocialPaperUsdtTests(unittest.TestCase):
         out = simulate(fixture(), now=T0 + 310)
         self.assertEqual(out["status"], "PAPER_ELIGIBLE")
         self.assertEqual(out["mode"], "OFFLINE_PAPER_ONLY")
-        self.assertEqual(out["entry"]["total_cost_usdt"], "4.05")
-        self.assertEqual(out["entry"]["remaining_cash_usdt"], "95.95")
-        self.assertEqual(out["horizons"]["5dk"], {"status": "OK", "net_usdt": "0.370000"})
+        self.assertEqual(out["entry"]["total_cost_usdt"], "4.082")
+        self.assertEqual(out["entry"]["remaining_cash_usdt"], "95.918")
+        self.assertEqual(out["horizons"]["5dk"], {"status": "OK", "net_usdt": "0.302000"})
         for horizon in (15, 30, 60):
             self.assertEqual(out["horizons"][f"{horizon}dk"]["status"], "PENDING")
         self.assertFalse(out["real_order"])
         self.assertFalse(out["social_ai_transfer"])
+
+    def test_slippage_changes_cost_and_net(self):
+        row = fixture()
+        row["buy_quote"]["slippage_bps"] = "0"
+        row["sell_quotes"]["5dk"]["slippage_bps"] = "0"
+        no_slip = simulate(row, now=T0+310)
+        self.assertEqual(no_slip["entry"]["total_cost_usdt"], "4.05")
+        self.assertEqual(no_slip["horizons"]["5dk"]["net_usdt"], "0.370000")
+        with_slip = simulate(fixture(), now=T0+310)
+        self.assertLess(
+            float(with_slip["horizons"]["5dk"]["net_usdt"]),
+            float(no_slip["horizons"]["5dk"]["net_usdt"])
+        )
 
     def test_horizon_future_and_delayed_quote_rejected(self):
         row = fixture()
@@ -126,7 +139,7 @@ class SocialPaperUsdtTests(unittest.TestCase):
         b = copy.deepcopy(a)
         out = portfolio([a, b], now=T0+310)
         self.assertEqual(out["positions"], 1)
-        self.assertEqual(out["remaining_cash_usdt"], "95.95")
+        self.assertEqual(out["remaining_cash_usdt"], "95.918")
         self.assertEqual(out["results"][1]["reason"], "DUPLICATE_EVENT")
         self.assertEqual(portfolio([a, b], now=T0+310), out)
         self.assertRaises(ValueError, portfolio, [a]*51, now=T0)
