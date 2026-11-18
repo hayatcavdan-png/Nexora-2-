@@ -146,16 +146,23 @@ fun YerelTelegramKoprusu() {
             Satir("@KOLscope · bildirim", status!!.kanal2.toString())
             val id1 = status?.last1
             val id2 = status?.last2
-            if (id1 != null) OutlinedButton(onClick = {
-                context.startActivity(Intent(Intent.ACTION_VIEW,
-                    Uri.parse("https://t.me/solearlytrending/" + id1)))
-            }) { Text("Solana Early · son paylaşımı aç", fontSize = 12.sp) }
-            if (id2 != null) OutlinedButton(onClick = {
-                context.startActivity(Intent(Intent.ACTION_VIEW,
-                    Uri.parse("https://t.me/KOLscope/" + id2)))
-            }) { Text("KOLscope · son paylaşımı aç", fontSize = 12.sp) }
-            if (id1 != null || id2 != null) Text(
-                "Paylaşımı Telegram'da aç; gördüğün CA'yı NEXORA'ya kendin yapıştır.",
+            val solanaUrl = "https://t.me/solearlytrending" +
+                (if (id1 == null) "" else "/" + id1)
+            val kolUrl = "https://t.me/KOLscope" +
+                (if (id2 == null) "" else "/" + id2)
+            OutlinedButton(onClick = {
+                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(solanaUrl)))
+            }) {
+                Text(if (id1 == null) "Solana Early · kanalı aç"
+                    else "Solana Early · son paylaşımı aç", fontSize = 12.sp)
+            }
+            OutlinedButton(onClick = {
+                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(kolUrl)))
+            }) {
+                Text(if (id2 == null) "KOLscope · kanalı aç"
+                    else "KOLscope · son paylaşımı aç", fontSize = 12.sp)
+            }
+            Text("Telegram'da CA'yı kendin kopyalayıp NEXORA'nın araştırma alanına yapıştır.",
                 color = Nx.Soluk, fontSize = 11.sp)
             Text("Dinleyici, T8 ve T10 çalışıyor; durum dosyası güncel.",
                 color = Nx.Yesil, fontSize = 12.sp)
