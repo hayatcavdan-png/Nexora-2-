@@ -196,6 +196,8 @@ def _commit_planned_review(row, key, rec):
     success = rec.get("status") == "OK"
     rec["precommitted_exit"] = {
         "status": "HYPOTHETICAL_QUOTE_ONLY" if success else "UNAVAILABLE",
+        "action": "PAPER_SELL_SIGNAL" if success else "EXIT_UNAVAILABLE",
+        "reason": "PRECOMMITTED_TIME_HORIZON" if success else "NO_EXECUTABLE_SELL_QUOTE",
         "net_usdt": rec.get("net_usdt") if success else None,
         "real_order": False, "actual_execution": False,
         "horizon_fixed_before_entry": True,
