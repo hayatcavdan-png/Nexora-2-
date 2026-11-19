@@ -22,15 +22,18 @@ def cycle(*, research, store, now):
     from nexora.social_ai.paper_watch import open_study
     from nexora.strategy_lab.auto_decision import entry_signal
     from nexora.strategy_lab.profit_engine import review as profit_review
+    from nexora.strategy_lab.signal_intelligence import assess, review as ai_review
 
-    # Check the FULL private paper history before making network requests.
-    # No future outcomes, production DBs, signing keys or real orders.
-    profit = profit_review(store._read(), as_of=now)
+    # Read the FULL private history before ANY new discovery network request.
+    # All learning uses only fully mature quote evidence and prior entry features.
+    history = store._read()
+    profit = profit_review(history, as_of=now)
     if not profit["intake"]["allow_new_paper"]:
         return {"status": "PROFIT_GUARD_PAUSED", "scanned": 0,
                 "paper_opened": 0, "lab_rejected": 0,
                 "profit_guard": profit["intake"]["reason"], "real_order": False}
 
+    model = ai_review(history, as_of=now)
     response = research(enabled=True, limit=2)
     if not isinstance(response, dict) or response.get("mode") != "READ_ONLY_RESEARCH":
         return {"status": "PROVIDER_UNAVAILABLE", "scanned": 0,
@@ -55,24 +58,39 @@ def cycle(*, research, store, now):
         if verdict["action"] != "OPEN_PAPER_STUDY":
             rejected += 1
             continue
-        vetted.append((verdict["screening_score_not_win_probability"],
-                       candidate))
+        ai = assess(candidate, state=history, as_of=now, validation=model)
+        # The learned model is an *additional* veto, never proof of safe trade.
+        # It is shadow-only until independent walk-forward validation passes.
+        if ai["action"] == "REJECT_NEW_PAPER":
+            rejected += 1
+            continue
+        bound = (ai["prediction"] or {}).get("conservative_bound_usdt", 0)
+        # In shadow mode retain the original quality ranking, without allowing
+        # an unvalidated model to improve/harm paper selection.
+        priority = (bound, verdict["screening_score_not_win_probability"]) if model["may_filter_new_paper"] else (0, verdict["screening_score_not_win_probability"])
+        vetted.append((priority, candidate, ai))
     vetted.sort(key=lambda item: item[0], reverse=True)
 
     opened = 0
-    planned = profit.get("recommended_horizon_min")
-    if planned not in (5, 15, 30, 60) or type(planned) is not int:
-        planned = None
-    for _, candidate in vetted:
-        # Never let untrusted provider metadata choose the winning exit later.
-        # Plan is based only on historical data that had matured at entry.
-        paper_candidate = dict(candidate, planned_exit_horizon_min=planned)
+    # Default 5-minute horizon is chosen BEFORE each entry. This is essential
+    # for obtaining honest training labels before the dynamic model is ready.
+    # A learned exit may replace it only after independent forward validation.
+    planned = 5
+    if profit["status"] == "PAPER_EDGE_CANDIDATE":
+        choice = profit.get("recommended_horizon_min")
+        if type(choice) is int and choice in (5, 15, 30, 60):
+            planned = choice
+    for _, candidate, ai in vetted:
+        paper_candidate = dict(candidate, planned_exit_horizon_min=planned,
+                               lab_ai_decision={"action": ai["action"]})
         result = store.mutate(lambda state: open_study(state, paper_candidate, now=now))
         if result.get("opened") is True:
             opened = 1
             break
     return {"status": "QUOTE_PAPER_RESEARCH", "scanned": scanned,
-            "paper_opened": opened, "lab_rejected": rejected, "real_order": False}
+            "paper_opened": opened, "lab_rejected": rejected, "real_order": False,
+            "ai_mode": model["status"], "ai_walk_forward_validated":
+                model["may_filter_new_paper"]}
 
 
 def main(args=None):
