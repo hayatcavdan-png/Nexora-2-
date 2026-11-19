@@ -35,6 +35,7 @@ import org.json.JSONObject
 class MainActivity : androidx.fragment.app.FragmentActivity() {   // BiometricPrompt FragmentActivity ister
     override fun onCreate(b: Bundle?) {
         super.onCreate(b)
+        AgGuvenligi.hazirla(applicationContext)
         window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(0xFF05080F.toInt()))
         setContent { MaterialTheme(colorScheme = NxRenkler) { Surface(color = Nx.Zemin) { App() } } }
     }
@@ -114,8 +115,9 @@ fun App() {
                 e.message?.contains("401") == true && key.isEmpty() -> "Oturum süresi doldu: Profil › Hesabım'dan yeniden giriş yapın."
                 e.message?.contains("401") == true -> "API anahtarı sunucudakiyle aynı değil."
                 url.contains("127.0.0.1") -> "Sunucuya bağlanılamadı: adres hâlâ telefonun kendisi (127.0.0.1)."
+                e.message?.contains("Tailscale VPN") == true -> e.message ?: "Tailscale VPN kapalı."
                 e.message?.contains("HTTPS") == true -> e.message ?: "Uzak sunucu için HTTPS gerekiyor."
-                else -> "Sunucuya bağlanılamadı. HTTPS sunucu adresinizi ve bağlantınızı kontrol edin."
+                else -> "Sunucuya bağlanılamadı. Tailscale VPN, sunucu servisi ve API anahtarını kontrol edin."
             }
         }
     }
@@ -380,7 +382,7 @@ fun AnaUstBaslik(git: (String) -> Unit, kurucu: Boolean = true) {
 /** Bağlantı yokken Ana Sayfa'da yalnızca bu kart görünür (sıfır bakiye gibi yanıltıcı değerler gösterilmez). */
 @Composable
 fun BaglanKarti(url: String, key: String, hata: String, kaydet: (String, String) -> Unit) {
-    var u by remember(url) { mutableStateOf(url) }
+    var u by remember(url) { mutableStateOf(if (url.contains("127.0.0.1")) "http://100.105.213.95:8000" else url) }
     var k by remember(key) { mutableStateOf(key) }
     Column {
     NexoKonusuyor(if (hata.isEmpty()) "Merhaba! Ben Nexo, NEXORA'nın yapay zekâ robotu. Sunucuya bağlanınca işe koyuluyorum."
@@ -389,7 +391,7 @@ fun BaglanKarti(url: String, key: String, hata: String, kaydet: (String, String)
                   poz = if (hata.isEmpty()) NexoPoz.SELAM else NexoPoz.SERBEST)
     NeonKart(Modifier.fillMaxWidth(), kenar = Nx.KenarParlak, dolgu = Nx.DolguMor) {
         Text("Sunucuya bağlan", color = Nx.Metin, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-        Text("Bakiye, bot ve işlemler sunucudan gelir. Uzak bağlantı için HTTPS zorunlu; Tailscale tek başına HTTPS adresi sağlamaz.", color = Nx.Soluk, fontSize = 13.sp)
+        Text("Bakiye, bot ve işlemler sunucudan gelir. Tailscale VPN açıkken özel ağ adresinizle bağlanabilirsiniz; diğer uzak bağlantılarda HTTPS gerekir.", color = Nx.Soluk, fontSize = 13.sp)
         OutlinedTextField(u, { u = it }, label = { Text("Sunucu adresi") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(14.dp))
         OutlinedTextField(k, { k = it }, label = { Text("API anahtarı") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
@@ -399,7 +401,7 @@ fun BaglanKarti(url: String, key: String, hata: String, kaydet: (String, String)
             NexoYuz(30.dp, NexoIfade.KIRPMA); Text(" Bağlan", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
         }
         if (hata.isNotEmpty()) Text(hata, color = Nx.Kirmizi, fontSize = 13.sp)
-        Text("Güvenli adres: https://sunucunuz · Telefonda Termux: http://127.0.0.1:8000. Uzak HTTP kimlik bilgisi gönderilmez.", color = Nx.Sari, fontSize = 11.sp)
+        Text("Tailscale: http://100.105.213.95:8000 (VPN açıkken) · HTTPS de desteklenir. Diğer uzak HTTP adreslerine anahtar gönderilmez.", color = Nx.Sari, fontSize = 11.sp)
         Text("Üyeyseniz anahtarı boş bırakın: Bağlan'a basınca hesabınızla giriş yaparsınız. " +
              "Kurucu anahtarı sunucuda: sudo grep NEXORA_API_KEY /etc/nexora.env", color = Nx.Soluk, fontSize = 11.sp)
     }

@@ -1,5 +1,8 @@
 package com.nexora.app
 
+import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import java.net.URI
 import java.net.URL
 import java.util.Locale
@@ -7,15 +10,33 @@ import java.util.Locale
 /**
  * Credential-carrying NEXORA API transport.
  *
- * Remote endpoints MUST use HTTPS, including Tailscale/private IP addresses:
- * a private network is not equivalent to end-to-end application TLS.
- * Termux on the SAME phone remains available over loopback HTTP only.
+ * Remote API transport uses HTTPS by default.
+ * The existing Tailscale WireGuard peer is a scoped compatibility exception,
+ * allowed only while Android reports the VPN transport active.
+ * Termux on this phone remains available over loopback HTTP.
  *
  * Reject credentials in URLs, redirects, query-bearing base URLs and non-root
  * prefixes so a copied/phishing endpoint cannot silently receive API keys.
  */
 object AgGuvenligi {
-    fun endpoint(base: String, path: String): URL {
+    private const val TAILSCALE_IP = "100.105.213.95"
+    private const val TAILSCALE_PORT = 8000
+    @Volatile private var context: Context? = null
+
+    /** Initialize from Activity and background Service before making requests. */
+    fun hazirla(ctx: Context) { context = ctx.applicationContext }
+
+    private fun vpnEtkinMi(): Boolean {
+        val ctx = context ?: return false
+        return try {
+            val cm = ctx.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+                ?: return false
+            val network = cm.activeNetwork ?: return false
+            cm.getNetworkCapabilities(network)?.hasTransport(NetworkCapabilities.TRANSPORT_VPN) == true
+        } catch (_: Exception) { false }
+    }
+
+    fun endpoint(base: String, path: String, vpnEtkin: Boolean = vpnEtkinMi()): URL {
         require(path.startsWith("/") && !path.startsWith("//") &&
                 !path.contains("#") && !path.contains("\r") && !path.contains("\n")) {
             "API yolu geçersiz."
@@ -31,8 +52,11 @@ object AgGuvenligi {
                 (parsed.rawPath.isNullOrEmpty() || parsed.rawPath == "/") &&
                 parsed.port <= 65535) { "Sunucu adresi geçersiz." }
         val local = hostname == "127.0.0.1" || hostname == "localhost" || hostname == "[::1]"
-        require(scheme == "https" || (scheme == "http" && local)) {
-            "Uzak sunucu için HTTPS gerekir. Tailscale Serve veya TLS ters vekili kurun."
+        val tailnet = scheme == "http" && hostname == TAILSCALE_IP &&
+                parsed.port == TAILSCALE_PORT
+        require(scheme == "https" || (scheme == "http" && local) || (tailnet && vpnEtkin)) {
+            if (tailnet) "Tailscale VPN açık olmalı; bağlantıyı açıp yeniden deneyin."
+            else "Uzak sunucu için HTTPS gerekir. Yalnızca tanımlı Tailscale IP'sine HTTP izinlidir."
         }
         return URL(raw.trimEnd('/') + path)
     }

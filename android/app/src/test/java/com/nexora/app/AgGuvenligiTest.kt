@@ -36,12 +36,32 @@ class AgGuvenligiTest {
     }
 
     @Test
-    fun privateLanOrTailscaleIpCannotReceivePlaintextSecret() {
+    fun privateLanOrTailscaleIpWithoutVpnIsRejected() {
         rejected("http://100.105.213.95:8000")
         rejected("http://192.168.1.20:8000")
         rejected("http://10.0.0.2:8000")
         rejected("http://example.com:8000")
         rejected("http://localhost.evil.example")
+    }
+
+    @Test
+    fun knownTailscaleIpOnlyWorksWithVpnAndCorrectPort() {
+        assertEquals(
+            "http://100.105.213.95:8000/durum",
+            AgGuvenligi.endpoint("http://100.105.213.95:8000", "/durum", vpnEtkin = true).toString()
+        )
+        for (unsafe in listOf(
+            "http://100.105.213.95:8080",
+            "http://100.105.213.96:8000",
+            "http://100.105.213.95.evil.example:8000",
+            "http://192.168.1.20:8000",
+            "http://example.com:8000"
+        )) {
+            try {
+                AgGuvenligi.endpoint(unsafe, "/durum", vpnEtkin = true)
+                fail("Untrusted HTTP URL accepted: $unsafe")
+            } catch (_: IllegalArgumentException) { }
+        }
     }
 
     @Test
