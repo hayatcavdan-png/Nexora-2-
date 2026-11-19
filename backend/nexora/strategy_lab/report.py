@@ -155,6 +155,11 @@ def auto_paper_status(path, *, enabled=False):
             for row in entries if isinstance(row, dict)
             for v in row.get("horizons", {}).values() if isinstance(v, dict)
         ]
+        precommitted = [
+            v.get("precommitted_exit", {})
+            for row in entries if isinstance(row, dict)
+            for v in row.get("horizons", {}).values() if isinstance(v, dict)
+        ]
         return dict(
             base, status="LEDGER_AVAILABLE",
             total_studies=public["total_studies"],
@@ -163,6 +168,12 @@ def auto_paper_status(path, *, enabled=False):
                                     for v in signals if isinstance(v, dict)),
             recent_exit_unavailable=sum(v.get("action") == "EXIT_UNAVAILABLE"
                                         for v in signals if isinstance(v, dict)),
+            precommitted_sell_quote_signals=sum(
+                v.get("action") == "PAPER_SELL_SIGNAL"
+                for v in precommitted if isinstance(v, dict)),
+            precommitted_exit_unavailable=sum(
+                v.get("action") == "EXIT_UNAVAILABLE"
+                for v in precommitted if isinstance(v, dict)),
             available_research_cash_usdt=public["available_research_cash_usdt"],
             ai_signal_research={
                 "mode": ai["mode"],
