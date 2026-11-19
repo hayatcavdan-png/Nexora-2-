@@ -219,6 +219,12 @@ def analyze(mint, profile, *, rpc_call, quote, measured_at=None):
         quote_roundtrip_pct=str(round(roundtrip_loss, 4)),
         buy_price_impact_pct=str(buy_impact),
         sell_price_impact_pct=str(sell_impact),
+        # Pre-entry public market metadata; a predictive model may use only
+        # these already observed values, never future returns or pool hype.
+        organic_score=(str(_num(profile.get("organicScore")))
+                       if _num(profile.get("organicScore")) is not None else None),
+        top_holders_pct=str(_num(profile["audit"].get("topHoldersPercentage"))),
+        dev_balance_pct=str(_num(profile["audit"].get("devBalancePercentage"))),
         costs_complete=False, paper_entry=False,
     )
     return result
