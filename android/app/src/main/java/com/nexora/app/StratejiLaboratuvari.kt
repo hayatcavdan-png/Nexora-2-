@@ -153,6 +153,34 @@ fun StratejiLaboratuvari(url: String, key: String) {
                              "varsayımlarıdır; gerçekleşmiş net kâr değildir.",
                             color = Nx.Sari, fontSize = 11.sp)
                     }
+                    auto.optJSONObject("ai_signal_research")?.let { ai ->
+                        HorizontalDivider()
+                        Text("Yapay Zekâ Destekli Sinyal", color = Nx.Metin,
+                            fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                        val ready = ai.optString("status") == "PAPER_FILTER_VALIDATED"
+                        Text(
+                            if (ready) "İleri test kapıları geçti · yalnızca sanal sinyal filtresi"
+                            else "Gölge öğrenme · geçmiş yeterli değil, kararları değiştirmiyor",
+                            color = if (ready) Nx.Nane else Nx.Sari, fontSize = 12.sp
+                        )
+                        Text("Önceden kaydedilmiş olgun örnek: " +
+                             ai.optInt("trained_samples"), color = Nx.Soluk, fontSize = 12.sp)
+                        ai.optJSONObject("walk_forward")?.let { walk ->
+                            Text("İleri test: " + walk.optInt("walk_forward_checked") +
+                                 " değerlendirme · " + walk.optInt("walk_forward_selected") +
+                                 " seçilmiş sanal işlem",
+                                 color = Nx.Soluk, fontSize = 12.sp)
+                            if (!walk.isNull("selected_stress_lower_bound_usdt")) {
+                                Text("Stres net alt sınırı: " +
+                                     walk.optString("selected_stress_lower_bound_usdt") +
+                                     " USDT / sanal deneme",
+                                     color = Nx.Soluk, fontSize = 12.sp)
+                            }
+                        }
+                        Text("Makine öğrenmesi çıktısı, kazanma olasılığı veya " +
+                             "gerçekleşmiş emir/kâr kanıtı değildir.",
+                            color = Nx.Sari, fontSize = 11.sp)
+                    }
                     Text("Bunlar gerçekleşmiş işlemler değildir. Defterin bulunması " +
                          "otomatik tarayıcının çalıştığını kanıtlamaz.",
                         color = Nx.Sari, fontSize = 11.sp)
