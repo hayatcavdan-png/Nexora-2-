@@ -32,6 +32,7 @@ class AutoStatusTests(unittest.TestCase):
                 "mint": MINT,
                 "observed_at": NOW,
                 "expected_token_qty_raw": "500000",
+                "planned_exit_horizon_min": 5,
                 "api_key": "SECRET_NOT_ALLOWED_IN_HTTP",
             }
             store.mutate(lambda state: open_study(state, data, now=NOW))
@@ -39,6 +40,8 @@ class AutoStatusTests(unittest.TestCase):
             self.assertEqual(before["total_studies"], 1)
             self.assertEqual(before["active_recent_studies"], 1)
             self.assertEqual(before["status"], "LEDGER_AVAILABLE")
+            self.assertEqual(before["ai_signal_research"]["status"], "SHADOW_LEARNING")
+            self.assertFalse(before["ai_signal_research"]["may_filter_new_paper"])
             self.assertFalse(before["worker_running_verified"])
             self.assertNotIn(MINT, json.dumps(before))
             self.assertNotIn("SECRET_NOT_ALLOWED_IN_HTTP", json.dumps(before))
@@ -48,6 +51,8 @@ class AutoStatusTests(unittest.TestCase):
                                                        now=NOW+301, quote=quote))
             after = auto_paper_status(path, enabled=True)
             self.assertEqual(after["recent_sell_signals"], 1)
+            self.assertEqual(after["precommitted_sell_quote_signals"], 1)
+            self.assertEqual(after["precommitted_exit_unavailable"], 0)
             self.assertEqual(after["available_research_cash_usdt"], "95.92")
             self.assertEqual(after["recent_exit_unavailable"], 0)
             self.assertFalse(after["live_trading"])
