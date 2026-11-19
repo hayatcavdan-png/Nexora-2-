@@ -97,4 +97,6 @@ Bu komut mevcut Oracle/Termux üzerinde **çalıştırılmadı**. Üretim servis
 - GitHub Actions backend ve Android testleri; ayrıca APK derlemesi. **CI yalnız sentetik testi doğrular.**
 - Gerçek kâr için gerekenler: ileri dönük 30+ günlük veri, gerçek gecikme ve gas/MEV/transaction failure, 5dk altı anlık stop teması, piyasa rejimi değişimi, gizli örneklem, likidite çıkarma ve çıkışsızlık stres testleri. Uygulamayı gerçek fonla işlem yapan sistem gibi lanse etmeyin.
 
-**Üretim kararı:** PR #16, #17 ve #18 `main`e otomatik birleştirilmez; HTTPS taşıması, release imzası, cihaz/sağlayıcı testleri ve kullanıcı onayı ayrı kapılardır.
+**Bağlantı uyumluluğu notu:** Devralınan Android güvenlik dalı uzak sunucuda varsayılan HTTPS uygular; **yalnız sabitlenmiş tek Tailscale IP:8000 için, Android'in VPN transport'u etkinse, dar kapsamlı HTTP istisnası** barındırır. Bu istisna genel uzak HTTP izni değildir; üretim sertifika/TLS güvenliğinin yerini almaz. İlgili URL, VPN ve sunucu yapılandırması gerçek telefonda ayrıca sınanmalıdır.
+
+**Üretim kararı:** PR #16, #17 ve #18 `main`e otomatik birleştirilmez; güvenli TLS/özel ağ, release imzası, cihaz/sağlayıcı testleri ve kullanıcı onayı ayrı kapılardır.
