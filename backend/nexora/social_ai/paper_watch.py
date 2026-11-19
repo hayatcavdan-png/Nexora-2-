@@ -133,6 +133,18 @@ def open_study(state, research, *, now):
         return {"opened": False, "reason": "ACTIVE_STUDY_LIMIT"}
     if ENTRY_COST > cash:
         return {"opened": False, "reason": "CASH_LIMIT"}
+    # Collect only immutable, pre-entry features derived from the complete
+    # Helius/Jupiter evidence. Do not train from incomplete manual placeholders.
+    from nexora.strategy_lab.auto_decision import entry_signal
+    from nexora.strategy_lab.signal_intelligence import entry_features
+    screened = entry_signal(research, now=now)["action"] == "OPEN_PAPER_STUDY"
+    features = entry_features(research) if screened else None
+    ai = research.get("lab_ai_decision")
+    # Only a bounded status string is retained. Untrusted model payloads,
+    # secrets or future quote values are never serialized to this ledger.
+    ai_status = ai.get("action") if isinstance(ai, dict) else None
+    if ai_status not in ("SHADOW_ONLY", "PAPER_PRIORITY_CANDIDATE", "NO_MODEL_EVIDENCE"):
+        ai_status = "NO_MODEL_EVIDENCE"
     ledger_row = {
         "mint": mint,
         "source": "MANUAL_OR_JUPITER_RECENT",
@@ -147,6 +159,8 @@ def open_study(state, research, *, now):
         # Fixed at entry time, not selected after a winning quote is observed.
         "planned_exit_horizon_min": planned,
         "plan_decided_at": now,
+        "lab_pretrade_features": features,
+        "lab_ai_action_at_entry": ai_status,
         "horizons": {f"{m}dk": {"status": "PENDING", "net_usdt": None}
                      for m in HORIZONS},
     }
