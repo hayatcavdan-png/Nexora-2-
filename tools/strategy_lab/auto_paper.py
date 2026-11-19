@@ -34,6 +34,22 @@ def cycle(*, research, store, now):
                 "profit_guard": profit["intake"]["reason"], "real_order": False}
 
     model = ai_review(history, as_of=now)
+    if model["status"] == "EVIDENCE_INVALID":
+        return {"status": "AI_EVIDENCE_INVALID", "scanned": 0,
+                "paper_opened": 0, "lab_rejected": 0, "real_order": False}
+    # Never spend scarce Helius/Jupiter quota when isolated paper capital
+    # has no free slots. Exit-quote watcher still runs independently.
+    from nexora.social_ai.paper_watch import MAX_ACTIVE_STUDIES, MAX_RECORDS, ENTRY_COST
+    from decimal import Decimal
+    rows = history.get("entries", [])
+    active = sum(any(isinstance(v, dict) and v.get("status") == "PENDING"
+                     for v in row.get("horizons", {}).values())
+                 for row in rows if isinstance(row, dict))
+    available = Decimal(history["available_research_cash_usdt"])
+    if (active >= MAX_ACTIVE_STUDIES or len(rows) >= MAX_RECORDS or
+            available < ENTRY_COST):
+        return {"status": "PAPER_CAPACITY_PAUSED", "scanned": 0,
+                "paper_opened": 0, "lab_rejected": 0, "real_order": False}
     response = research(enabled=True, limit=2)
     if not isinstance(response, dict) or response.get("mode") != "READ_ONLY_RESEARCH":
         return {"status": "PROVIDER_UNAVAILABLE", "scanned": 0,
