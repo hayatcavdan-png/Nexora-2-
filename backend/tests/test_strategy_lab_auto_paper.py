@@ -123,6 +123,27 @@ class StrategyLabAutoPaperTests(unittest.TestCase):
         self.assertEqual(store.private["entries"][0]["plan_decided_at"], now)
         self.assertFalse(outcome["real_order"])
 
+    def test_full_paper_capacity_skips_expensive_provider_calls(self):
+        from nexora.social_ai.paper_watch import initial_state
+        now = 1_800_500_000
+        state = initial_state()
+        state["available_research_cash_usdt"] = "1.00"
+
+        class NoWriteStore:
+            def _read(self):
+                return state
+            def mutate(self, callback):
+                raise AssertionError("Paper book must not be written")
+
+        def forbidden_provider(**kwargs):
+            raise AssertionError("No provider calls when capital is exhausted")
+
+        result = auto.cycle(research=forbidden_provider,
+                            store=NoWriteStore(), now=now)
+        self.assertEqual(result["status"], "PAPER_CAPACITY_PAUSED")
+        self.assertEqual(result["scanned"], 0)
+        self.assertFalse(result["real_order"])
+
     def test_profit_circuit_breaker_skips_provider_entirely(self):
         from nexora.social_ai.paper_watch import initial_state
         from nexora.strategy_lab.profit_engine import MATURITY_S
