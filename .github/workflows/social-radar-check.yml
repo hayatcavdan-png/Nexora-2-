@@ -46,6 +46,7 @@ jobs:
           python -B -m unittest discover -s backend/tests -p 'test_strategy_lab_auto_decision.py' -v
           python -B -m unittest discover -s backend/tests -p 'test_strategy_lab_auto_status.py' -v
           python -B -m unittest discover -s backend/tests -p 'test_strategy_lab_profit_engine.py' -v
+          python -B -m unittest discover -s backend/tests -p 'test_strategy_lab_signal_intelligence.py' -v
   full-backend:
     runs-on: ubuntu-latest
     timeout-minutes: 20
