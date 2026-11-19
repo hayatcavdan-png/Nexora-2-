@@ -61,7 +61,12 @@ def cycle(*, research, store, now):
         ai = assess(candidate, state=history, as_of=now, validation=model)
         # The learned model is an *additional* veto, never proof of safe trade.
         # It is shadow-only until independent walk-forward validation passes.
-        if ai["action"] == "REJECT_NEW_PAPER":
+        if ai["action"] == "REJECT_NEW_PAPER" or (
+            model["may_filter_new_paper"] and
+            ai["action"] != "PAPER_PRIORITY_CANDIDATE"
+        ):
+            # Validated AI filtering must fail closed on missing feature proof,
+            # never silently bypass the model to admit a weaker candidate.
             rejected += 1
             continue
         bound = (ai["prediction"] or {}).get("conservative_bound_usdt", 0)
