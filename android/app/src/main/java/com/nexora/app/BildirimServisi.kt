@@ -24,6 +24,8 @@ class BildirimServisi : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // The service may be restarted by Android without opening MainActivity first.
+        AgGuvenligi.hazirla(applicationContext)
         kanallariKur(this)
         val surekli = NotificationCompat.Builder(this, KANAL_SERVIS)
             .setSmallIcon(android.R.drawable.ic_dialog_info)
