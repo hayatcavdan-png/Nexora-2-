@@ -139,11 +139,14 @@ def auto_paper_status(path, *, enabled=False):
     try:
         from nexora.social_ai.paper_watch import Store, public_status
         from nexora.strategy_lab.profit_engine import review as profit_review
+        from nexora.strategy_lab.signal_intelligence import review as signal_review
         from time import time
         store = Store(path)
         history = store._read()
         public = public_status(history)
-        review = profit_review(history, as_of=time())
+        now = time()
+        review = profit_review(history, as_of=now)
+        ai = signal_review(history, as_of=now)
         entries = public.get("entries", [])
         if not isinstance(entries, list):
             raise ValueError("invalid entries")
@@ -161,6 +164,16 @@ def auto_paper_status(path, *, enabled=False):
             recent_exit_unavailable=sum(v.get("action") == "EXIT_UNAVAILABLE"
                                         for v in signals if isinstance(v, dict)),
             available_research_cash_usdt=public["available_research_cash_usdt"],
+            ai_signal_research={
+                "mode": ai["mode"],
+                "status": ai["status"],
+                "trained_samples": ai["trained_samples"],
+                "exit_quotes_observed": ai.get("exit_quotes_observed", 0),
+                "walk_forward": ai.get("forward", {}),
+                "may_filter_new_paper": ai["may_filter_new_paper"],
+                "not_live_alpha_proven": True,
+                "real_order": False,
+            },
             profit_research={
                 "status": review["status"],
                 "mature_samples": review["mature_samples"],
