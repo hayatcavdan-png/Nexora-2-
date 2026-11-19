@@ -44,10 +44,16 @@ def main() -> None:
               'android:allowBackup="false"'):
         has(manifest, s, "AndroidManifest")
     has(config, '<base-config cleartextTrafficPermitted="false"', "NetworkSecurityConfig")
+    has(config, '<domain includeSubdomains="false">100.105.213.95</domain>', "Pinned tailnet HTTP host")
+    has(manifest, 'android.permission.ACCESS_NETWORK_STATE', "VPN state permission")
     for s in ('hostname == "127.0.0.1"', 'hostname == "localhost"',
               'scheme == "https"', 'scheme == "http" && local',
               "parsed.rawUserInfo == null", "parsed.rawQuery == null"):
         has(transport, s, "AgGuvenligi")
+    for s in ('TAILSCALE_IP = "100.105.213.95"',
+              'TAILSCALE_PORT = 8000', 'parsed.port == TAILSCALE_PORT',
+              'tailnet && vpnEtkin', 'NetworkCapabilities.TRANSPORT_VPN'):
+        has(transport, s, "Tailscale VPN-only transport exception")
     has(api, "AgGuvenligi.endpoint(base, path)", "API transport")
     has(api, "c.instanceFollowRedirects = false", "API redirects")
     has(api, 'else -> "bilinmiyor"', "Role fail-closed")
@@ -61,10 +67,11 @@ def main() -> None:
     has(gradle, 'signingConfig = signingConfigs.getByName("debug")',
         "Explicit test-only signer classification")
     testfile = read(ANDROID / "src/test/java/com/nexora/app/AgGuvenligiTest.kt")
-    has(testfile, "privateLanOrTailscaleIpCannotReceivePlaintextSecret", "JVM network regression")
+    has(testfile, "privateLanOrTailscaleIpWithoutVpnIsRejected", "JVM network regression")
+    has(testfile, "knownTailscaleIpOnlyWorksWithVpnAndCorrectPort", "Tailnet allowlist regression")
     print("APK_SECURITY_STATIC_GATE: PASS")
     print("APK_RELEASE_SIGNER: DEBUG_ONLY / PRODUCTION_BLOCKED")
-    print("NETWORK_COMPATIBILITY: REMOTE_HTTP_DISABLED / HTTPS_MIGRATION_REQUIRED")
+    print("NETWORK_COMPATIBILITY: PINNED_TAILSCALE_HTTP_VPN_ONLY / OTHER_REMOTE_HTTP_DISABLED")
     print("REAL_DEVICE_SECURITY_TEST: NOT_PERFORMED")
 
 
