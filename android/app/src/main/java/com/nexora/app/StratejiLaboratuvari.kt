@@ -121,6 +121,11 @@ fun StratejiLaboratuvari(url: String, key: String) {
                         Text("Kalan araştırma bakiyesi: " +
                             auto.optString("available_research_cash_usdt") + " USDT",
                             color = Nx.Soluk, fontSize = 12.sp)
+                        Text("Önceden seçilmiş vadede sanal SAT sinyali: " +
+                             auto.optInt("precommitted_sell_quote_signals") +
+                             " · Satış kotasyonu bulunamadı: " +
+                             auto.optInt("precommitted_exit_unavailable"),
+                             color = Nx.Soluk, fontSize = 12.sp)
                     }
                     auto.optJSONObject("profit_research")?.let { guard ->
                         HorizontalDivider()
