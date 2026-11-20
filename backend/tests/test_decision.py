@@ -344,3 +344,26 @@ class GolgeTeyitEtkinTests(unittest.TestCase):
     def test_bayrak(self):
         from nexora.decision import Decider
         self.assertFalse(Decider.GOLGE_TEYIT)                      # varsayılan kapalı: canlı kural değişmez
+
+
+class CikisSaticiTests(unittest.TestCase):
+    """Pozisyonu yalnızca açan cüzdanın satışı kapatır (etiket 'kaynak' ufkuyla aynı kural)."""
+    def setUp(self):
+        self.p, self.q = Paper(), FakeQuoter()
+        self.d = Decider(self.p, self.q, Safe(), izle={"GOLGE"})
+        self.d.decide("e1", "W1", TOK, "buy", 1); self.q.sell_price = 1.0
+
+    def test_baska_cuzdan_ve_golge_kapatmaz(self):
+        self.assertEqual(self.d.decide("s1", "W2", TOK, "sell", 1)["reason"], "satan cüzdan pozisyonu açan değil")
+        self.assertEqual(self.d.decide("s2", "GOLGE", TOK, "sell", 1)["reason"], "satan cüzdan pozisyonu açan değil")
+        self.assertIsNotNone(self.p.position(TOK))
+
+    def test_acan_ve_manuel_kapatir(self):
+        self.assertEqual(self.d.decide("s3", "W1", TOK, "sell", 1)["decision"], "KOPYALANDI")
+        self.assertIsNone(self.p.position(TOK))
+        self.d.decide("e2", "W1", "T2", "buy", 1)
+        self.assertEqual(self.d.decide("s4", "MANUEL", "T2", "sell", 1)["decision"], "KOPYALANDI")
+
+    def test_kaynak_denetimi_acan_cuzdana_bakar(self):
+        out = self.d.kaynak_denetimi(lambda w, t: 0, now=10 ** 10)
+        self.assertEqual(out[0][1], "KOPYALANDI"); self.assertIsNone(self.p.position(TOK))

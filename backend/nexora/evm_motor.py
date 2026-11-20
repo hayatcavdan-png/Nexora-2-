@@ -7,6 +7,7 @@ Fiyat teklifi zaten kaymayı içerdiği için paper motoruna ek kayma verilmez. 
 import json, time
 
 from nexora.evm import EvmHatasi, ZINCIRLER, coz_tam
+from nexora.core import BASKA_SATICI
 
 
 class EvmKarar:
@@ -23,6 +24,7 @@ class EvmKarar:
         if yon == "sell":
             poz = p.position(token)
             if not poz: return self._red(ev, w, token, yon, "sahip olunmayan pozisyon satılamaz")
+            if not p.satici_uygun(poz.get("wallet"), w): return self._red(ev, w, token, yon, BASKA_SATICI)
             try:
                 dec = self.rpc.ondalik(token)
                 q = self.t.teklif(token, self.z["usd"], int(poz["qty"] * 10 ** dec))

@@ -59,6 +59,17 @@ def rapor(now=None, GUN=3.0):
                  f"en iyi an ort %{_ort([x['max_pct'] for x in kap if x['max_pct'] is not None])}")
         tepe = [x for x in kap if (x["max_pct"] or 0) >= 20]
         if tepe: L.append(f"    %20+ kâra çıkan {len(tepe)} poz: kapanışta toplam {sum(x['pnl'] or 0 for x in tepe):+.2f}$")
+    # 1b) Çıkışı kim tetikledi? (20.11 düzeltmesinden önce, aynı token'ı satan HERHANGİ bir izlenen cüzdan pozisyonu kapatıyordu)
+    acan = {}
+    for x in _q(p, "SELECT token, wallet, closed_ts FROM pos_iz WHERE closed_ts IS NOT NULL AND closed_ts>=?", (bas - 60,)):
+        acan.setdefault(x["token"], []).append((x["closed_ts"], x["wallet"]))
+    grup = defaultdict(list)
+    for s in sat:
+        a = min(acan.get(s["token"], []), key=lambda v: abs(v[0] - s["ts"]), default=None)
+        if a is None or abs(a[0] - s["ts"]) > 120: continue
+        grup["açan cüzdan" if s["wallet"] in (a[1], "MANUEL") or "aktarim" in str(s["event_id"]) else "BAŞKA cüzdan"].append(s["pnl"] or 0)
+    if grup:
+        L.append("    Çıkışı tetikleyen: " + "; ".join(f"{k} {len(v)} satış {sum(v):+.2f}$" for k, v in sorted(grup.items())))
     takili = _q(p, "SELECT COUNT(*) n FROM durum_gecis WHERE yeni='TAKILDI' AND ts>=?", (bas,))
     if takili and takili[0]["n"]: L.append(f"    Satış teklifi alınamayıp takılan: {takili[0]['n']}")
 

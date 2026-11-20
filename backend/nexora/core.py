@@ -8,6 +8,8 @@ except ImportError:          # Windows: süreçler arası kilit yok (yalnızca t
 
 from nexora import durum as D
 
+BASKA_SATICI = "satan cüzdan pozisyonu açan değil"
+
 CFG = dict(
     start_cash=100.0,        # USDC (sanal)
     max_pos_pct=0.05,        # pozisyon başına %5
@@ -366,6 +368,13 @@ class Paper:
         acik = self.db.execute("SELECT COALESCE(SUM(cost), 0) c FROM positions").fetchone()["c"]
         return acik + ek_usd <= TOPLAM_RISK * self.equity() + 1e-9
 
+    @staticmethod
+    def satici_uygun(acan, satan):
+        """Çıkış kuralı: pozisyonu yalnızca AÇAN cüzdanın satışı kapatır (etiket motoru ve deney masası 'kaynak' ufku böyle
+        ölçer). 20.11.2026'ya kadar aynı token'ı satan HERHANGİ bir izlenen cüzdan (gölge havuz dahil 80 cüzdan) pozisyonu
+        kapatıyordu; canlı sonuç ölçülen stratejiden sapıyordu. MANUEL satış ve açanı bilinmeyen pozisyon her zaman kapanır."""
+        return not acan or satan is None or satan == "MANUEL" or acan == satan
+
     def precheck(self, side, token, signal_age_s, wallet=None, ek=False):
         """Ağ isteği yapmadan önce kurallar. (red_gerekçesi | None, pozisyon_büyüklüğü_usd).
         ek=True: tutulan token'a güçlendirme (teyit) parçası: yer ve cüzdan sınırı saymaz, toplam risk ve günlük sınırlar sayar."""
@@ -374,7 +383,7 @@ class Paper:
             if side not in ("buy", "sell"): return "geçersiz sinyal", 0
             if self.killed(): return "acil durdurma aktif", 0
             if signal_age_s > self.limit("max_signal_age_s"): return "sinyal bayat", 0
-            has = self.db.execute("SELECT qty_raw FROM positions WHERE token=?", (token,)).fetchone()
+            has = self.db.execute("SELECT qty_raw, wallet FROM positions WHERE token=?", (token,)).fetchone()
             if ek and side == "buy":
                 if not has: return "güçlendirilecek pozisyon yok", 0
                 if self._get(f"ek:{token}") not in (None, "0"): return "bu pozisyon zaten güçlendirildi", 0
@@ -391,6 +400,7 @@ class Paper:
             if side == "sell":
                 if not has: return "sahip olunmayan pozisyon satılamaz", 0
                 if not has["qty_raw"]: return "pozisyon miktarı bilinmiyor", 0
+                if not self.satici_uygun(has["wallet"], wallet): return BASKA_SATICI, 0
                 return None, 0
             if has: return "bu token'da zaten pozisyon var", 0
             eq, ds = self.equity(), float(self._get("day_start"))
