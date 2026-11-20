@@ -58,7 +58,7 @@ fun HlEkrani(url: String, key: String) {
                 OzetSatiri("Biz (kopyalasaydık)", o.optJSONObject("biz"))
                 OzetSatiri("Trader'ın kendisi", o.optJSONObject("kaynak"))
                 OzetSatiri("30 dk'da çıksaydık", o.optJSONObject("dk30"))
-                if (!o.isNull("gecikme_pct")) SatirKV("Gecikme maliyeti (medyan)", yuzde(o.optDouble("gecikme_pct"), 3))
+                if (!o.isNull("gecikme_pct")) SatirKV("Gecikme maliyeti (medyan)", hlYuzde(o.optDouble("gecikme_pct"), 3))
                 if (o.optInt("kapanan") < 30) Text("Örneklem küçük: 30 kapanan ölçümden önce karar verilmez.", color = Nx.Kehribar, fontSize = 12.sp)
             }
         }
@@ -72,8 +72,8 @@ fun HlEkrani(url: String, key: String) {
                     Row(Modifier.fillMaxWidth().padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
                         Text(w.take(6) + "…" + w.takeLast(4), color = Nx.Metin, fontSize = 12.sp, fontFamily = FontFamily.Monospace, modifier = Modifier.weight(1.3f))
                         Text("${m.optInt("n")}", color = Nx.Soluk, fontSize = 12.sp, modifier = Modifier.weight(0.5f))
-                        Text(if (m.isNull("ort")) "—" else yuzde(m.optDouble("ort")), color = renk(m, "ort"), fontSize = 12.sp, modifier = Modifier.weight(1f))
-                        Text(if (m.isNull("kaynak_ort")) "—" else yuzde(m.optDouble("kaynak_ort")), color = Nx.Soluk, fontSize = 12.sp, modifier = Modifier.weight(1f))
+                        Text(if (m.isNull("ort")) "—" else hlYuzde(m.optDouble("ort")), color = renk(m, "ort"), fontSize = 12.sp, modifier = Modifier.weight(1f))
+                        Text(if (m.isNull("kaynak_ort")) "—" else hlYuzde(m.optDouble("kaynak_ort")), color = Nx.Soluk, fontSize = 12.sp, modifier = Modifier.weight(1f))
                         Text("${m.optInt("acik")}", color = Nx.Soluk, fontSize = 12.sp, modifier = Modifier.weight(0.4f))
                     }
                 }
@@ -94,10 +94,10 @@ fun HlEkrani(url: String, key: String) {
                         Column(Modifier.weight(1f)) {
                             Text(s.optString("coin"), color = Nx.Metin, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                             Text(f.format(Date((s.optDouble("giris_ts") * 1000).toLong())) + " · " + s.optString("wallet").take(6) +
-                                 (if (s.isNull("gecikme_pct")) "" else " · gecikme " + yuzde(s.optDouble("gecikme_pct"), 3)),
+                                 (if (s.isNull("gecikme_pct")) "" else " · gecikme " + hlYuzde(s.optDouble("gecikme_pct"), 3)),
                                  color = Nx.Soluk, fontSize = 11.sp)
                         }
-                        Text(if (s.optString("durum") == "acik") "açık" else if (s.isNull("getiri_pct")) "—" else yuzde(s.optDouble("getiri_pct")),
+                        Text(if (s.optString("durum") == "acik") "açık" else if (s.isNull("getiri_pct")) "—" else hlYuzde(s.optDouble("getiri_pct")),
                              color = if (s.optString("durum") == "acik") Nx.Soluk else renk(s, "getiri_pct"), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                     }
                 }
@@ -109,10 +109,10 @@ fun HlEkrani(url: String, key: String) {
 @Composable
 private fun OzetSatiri(ad: String, o: JSONObject?) {
     if (o == null || o.isNull("ort")) { SatirKV(ad, "—"); return }
-    SatirKV(ad, "ort ${yuzde(o.optDouble("ort"))} · med ${yuzde(o.optDouble("medyan"))} · kazanan %${o.optInt("pozitif")} (n=${o.optInt("n")})")
+    SatirKV(ad, "ort ${hlYuzde(o.optDouble("ort"))} · med ${hlYuzde(o.optDouble("medyan"))} · kazanan %${o.optInt("pozitif")} (n=${o.optInt("n")})")
 }
 
-private fun yuzde(x: Double, basamak: Int = 2) = String.format(Locale.US, "%+.${basamak}f%%", x)
+private fun hlYuzde(x: Double, basamak: Int = 2) = String.format(Locale.US, "%+.${basamak}f%%", x)
 private fun renk(o: JSONObject, alan: String): Color = if (o.isNull(alan)) Nx.Soluk else if (o.optDouble(alan) >= 0) Nx.Yesil else Nx.Kirmizi
 
 /** Yapay zekâ destekli yorum (salt okunur): sunucu raporu bir dil modeline yorumlatır. Anahtar yoksa kural tabanlı özet. */
