@@ -110,11 +110,28 @@ def teyit_deneyi(olay):
             ("teyitsiz (ilk alan)", "teyitli: farklı zamanda (bağımsız)", "teyitli: yalnızca aynı blok (bağlı olabilir)")]
 
 
+YAS_ESIK = ((0, "Şimdiki (yaş süzgeci yok)"), (600, "Token en az 10 dk'lık"), (3600, "Token en az 1 sa'lik"),
+            (86400, "Token en az 1 günlük"))
+
+
+def yas_filtre_deneyi(olay, golge=frozenset(), kural=None):
+    """B2) Şimdiki kural + 'şu yaştan genç token'a girme' (kaynak çıkışı, gölge hariç). Yaşı bilinmeyen sinyal geçer."""
+    kural = kural or dict(max_poz=8, oran=0.05, rt_max=3.0)
+    tum = sorted((o for o in olay.values() if o["wallet"] not in golge and "kaynak" in o["sonuc"]), key=lambda o: o["ts"])
+    out = []
+    for esik, ad in YAS_ESIK:
+        s = [(o["ts"], max(o["ts"], o["sonuc"]["kaynak"][0]), o["wallet"], o["token"], o["sonuc"]["kaynak"][1], o["rt"])
+             for o in tum if esik == 0 or o["yas"] is None or o["yas"] >= esik]
+        out.append(dict(ad=ad, n=len(s), **D.simule(s, **kural)))
+    return out
+
+
 def rapor(etiket_db=None, now=None, gun=14, golge=None):
     now = now if now is not None else time.time()
     olay = _oku(etiket_db or os.getenv("ETIKET_DB", "nexora_etiket.db"), now, gun)
     golge = D.golge_seti() if golge is None else set(golge)
-    return dict(cikis=cikis_deneyi(olay, golge), yas=yas_deneyi(olay), teyit=teyit_deneyi(olay), olay=len(olay))
+    return dict(cikis=cikis_deneyi(olay, golge), yas=yas_deneyi(olay), yas_filtre=yas_filtre_deneyi(olay, golge),
+                teyit=teyit_deneyi(olay), olay=len(olay))
 
 
 def satirlar(r, gun=14):
@@ -129,6 +146,9 @@ def satirlar(r, gun=14):
     L.append("    Cüzdan profili (cüzdanın medyan giriş yaşı, 3+ ölçüm): profil / cüzdan / n / ort / medyan")
     for x in y["profiller"]:
         if x["n"]: L.append(f"    {x['ad']:<9} {x['cuzdan']:>3} cüzdan n={x['n']:<4} ort {f(x['ort'])} med {f(x['medyan'])}")
+    L.append("[14b] Yaş süzgeci (şimdiki kural, kaynak çıkışı, gölge hariç): süzgeç / sinyal / işlem / K/Z / kazanan / düşüş")
+    for x in r.get("yas_filtre") or []:
+        L.append(f"    {x['ad']:<28} {x['n']:>4} {x['islem']:>4}  {x['kz']:+7.2f}$  %{x['kazanan']:<3} düşüş {x['dusus']:.2f}$")
     L.append("[15] Teyit bağımsızlığı (15 dk içinde başka cüzdan aynı token'ı aldı mı?): grup / n / ort / medyan / pozitif")
     for x in r["teyit"]:
         if x["n"]: L.append(f"    {x['ad']:<44} n={x['n']:<4} ort {f(x['ort'])} med {f(x['medyan'])} poz %{x['pozitif']}")

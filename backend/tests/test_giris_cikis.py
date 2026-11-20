@@ -47,7 +47,10 @@ class GirisCikisTests(unittest.TestCase):
         self.assertEqual(t["teyitsiz (ilk alan)"], 3)
         self.assertEqual(t["teyitli: yalnızca aynı blok (bağlı olabilir)"], 1)
         self.assertEqual(t["teyitli: farklı zamanda (bağımsız)"], 1)
-        metin = "\n".join(GC.satirlar(r))
+        f = {x["ad"]: x for x in r["yas_filtre"]}
+        self.assertEqual(f["Şimdiki (yaş süzgeci yok)"]["n"], 4); self.assertEqual(f["Token en az 1 sa'lik"]["n"], 3)   # a (30 sn) düşer
+        self.assertGreater(f["Token en az 1 sa'lik"]["kz"], f["Şimdiki (yaş süzgeci yok)"]["kz"])
+        metin = "\n".join(GC.satirlar(r)); self.assertIn("[14b]", metin)
         self.assertIn("[13]", metin); self.assertIn("[15]", metin)
 
     def test_veri_yok(self):
