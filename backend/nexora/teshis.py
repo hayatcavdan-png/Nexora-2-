@@ -212,6 +212,11 @@ def rapor(now=None, GUN=3.0):
         L += GC.satirlar(GC.rapor(os.getenv("ETIKET_DB", "nexora_etiket.db"), now, 14), 14)
     except Exception as ex:
         L.append(f"[13] giriş/çıkış deneyleri hesaplanamadı: {type(ex).__name__}")
+    try:                                   # 16) Hyperliquid gölge ölçümü (20.11): büyük trader'ları kopyalasaydık
+        from nexora import hl
+        L += hl.satirlar(hl.rapor(os.getenv("HL_DB", "nexora_hl.db"), now, 14))
+    except Exception as ex:
+        L.append(f"[16] Hyperliquid ölçümü hesaplanamadı: {type(ex).__name__}")
 
     # 6b) Kısmi satış ölçümü
     km = _q(p, "SELECT * FROM kismi_olcum WHERE acilis_ts>=?", (bas,))

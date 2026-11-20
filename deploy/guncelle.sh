@@ -20,9 +20,9 @@ fi
 install -m 644 deploy/nexora-*.service deploy/nexora-*.timer /etc/systemd/system/
 systemctl daemon-reload
 for T in deploy/nexora-*.timer; do systemctl enable --now -q "$(basename "$T")"; done
-systemctl enable -q nexora-piyasa nexora-bnb nexora-base 2>/dev/null || true
-systemctl restart nexora-sunucu nexora-takip nexora-piyasa nexora-bnb nexora-base
+systemctl enable -q nexora-piyasa nexora-bnb nexora-base nexora-hl 2>/dev/null || true
+systemctl restart nexora-sunucu nexora-takip nexora-piyasa nexora-bnb nexora-base nexora-hl
 sleep 5
-systemctl --no-pager --lines=0 status nexora-sunucu nexora-takip nexora-piyasa nexora-bnb nexora-base 2>/dev/null | grep -E "●|Active" || true
+systemctl --no-pager --lines=0 status nexora-sunucu nexora-takip nexora-piyasa nexora-bnb nexora-base nexora-hl 2>/dev/null | grep -E "●|Active" || true
 journalctl -u nexora-takip -n 3 --no-pager -o cat || true
 echo "$SONRA" > /opt/nexora/.kurulan

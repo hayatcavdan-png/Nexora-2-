@@ -350,6 +350,15 @@
    "yuzde": 0,
    "yapilan": "",
    "eksik": "Önce az sayıda tanıdık kullanıcıyla paper modda kapalı beta; geri bildirim; sonra hukuki görüş ve kanıtla sınırlı gerçek kullanım. Önkoşul: N33, N34, N35, N36; gerçek para için N31."
+  },
+  {
+   "kod": "N39",
+   "ad": "Hyperliquid trader takibi (gölge)",
+   "grup": "Faz 2 · Çoklu platform",
+   "durum": "devam",
+   "yuzde": 25,
+   "yapilan": "20.11 (kullanıcı onayı): salt okunur ölçüm servisi nexora-hl. Liderlik tablosundan 40 trader (hesap ≥50 bin $, haftalık/aylık/tüm zaman kârı pozitif, aylık getiri %5–1000, yüksek frekans hariç; günlük yenilenir). Takip edilen cüzdan sıfırdan pozisyon açınca sanal pozisyon, gördüğümüz andaki orta fiyattan (taraf başı %0,065 ücret+kayma); kaynak kapatınca kapanır; 30 dk karşılaştırması, gecikme maliyeti, cüzdan bazında sonuç (teşhis [16]). Kaldıraç kopyalanmaz, fonlama hariç",
+   "eksik": "14 gün ölçüm; ileriye dönük kârlı trader'lar ve gecikme maliyeti; olumluysa paper kopyalama (kendi risk kurallarıyla, kullanıcı onayı); gerçek para için hukuki görüş"
   }
  ],
  "meta": [

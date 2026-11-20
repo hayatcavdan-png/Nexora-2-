@@ -48,3 +48,5 @@ backend/borsa_mum.db
 backend/golge_listesi.txt
 backend/golge_listesi.txt.tmp
 backend/golge_kayit.json
+backend/hl_cuzdanlar.txt
+backend/hl_cuzdanlar.txt.tmp
