@@ -34,6 +34,9 @@ def calistir(db, ufuk="kaynak", zorla=False, yol="yz_model.json"):
         L.append(f"\nModel kaydedildi: {yol} (sıradaki adım N19: gölge karar)")
     elif s["karar"] != "avantaj var":
         L.append("\nModel kaydedilmedi: avantaj kanıtlanmadı. Bu geçerli bir sonuçtur; gerçek parayı korur.")
+        if os.path.exists(yol):
+            L.append(f"Not: {yol} daha önce kabul edilmiş eski bir model. Yalnızca gölge karar ölçümü için kalır; "
+                     "bugünkü sınamayı geçemediği için canlı filtreye (N20) önerilmez.")
     return "\n".join(L)
 
 

@@ -167,27 +167,27 @@
    "ad": "Seçim modeli",
    "grup": "Yapay zekâ",
    "durum": "devam",
-   "yuzde": 90,
-   "yapilan": "Açıklanabilir lojistik regresyon (ek paket yok), zamana göre eğit/sına, eşik yalnızca eğitimde seçilir, bootstrap güven aralığı, kalibrasyon ve Brier skoru, özellik etkileri; yapay veride gerçek işareti buldu, işaretsiz veride sahte avantaj üretmedi (yz_model.py); her gece otomatik yeniden sınama (≥500 örnekte; kabul edilirse yz_model.json yazılır, yalnızca gölge karar başlar); 18.11: İLK KABUL. 767 örnek (eğitim 536, sınama 231, zamana göre). Hepsini kopyala %-1.39, model seçtikleri (32) %+7.04, fark %95 GA [+5.4, +11.5]; kopyalanan cüzdanlarda hepsi %+0.29, seçilen (18) %+6.07; Brier 0.219 < 0.257. yz_model.json kaydedildi; her gece otomatik yeniden sınanıyor; 20.11: kabul sağlamlaştırıldı: yürüyen (walk-forward) sınama 4 dilim, eğitim-sınama arasında 1 saat boşluk, etiketleri karıştırılmış 20 modele karşı şans sınaması (p<0,1); kabul için dilimlerin çoğu olumlu olmalı",
-   "eksik": "Gece yeniden sınamada yeni sağlamlık ölçütleriyle kabulün sürmesi; kopyalanan alt kümede daha büyük örneklem"
+   "yuzde": 65,
+   "yapilan": "Açıklanabilir lojistik regresyon (ek paket yok), zamana göre eğit/sına, eşik yalnızca eğitimde seçilir, bootstrap güven aralığı, kalibrasyon ve Brier skoru, özellik etkileri; yapay veride gerçek işareti buldu, işaretsiz veride sahte avantaj üretmedi (yz_model.py); her gece otomatik yeniden sınama (≥500 örnekte; kabul edilirse yz_model.json yazılır, yalnızca gölge karar başlar); 18.11: İLK KABUL. 767 örnek (eğitim 536, sınama 231, zamana göre). Hepsini kopyala %-1.39, model seçtikleri (32) %+7.04, fark %95 GA [+5.4, +11.5]; kopyalanan cüzdanlarda hepsi %+0.29, seçilen (18) %+6.07; Brier 0.219 < 0.257. yz_model.json kaydedildi; her gece otomatik yeniden sınanıyor; 20.11: kabul sağlamlaştırıldı: yürüyen (walk-forward) sınama 4 dilim, eğitim-sınama arasında 1 saat boşluk, etiketleri karıştırılmış 20 modele karşı şans sınaması (p<0,1); kabul için dilimlerin çoğu olumlu olmalı; 20.11 YENİDEN SINAMA (1891 örnek, sağlamlık ölçütleriyle): AVANTAJ BULUNAMADI. Hepsini kopyala %-1.84, model seçtikleri (112) %-4.83, GA [-6.5, +0.4]; yürüyen sınama 4 dilimin 3'ünde olumsuz; şans sınaması p=0.81. 18.11 kabulü küçük örneklemde şanstı. Eski model yalnızca gölge ölçümde kalır",
+   "eksik": "Yeni özellikler (cüzdanın giriş hızı/sniper profili, bağımsız teyit, token yaşı) ve daha fazla veri; kabul yalnızca sağlamlık ölçütleriyle"
   },
   {
    "kod": "N19",
    "ad": "Gölge karar",
    "grup": "Yapay zekâ",
    "durum": "devam",
-   "yuzde": 55,
+   "yuzde": 50,
    "yapilan": "Altyapı hazır: kabul edilmiş model (yz_model.json) varsa etiketlenen her sinyal için olasılık ve 'seçerdim/seçmezdim' kararı model sürümüyle kaydediliyor (işlemlere dokunmaz); model dosyası değişince yeniden başlatmadan yenileniyor; gölge raporu: seçilen/seçilmeyen/hepsi getirisi, kalibrasyon, kayma (yz_filtre.py); 18.11: model kabul edildi, gölge karar başladı (her etiketlenen sinyale olasılık + seçerdim/seçmezdim yazılıyor, işlemlere dokunmuyor). Teşhis [12]: seçilen/seçilmeyen ve kopyalanan alt küme ayrı raporlanıyor",
-   "eksik": "En az 14 gün ve 100 sonuçlanmış gölge karar; seçilenlerin seçilmeyenlerden anlamlı şekilde iyi olması"
+   "eksik": "Eski modelin ileriye dönük gölge sonucu (beklenti: avantaj yok); yeni model kabul edilirse yeniden başlar"
   },
   {
    "kod": "N20",
    "ad": "Kontrollü devreye alma (paper)",
    "grup": "Yapay zekâ",
    "durum": "devam",
-   "yuzde": 45,
+   "yuzde": 35,
    "yapilan": "Altyapı hazır: paper kopyalamada model filtresi (elenen sinyal gölgede ölçülür, karar izine model sürümü ve olasılık yazılır); açma yalnızca sunucuda ve gölge kabulüyle (≥14 gün, ≥100 etiket, seçilenler hepsinden iyi, kayma ≤0,25); uygulamadan tek dokunuşla kapatma; model yok/bozuksa filtre uygulanmaz; öneri taslağı: kör veto yerine öncelik — yer boşken her sinyale girilir, yer doluyken/güçlendirmede model puanı yüksek sinyal öne alınır",
-   "eksik": "N19 gölge sonucu; öncelik modunun deney masasında sınanması; kullanıcı onayı; 2 hafta paper gözlemi ve geri alma denemesi"
+   "eksik": "BEKLEMEDE (20.11): kabul edilmiş model yok. Önce N18'de sağlamlık ölçütlerini geçen model gerekli"
   },
   {
    "kod": "N21",
