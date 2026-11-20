@@ -39,7 +39,8 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {   // BiometricPr
 }
 
 private val ANA_SEKMELER = setOf("ana", "kesfet", "portfoy", "karne", "profil")
-private val ALT_EKRAN = mapOf("rapor" to "Günlük Rapor", "yol" to "Yol Haritası", "takip" to "Takip Edilen Cüzdanlar", "uye" to "Hesabım", "hazir" to "Hazırlık Karnesi")
+private val ALT_EKRAN = mapOf("rapor" to "Günlük Rapor", "yol" to "Yol Haritası", "takip" to "Takip Edilen Cüzdanlar", "uye" to "Hesabım", "hazir" to "Hazırlık Karnesi",
+                                    "hl" to "Hyperliquid Takibi")
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -215,7 +216,7 @@ fun App() {
             ) {
                 if (ekran == "ana") item(key = "ust") { AnaUstBaslik({ ekran = it }, v.kurucu) }
                 if (ekran in ALT_EKRAN) item(key = "alt_bas") {
-                    SayfaBasligi(ALT_EKRAN[ekran]!!, when (ekran) { "takip" -> "Analiz ve takip durumu"; "uye" -> "Üyelik, davet ve bağlantılar"; "hazir" -> "Gerçek paraya geçiş ölçütleri"; else -> "NEXORA" }, geri = { ekran = if (ekran == "hazir") "karne" else "profil" })
+                    SayfaBasligi(ALT_EKRAN[ekran]!!, when (ekran) { "takip" -> "Analiz ve takip durumu"; "uye" -> "Üyelik, davet ve bağlantılar"; "hazir" -> "Gerçek paraya geçiş ölçütleri"; "hl" -> "Büyük trader'lar · gölge ölçüm"; else -> "NEXORA" }, geri = { ekran = if (ekran == "hazir") "karne" else "profil" })
                 }
                 val bagliDegil = !v.bagli && v.guncelleme == 0.0
                 if (v.hata.isNotEmpty() && !(bagliDegil && ekran == "ana")) item(key = "hata") { Text(v.hata, color = Nx.Kirmizi, fontSize = 13.sp) }
@@ -274,9 +275,11 @@ fun App() {
                         GorunumAyari(sp)
                     }
                     "hazir" -> item(key = "hazir") { HazirlikEkrani(v) }
+                    "hl" -> if (v.kurucu && v.bagli) item(key = "hl") { HlEkrani(url, key) } else item(key = "hl_uye") { BilgiKutusu(KURUCU_NOTU) }
                     "uye" -> item(key = "uye") { UyeEkrani(url, key, sp) { cekYenile() } }
                     "rapor" -> {
                         if (v.kurucu && v.bagli) item(key = "teshis") { TeshisKarti(url, key) }
+                        if (v.kurucu && v.bagli) item(key = "teshis_yz") { YzAnalizKarti(url, key, "teshis") }
                         item(key = "rapor") { Column(verticalArrangement = Arrangement.spacedBy(12.dp)) { RaporEkrani(v) } }
                     }
                     "yol" -> {
@@ -318,6 +321,7 @@ fun AnaUstBaslik(git: (String) -> Unit, kurucu: Boolean = true) {
                 DropdownMenuItem({ Text("Günlük Rapor") }, { menu = false; git("rapor") })
                 DropdownMenuItem({ Text("Yol Haritası") }, { menu = false; git("yol") })
                 if (kurucu) DropdownMenuItem({ Text("Takip Edilen Cüzdanlar") }, { menu = false; git("takip") })
+                if (kurucu) DropdownMenuItem({ Text("Hyperliquid Takibi") }, { menu = false; git("hl") })
                 DropdownMenuItem({ Text("Ayarlar") }, { menu = false; git("profil") })
             }
         }

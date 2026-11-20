@@ -70,3 +70,19 @@ class OlcerTests(unittest.TestCase):
 
 
 if __name__ == "__main__": unittest.main()
+
+
+class EkranTests(unittest.TestCase):
+    def test_ekran(self):
+        now = [10_000.0]; ist = FakeIst(); d = tempfile.mkdtemp(); yol = os.path.join(d, "h.db")
+        o = hl.Olcer(yol, ist, saat=lambda: now[0])
+        ist.fills[W] = [d_(1, 9990, "BTC", "B", 1, 0, 99.0), d_(2, 9991, "ETH", "A", 1, 0, 10.0)]; ist.mids["ETH"] = 10.0
+        o.tur([W]); ist.fills[W].append(d_(3, 10_050, "BTC", "A", 1, 1, 105.0)); ist.mids["BTC"] = 105.0; now[0] = 10_060; o.tur([W])
+        hl.liste_yaz([W], os.path.join(d, "l.txt"))
+        e = hl.ekran(yol, os.path.join(d, "l.txt"), now=10_100)
+        self.assertEqual(e["liste"], 1); self.assertEqual(len(e["son"]), 2)
+        m = e["cuzdanlar"][0]; self.assertEqual((m["n"], m["acik"]), (1, 1)); self.assertIsNotNone(m["kaynak_ort"])
+        self.assertIsNone(hl.ekran("/yok/h.db", now=1)["ozet"])
+
+
+d_ = d

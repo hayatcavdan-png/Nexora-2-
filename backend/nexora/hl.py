@@ -199,3 +199,33 @@ def satirlar(r):
         L.append(f"    {w[:6]}…{w[-4:]} {f(o)}")
     if r["yogun"]: L.append(f"    günde 200+ dolum (yüksek frekans olabilir): {len(r['yogun'])} cüzdan")
     return L
+
+
+def ekran(db_yol="nexora_hl.db", liste_yolu="hl_cuzdanlar.txt", now=None, gun=14):
+    """Uygulama ekranı için: özet, trader tablosu (kapanan + açık), son 25 ölçüm."""
+    now = now or time.time()
+    r = rapor(db_yol, now, gun)
+    out = dict(ozet=r, liste=len(liste_oku(liste_yolu)), cuzdanlar=[], son=[], ucret_pct=UCRET_PCT)
+    if r is None: return out
+    c = sqlite3.connect(f"file:{db_yol}?mode=ro", uri=True); c.row_factory = sqlite3.Row
+    try:
+        rows = [dict(x) for x in c.execute("SELECT * FROM hl_sinyal WHERE giris_ts>=? ORDER BY giris_ts DESC", (now - gun * 86400,))]
+    finally:
+        c.close()
+    cz = {}
+    for x in rows:
+        m = cz.setdefault(x["wallet"], dict(wallet=x["wallet"], acik=0, g=[], k=[]))
+        if x["durum"] == "acik": m["acik"] += 1
+        elif x["getiri_pct"] is not None:
+            m["g"].append(x["getiri_pct"])
+            if x["kaynak_getiri_pct"] is not None: m["k"].append(x["kaynak_getiri_pct"])
+    for m in cz.values():
+        g, k = m.pop("g"), m.pop("k")
+        m.update(n=len(g), ort=round(sum(g) / len(g), 3) if g else None, medyan=round(_md(g), 3) if g else None,
+                 pozitif=round(100 * sum(v > 0 for v in g) / len(g)) if g else None, kaynak_ort=round(sum(k) / len(k), 3) if k else None)
+    out["cuzdanlar"] = sorted(cz.values(), key=lambda m: (-(m["n"] > 0), -(m["ort"] or 0), -m["acik"]))
+    out["son"] = [dict(wallet=x["wallet"], coin=x["coin"], yon="long" if x["yon"] > 0 else "short", giris_ts=x["giris_ts"],
+                       durum=x["durum"], getiri_pct=x["getiri_pct"], kaynak_getiri_pct=x["kaynak_getiri_pct"],
+                       gecikme_pct=round(x["yon"] * (x["giris_px"] / x["kaynak_px"] - 1) * 100, 4) if x["kaynak_px"] else None)
+                  for x in rows[:25]]
+    return out

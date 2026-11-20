@@ -580,6 +580,7 @@ fun LazyListScope.profil(v: Veri, git: (String) -> Unit, ayarlar: @Composable ()
             ProfilSatiri("Günlük Rapor", { Icon(Icons.Filled.DateRange, null, tint = Nx.MorAcik) }) { git("rapor") }
             ProfilSatiri("Yol Haritası", { Icon(Icons.Filled.List, null, tint = Nx.MorAcik) }) { git("yol") }
             if (v.kurucu) ProfilSatiri("Takip Edilen Cüzdanlar", { IkonDna(Nx.MorAcik) }) { git("takip") }
+            if (v.kurucu) ProfilSatiri("Hyperliquid Takibi · Yapay zekâ analizi", { IkonRobot(Nx.MorAcik) }) { git("hl") }
         }
     }
     item(key = "pr_ayar") { Column(verticalArrangement = Arrangement.spacedBy(12.dp)) { ayarlar() } }

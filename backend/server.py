@@ -272,6 +272,20 @@ class H(BaseHTTPRequestHandler):
             try: gun = min(14.0, max(1.0, float(parse_qs(parts.query).get("gun", ["3"])[0])))
             except ValueError: gun = 3.0
             self._send(200, dict(metin=teshis.rapor(GUN=gun), gun=gun, ozet=teshis.gunluk_ozet(gun=1.0))); return
+        if parts.path == "/hl":                             # N39: Hyperliquid gölge ölçümü (yalnızca kurucu)
+            from nexora import hl
+            self._send(200, hl.ekran(os.getenv("HL_DB", "nexora_hl.db"))); return
+        if parts.path == "/yz-analiz":                      # yapay zekâ yorumu (yalnızca kurucu; salt okunur)
+            from nexora import yz_yorum, hl
+            q = parse_qs(parts.query); konu = (q.get("konu") or ["hl"])[0]; yenile = (q.get("yenile") or ["0"])[0] == "1"
+            if konu == "hl":
+                r = hl.rapor(os.getenv("HL_DB", "nexora_hl.db")); metin = "\n".join(hl.satirlar(r)); kural = yz_yorum.kural_yorumu_hl(r)
+            elif konu == "teshis":
+                from nexora import teshis
+                metin = teshis.rapor(GUN=14.0); kural = "Kural tabanlı yorum yok; raporun kendisine bakın."
+            else:
+                self._send(400, {"hata": "konu: hl ya da teshis"}); return
+            self._send(200, yz_yorum.analiz(konu, metin, kural, yenile)); return
         if parts.path == "/olaylar":
             try: son = float(parse_qs(parts.query).get("son", ["0"])[0])
             except ValueError: son = 0.0

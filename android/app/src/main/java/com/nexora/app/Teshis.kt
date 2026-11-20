@@ -55,6 +55,7 @@ fun TeshisKarti(url: String, key: String) {
             Text(metin, color = Nx.Metin, fontSize = 10.sp, fontFamily = FontFamily.Monospace, lineHeight = 14.sp)
         }
         Text("Rapor yalnızca okur; hiçbir ayarı değiştirmez. [3] kopyalasaydık getirisi, [4] cüzdan bazında sonuç, " +
-             "[5] reddedilenlerin gölge sonucu, [8]/[9] token türü analizidir.", color = Nx.Soluk, fontSize = 11.sp)
+             "[5] reddedilenlerin gölge sonucu, [8]/[9] token türü, [10] deney masası, [13] çıkış deneyi, [14] token yaşı, " +
+             "[15] teyit bağımsızlığı, [16] Hyperliquid ölçümüdür. Yorum için aşağıdaki yapay zekâ kartını kullanın.", color = Nx.Soluk, fontSize = 11.sp)
     }
 }
