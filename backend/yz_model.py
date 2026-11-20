@@ -22,6 +22,9 @@ def calistir(db, ufuk="kaynak", zorla=False, yol="yz_model.json"):
                     + ("—" if k["hepsi"] is None else f"%{k['hepsi']:+.2f}") + f"; model seçtikleri ({k['secilen']}) "
                     + ("—" if k["secili"] is None else f"%{k['secili']:+.2f}"))(s.get("kopya") or dict(n=0, hepsi=None, secilen=0, secili=None)),
          f"Olasılık doğruluğu (Brier, düşük iyi): model {s['brier']} · sabit tahmin {s['brier_taban']}",
+         "Yürüyen sınama (dilim: seçilen − hepsi): " + (", ".join(
+             f"%{int(100 * x['kesim'])}→ {'—' if x['fark'] is None else f'{x['fark']:+.2f}'} ({x['secilen']})" for x in s.get("ileri") or []) or "—"),
+         f"Şans sınaması: etiketleri karıştırılmış modellerin gerçek farka ulaşma oranı p={s.get('p_sahte')} (0,1'den küçük olmalı)",
          "", "En etkili özellikler (standart etki; + kârlılık olasılığını artırır):"]
     L += [f"  {k:<16} {w:+.3f}" for k, w in s["agirliklar"]]
     L += ["", "Kalibrasyon (tahmin edilen / gerçekleşen kazanma oranı):"]

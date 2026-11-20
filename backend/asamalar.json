@@ -68,9 +68,9 @@
    "ad": "Kopyalama karar motoru",
    "grup": "İşlem",
    "durum": "devam",
-   "yuzde": 80,
-   "yapilan": "Ağsız kurallar, fiyat etkisi, al-sat kaybı, yalnız sahip olunanı satma, cüzdan başına sınır; ilk KOPYALANDI işlemi canlıda gerçekleşti (15.11 22:03, 4Fys…pump, etki %1.09, al-sat kaybı %3.0); büyüklük yöntemleri karşılaştırma ölçümü (sabit %5 / puan ağırlıklı / sabit 1 USDC); kaynak token'ı satış sinyali vermeden elden çıkarırsa pozisyon kapanır (15 dk denetim); kısmi satış gölge ölçümü (kaynak kadar satsaydık); 18.11: 4 kapanmış kısmi ölçüm: kaynak kadar oransal satış, ilk satışta tamamen çıkmaktan 3.65$ kötü (kural yapılmadı)",
-   "eksik": "Daha fazla ölçüm; şimdilik veri kısmi satışı desteklemiyor"
+   "yuzde": 83,
+   "yapilan": "Ağsız kurallar, fiyat etkisi, al-sat kaybı, yalnız sahip olunanı satma, cüzdan başına sınır; ilk KOPYALANDI işlemi canlıda gerçekleşti (15.11 22:03, 4Fys…pump, etki %1.09, al-sat kaybı %3.0); büyüklük yöntemleri karşılaştırma ölçümü (sabit %5 / puan ağırlıklı / sabit 1 USDC); kaynak token'ı satış sinyali vermeden elden çıkarırsa pozisyon kapanır (15 dk denetim); kısmi satış gölge ölçümü (kaynak kadar satsaydık); 18.11: 4 kapanmış kısmi ölçüm: kaynak kadar oransal satış, ilk satışta tamamen çıkmaktan 3.65$ kötü (kural yapılmadı); 20.11 DÜZELTME: pozisyonu yalnızca açan cüzdanın satışı kapatır (önceden aynı token'ı satan herhangi bir izlenen cüzdan, gölge havuz dahil, kapatıyordu; ölçülen strateji ile canlı defter ayrışıyordu). Solana ve BNB/Base motorunda; teşhis [1] çıkışı tetikleyeni (açan/başka) K/Z ile ayırır",
+   "eksik": "Düzeltme sonrası canlı sonuçların deney masasıyla tutarlılığı; kendi çıkış kuralları (zaman/kademeli) gerçek tekliflerle ölçülmeli"
   },
   {
    "kod": "N8",
@@ -86,8 +86,8 @@
    "ad": "Gerçekçi paper trading",
    "grup": "İşlem",
    "durum": "devam",
-   "yuzde": 87,
-   "yapilan": "Gerçek Jupiter teklifiyle doldurma, 2 dakikada bir değerleme, gölge işlemler, günlük rapor (komut satırı ve uygulama); ilk kapanan işlemler ve gerçekleşen K/Z kaydedildi; yürütme gecikmesi ölçümü: kopyalanan her işlemde teklif 3 sn sonra yeniden alınıyor; portföy denetimi (defter işlemlerden yeniden hesaplanır); tutarsız teklif (al-sat 'kazancı' >%2) ile alım engellendi, geçmişteki 3 işlem işaretlendi; başarısız işlem olasılığı modeli: 3 sn gecikme ölçümlerinden kayma toleransı başına (%0,5–5) düşen emir oranı, %95 Wilson üst sınırı ve geçen emirlerde ortalama kayıp; günlük raporda; teknik hatalar (Jupiter hız sınırı, bağlantı) başarısızlık tahmininden ayrıldı, bir kez yeniden deneniyor; 'rota yok' ayrı sayılıyor; 18.11: canlı ayar 8x%5 (deney masasında iki gün üst üste en iyi, kullanıcı onayı); gölge havuz teyidi canlıda açık (deney +48.50$ / önceki kural +37.66$, aynı düşüş)",
+   "yuzde": 88,
+   "yapilan": "Gerçek Jupiter teklifiyle doldurma, 2 dakikada bir değerleme, gölge işlemler, günlük rapor (komut satırı ve uygulama); ilk kapanan işlemler ve gerçekleşen K/Z kaydedildi; yürütme gecikmesi ölçümü: kopyalanan her işlemde teklif 3 sn sonra yeniden alınıyor; portföy denetimi (defter işlemlerden yeniden hesaplanır); tutarsız teklif (al-sat 'kazancı' >%2) ile alım engellendi, geçmişteki 3 işlem işaretlendi; başarısız işlem olasılığı modeli: 3 sn gecikme ölçümlerinden kayma toleransı başına (%0,5–5) düşen emir oranı, %95 Wilson üst sınırı ve geçen emirlerde ortalama kayıp; günlük raporda; teknik hatalar (Jupiter hız sınırı, bağlantı) başarısızlık tahmininden ayrıldı, bir kez yeniden deneniyor; 'rota yok' ayrı sayılıyor; 18.11: canlı ayar 8x%5 (deney masasında iki gün üst üste en iyi, kullanıcı onayı); gölge havuz teyidi canlıda açık (deney +48.50$ / önceki kural +37.66$, aynı düşüş); 20.11: ücret duyarlılığı deney masasında (işlem başı +0,05$ / +0,10$ öncelik ücreti + Jito bahşişi; 5$ pozisyonda gidiş-dönüş ≈ %2 / %4)",
    "eksik": "Uzun süreli sonuç; gerçek emir öncesi kayma toleransı kararı"
   },
   {
@@ -95,8 +95,8 @@
    "ad": "Strateji optimizasyonu ve ileri test",
    "grup": "İşlem",
    "durum": "devam",
-   "yuzde": 55,
-   "yapilan": "Gölge işlem kaydı (reddedilen alımlar) ve zarar kesme ölçümü (%10/20/30/50 eşiklerinde satsaydık ne olurdu) veri topluyor; takipçi kaybı ayrıştırması; token özelliklerine göre sonuç ayrıştırması. Gerçek Para Hazırlık Karnesi: 8 ölçülebilir ölçüt (işlem sayısı, süre, ortalama K/Z ve %95 güven alt sınırı, profit factor, düşüş, çalışma oranı, etiket); küçük örneklemde \"bekliyor\", asla otomatik geçiş yok. Kural gölgesi: pozisyon/cüzdan/token sınırı yüzünden reddedilen alımlar (saatte en fazla 8) aynı süzgeçlerden geçirilip gölgede ölçülür; \"sınır olmasaydı ne kazanırdık\" raporda ayrı grup; strateji teşhis raporu (uygulamada) ve deney masası: ölçülmüş sinyaller farklı kurallarla aynı koşullarda yeniden oynatılır; sonuç: al-sat <= %3 ve geniş kopyalama en kârlı, zarar kesme ve token filtresi kârı düşürüyor",
+   "yuzde": 58,
+   "yapilan": "Gölge işlem kaydı (reddedilen alımlar) ve zarar kesme ölçümü (%10/20/30/50 eşiklerinde satsaydık ne olurdu) veri topluyor; takipçi kaybı ayrıştırması; token özelliklerine göre sonuç ayrıştırması. Gerçek Para Hazırlık Karnesi: 8 ölçülebilir ölçüt (işlem sayısı, süre, ortalama K/Z ve %95 güven alt sınırı, profit factor, düşüş, çalışma oranı, etiket); küçük örneklemde \"bekliyor\", asla otomatik geçiş yok. Kural gölgesi: pozisyon/cüzdan/token sınırı yüzünden reddedilen alımlar (saatte en fazla 8) aynı süzgeçlerden geçirilip gölgede ölçülür; \"sınır olmasaydı ne kazanırdık\" raporda ayrı grup; strateji teşhis raporu (uygulamada) ve deney masası: ölçülmüş sinyaller farklı kurallarla aynı koşullarda yeniden oynatılır; sonuç: al-sat <= %3 ve geniş kopyalama en kârlı, zarar kesme ve token filtresi kârı düşürüyor; 20.11: dış araştırma (gecikme, maliyet, sahte konsensüs, aşırı uyum) bulguları önceliklere eklendi",
    "eksik": "En az 30 günlük ileri paper testi: canlı sonuçların deney masasıyla tutarlılığı"
   },
   {
@@ -168,8 +168,8 @@
    "grup": "Yapay zekâ",
    "durum": "devam",
    "yuzde": 90,
-   "yapilan": "Açıklanabilir lojistik regresyon (ek paket yok), zamana göre eğit/sına, eşik yalnızca eğitimde seçilir, bootstrap güven aralığı, kalibrasyon ve Brier skoru, özellik etkileri; yapay veride gerçek işareti buldu, işaretsiz veride sahte avantaj üretmedi (yz_model.py); her gece otomatik yeniden sınama (≥500 örnekte; kabul edilirse yz_model.json yazılır, yalnızca gölge karar başlar); 18.11: İLK KABUL. 767 örnek (eğitim 536, sınama 231, zamana göre). Hepsini kopyala %-1.39, model seçtikleri (32) %+7.04, fark %95 GA [+5.4, +11.5]; kopyalanan cüzdanlarda hepsi %+0.29, seçilen (18) %+6.07; Brier 0.219 < 0.257. yz_model.json kaydedildi; her gece otomatik yeniden sınanıyor",
-   "eksik": "Kopyalanan alt kümede daha büyük örneklem; gece yeniden sınamada kararlılık"
+   "yapilan": "Açıklanabilir lojistik regresyon (ek paket yok), zamana göre eğit/sına, eşik yalnızca eğitimde seçilir, bootstrap güven aralığı, kalibrasyon ve Brier skoru, özellik etkileri; yapay veride gerçek işareti buldu, işaretsiz veride sahte avantaj üretmedi (yz_model.py); her gece otomatik yeniden sınama (≥500 örnekte; kabul edilirse yz_model.json yazılır, yalnızca gölge karar başlar); 18.11: İLK KABUL. 767 örnek (eğitim 536, sınama 231, zamana göre). Hepsini kopyala %-1.39, model seçtikleri (32) %+7.04, fark %95 GA [+5.4, +11.5]; kopyalanan cüzdanlarda hepsi %+0.29, seçilen (18) %+6.07; Brier 0.219 < 0.257. yz_model.json kaydedildi; her gece otomatik yeniden sınanıyor; 20.11: kabul sağlamlaştırıldı: yürüyen (walk-forward) sınama 4 dilim, eğitim-sınama arasında 1 saat boşluk, etiketleri karıştırılmış 20 modele karşı şans sınaması (p<0,1); kabul için dilimlerin çoğu olumlu olmalı",
+   "eksik": "Gece yeniden sınamada yeni sağlamlık ölçütleriyle kabulün sürmesi; kopyalanan alt kümede daha büyük örneklem"
   },
   {
    "kod": "N19",
@@ -355,7 +355,7 @@
  "meta": [
   {
    "label": "Kaynak",
-   "value": "Claude'un proje değerlendirmesi, 18.11.2026 11:00. Yüzdeler tahmini; hiçbir aşama kabul kriterleri karşılanmadan tamamlandı sayılmaz. N16–N21: yapay zekâ seçim hattı. N23–N38: Faz 2 · çoklu platform (emanetsiz: para her zaman kullanıcının kendi borsa hesabında)."
+   "value": "Claude'un proje değerlendirmesi, 20.11.2026 16:40. Yüzdeler tahmini; hiçbir aşama kabul kriterleri karşılanmadan tamamlandı sayılmaz. N16–N21: yapay zekâ seçim hattı. N23–N38: Faz 2 · çoklu platform (emanetsiz: para her zaman kullanıcının kendi borsa hesabında)."
   }
  ]
 }

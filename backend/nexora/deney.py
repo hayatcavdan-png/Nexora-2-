@@ -43,9 +43,10 @@ def _seviye(gecmis, aktif=False):
 
 
 def simule(sinyal, max_poz=16, oran=0.025, seviyeler=None, cuzdan_siniri=2, rt_max=3.0, kadro=False, toplam_risk=0.40,
-           sermaye=100.0, aktif=()):
+           sermaye=100.0, aktif=(), ek_ucret=0.0):
     """Kural setini oynatır. seviyeler: {seviye: (cüzdan başına poz, oran)} verilirse büyüklük/sınır seviyeden gelir.
-    kadro=True: cüzdan yalnızca o ana kadarki ölçümüyle terfi koşulunu sağlıyorsa kopyalanır."""
+    kadro=True: cüzdan yalnızca o ana kadarki ölçümüyle terfi koşulunu sağlıyorsa kopyalanır.
+    ek_ucret: etiket tekliflerinde olmayan, işlem başına sabit maliyet ($; öncelik ücreti + Jito bahşişi). Al ve sat: 2 kez."""
     nakit, acik, gecmis = sermaye, [], {}
     olcum = []                    # kadro ölçümü: kopyalansın kopyalanmasın HER sinyalin sonucu, çıkış anında görünür olur
     islem = kacan = 0; sonuc = []
@@ -58,7 +59,7 @@ def simule(sinyal, max_poz=16, oran=0.025, seviyeler=None, cuzdan_siniri=2, rt_m
         kalan = []
         for p in sorted(acik, key=lambda p: p["cikis"]):
             if p["cikis"] <= t:
-                kz = p["maliyet"] * p["g"] / 100
+                kz = p["maliyet"] * p["g"] / 100 - 2 * ek_ucret
                 nakit += p["maliyet"] + kz; gercek += kz; sonuc.append(kz)
                 zirve = max(zirve, gercek); dusus = max(dusus, zirve - gercek)
             else:
@@ -111,6 +112,10 @@ DENEYLER = [
     ("10x%4, %3, kötüler düşer", dict(max_poz=10, oran=0.04, rt_max=3.0, kadro="gevsek")),
     ("8x%5, %3, kötüler düşer", dict(max_poz=8, oran=0.05, rt_max=3.0, kadro="gevsek")),
     ("Yer sınırsız 40x%1, %3, herkes", dict(max_poz=40, oran=0.01, rt_max=3.0, cuzdan_siniri=40)),
+    # Ücret duyarlılığı (20.11): paper 0,01$/işlem varsayıyor; yoğun anlarda öncelik ücreti + Jito bahşişi daha yüksek.
+    # Pozisyon ~5$ olduğundan sabit ücret yüzde olarak büyür: 0,05$ ≈ gidiş-dönüş %2, 0,10$ ≈ %4.
+    ("Şimdiki + işlem başı 0,05$ ek ücret", dict(max_poz=8, oran=0.05, rt_max=3.0, ek_ucret=0.05)),
+    ("Şimdiki + işlem başı 0,10$ ek ücret", dict(max_poz=8, oran=0.05, rt_max=3.0, ek_ucret=0.10)),
 ]
 
 

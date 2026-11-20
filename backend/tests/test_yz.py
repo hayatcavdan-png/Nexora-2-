@@ -14,7 +14,7 @@ def doldur(path, n, isaret=True, tohum=1):
         y = (org - 50) * 0.4 + r.gauss(0, 12) if isaret else r.gauss(-2, 15)
         c.execute("""INSERT INTO etiket_olay(event_id, ts, wallet, token, gecikme_sn, karar, saat_utc, gun, al_sat_kaybi_pct,
             tb_organik, tb_likidite, cuzdan, durum) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-            (f"e{i}", 1000 + i * 60, f"W{i % 7}", f"T{i}", r.uniform(0, 5), "KOPYALANDI" if i % 3 else "REDDEDİLDİ",
+            (f"e{i}", 1000 + i * 600, f"W{i % 7}", f"T{i}", r.uniform(0, 5), "KOPYALANDI" if i % 3 else "REDDEDİLDİ",
              i % 24, 0, r.uniform(1, 10), org, None if i % 10 == 0 else r.uniform(1e3, 1e6), json.dumps({"skor": r.random()}), "tamam"))
         c.execute("INSERT INTO etiket_sonuc VALUES(?,?,?,?,?,?,?)", (f"e{i}", "kaynak", 0, 5, y, 0, None))
     c.commit(); c.close()
@@ -57,12 +57,14 @@ class ModelTests(unittest.TestCase):
         self.assertEqual(s["karar"], "avantaj var"); self.assertIsNotNone(m)
         self.assertEqual(s["agirliklar"][0][0], "organik"); self.assertGreater(s["agirliklar"][0][1], 0)
         self.assertGreater(s["fark_guven_araligi"][0], 0); self.assertLess(s["brier"], s["brier_taban"])
+        self.assertLess(s["p_sahte"], 0.1); self.assertGreaterEqual(len(s["ileri"]), 3)       # gerçek sinyal şanstan ayrılır
+        self.assertTrue(all(x["fark"] > 0 for x in s["ileri"]))
 
     def test_no_signal_no_advantage(self):
         kabul = 0
         for t in range(3):
             p = os.path.join(tempfile.mkdtemp(), "e.db"); doldur(p, 600, isaret=False, tohum=10 + t)
-            s, m = degerlendir(veri_seti(p), bootstrap=300)
+            s, m = degerlendir(veri_seti(p), bootstrap=300, saglamlik=t == 0)
             kabul += s["karar"] == "avantaj var"
         self.assertEqual(kabul, 0)
 

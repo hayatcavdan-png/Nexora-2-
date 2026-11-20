@@ -49,6 +49,11 @@ class SimuleTests(unittest.TestCase):
         sig = [s(i, 10 * H, f"W{i}", f"T{i}", 1.0) for i in range(30)]
         self.assertEqual(D.simule(sig, max_poz=40, oran=0.05, cuzdan_siniri=9)["islem"], 8)    # %40 / %5
 
+    def test_ek_ucret_her_islemde_iki_kez(self):
+        sig = [s(0, 60, "A", "T", 10.0)]
+        a, b = D.simule(sig, max_poz=8, oran=0.05)["kz"], D.simule(sig, max_poz=8, oran=0.05, ek_ucret=0.1)["kz"]
+        self.assertAlmostEqual(a - b, 0.2, places=2)               # 5$'lık pozisyon: +0.50$ → +0.30$
+
     def test_masa_veritabanindan(self):
         d = tempfile.mkdtemp(); db = os.path.join(d, "e.db")
         c = sqlite3.connect(db); c.executescript(SEMA)

@@ -3,7 +3,8 @@
 Lojistik regresyon (L2), özellikler eğitim kümesine göre standartlaştırılır; eksik değer eğitim medyanı + eksiklik
 göstergesiyle doldurulur. Doğrulama ZAMANA GÖREDİR: ilk %70 ile eğitilir, son %30'da sınanır (karıştırma yok).
 Seçim eşiği yalnızca eğitim kümesinde belirlenir. Kabul: sınamada seçilenlerin maliyet sonrası ortalama getirisi
-'hepsini kopyala'dan büyük VE farkın %95 bootstrap güven aralığının alt sınırı sıfırın üstünde."""
+'hepsini kopyala'dan büyük VE farkın %95 bootstrap güven aralığının alt sınırı sıfırın üstünde VE (20.11) yürüyen
+sınama dilimlerinin çoğunda olumlu VE etiketleri karıştırılmış modellere karşı p < 0,1."""
 import json, math, random, time
 
 from nexora.ozellik import OZELLIKLER
@@ -86,7 +87,45 @@ def _esik_sec(p, y, en_az_kapsam=0.2):
     return en_iyi[1]
 
 
-def degerlendir(veri, egitim_orani=0.7, bootstrap=1000, tohum=7, zorla=False):
+def _fark(egt, sin, y_egt=None):
+    """Eğitimde öğrenilen model + eşikle sınamada (seçilen ort − hepsi ort). Seçilen yoksa None."""
+    X = [o for *_, o, _ in egt]; y = y_egt if y_egt is not None else [g for *_, g in egt]
+    m = Model().egit(X, y); esik = _esik_sec(m.olasilik(X), y)
+    ys = [g for *_, g in sin]; sec = [g for p, g in zip(m.olasilik([o for *_, o, _ in sin]), ys) if p >= esik]
+    return (sum(sec) / len(sec) - sum(ys) / len(ys), len(sec)) if sec and ys else (None, 0)
+
+
+ILERI_KESIMLER = (0.5, 0.6, 0.7, 0.8)    # yürüyen sınama: her kesimde o ana kadarki veriyle eğit, sonraki dilimde sına
+ARALIK_SN = 3600                          # eğitim sonu ile sınama başı arası boşluk: sonucu henüz belli olmayan sinyal sızmasın
+SAHTE_TUR = 20                            # etiketleri karıştırılmış (anlamsız) modeller: gerçek fark bunları geçmeli
+
+
+def ileri_sinama(veri, kesimler=ILERI_KESIMLER, aralik_sn=ARALIK_SN):
+    """Yürüyen (walk-forward) sınama: her dilim için dict(kesim, egitim, sinama, fark, secilen)."""
+    n, out = len(veri), []
+    for i, c in enumerate(kesimler):
+        k = int(n * c); son = int(n * kesimler[i + 1]) if i + 1 < len(kesimler) else n
+        egt = veri[:k]
+        if not egt: continue
+        sin = [v for v in veri[k:son] if v[0] >= egt[-1][0] + aralik_sn]
+        if len(sin) < 10: continue
+        f, ns = _fark(egt, sin)
+        out.append(dict(kesim=c, egitim=len(egt), sinama=len(sin), fark=None if f is None else round(f, 3), secilen=ns))
+    return out
+
+
+def sahte_sinama(egt, sin, gercek_fark, tur=SAHTE_TUR, tohum=11):
+    """Etiketler karıştırılarak eğitilen modellerin kaçı gerçek farka ulaştı (p değeri; küçük iyi)."""
+    if gercek_fark is None: return None
+    rnd = random.Random(tohum); y = [g for *_, g in egt]; ulasan = 0
+    for _ in range(tur):
+        k = y[:]; rnd.shuffle(k)
+        f, _ = _fark(egt, sin, k)
+        if f is not None and f >= gercek_fark: ulasan += 1
+    return round((ulasan + 1) / (tur + 1), 3)
+
+
+def degerlendir(veri, egitim_orani=0.7, bootstrap=1000, tohum=7, zorla=False, saglamlik=True):
     """veri: ozellik.veri_seti çıktısı (zamana göre sıralı). Sonuç sözlüğü ve (kabul edilirse) model döner."""
     n = len(veri)
     if n < EN_AZ_ORNEK and not zorla:
@@ -124,8 +163,18 @@ def degerlendir(veri, egitim_orani=0.7, bootstrap=1000, tohum=7, zorla=False):
     kopya = dict(n=len(kp), hepsi=round(sum(g for _, g in kp) / len(kp), 3) if kp else None, secilen=len(kp_sec),
                  secili=round(sum(kp_sec) / len(kp_sec), 3) if kp_sec else None)
     kabul = secili is not None and secili > hepsi and alt is not None and alt > 0
+    ileri, p_sahte = [], None
+    if saglamlik:
+        # Sağlamlık (20.11): tek bir bölmede şans eseri iyi çıkmak yetmez. Yürüyen sınamada dilimlerin çoğunda seçilenler
+        # 'hepsi'nden iyi olmalı VE etiketleri karıştırılmış modeller gerçek farka nadiren ulaşmalı (p < 0,1).
+        ileri = ileri_sinama(veri)
+        p_sahte = sahte_sinama(egt, sin, None if secili is None else secili - hepsi)
+        olumlu = sum(1 for x in ileri if x["fark"] is not None and x["fark"] > 0)
+        if kabul and ileri and olumlu * 2 <= len(ileri): kabul = False
+        if kabul and p_sahte is not None and p_sahte >= 0.1: kabul = False
     sonuc = dict(karar="avantaj var" if kabul else "avantaj bulunamadı", n=n, egitim=len(egt), sinama=len(sin),
                  esik=esik, secilen=len(sec), sinama_hepsi_ort=round(hepsi, 3), sinama_secili_ort=None if secili is None else round(secili, 3),
                  fark_guven_araligi=None if alt is None else [round(alt, 3), round(ust, 3)],
-                 brier=round(brier, 4), brier_taban=round(brier_taban, 4), kalibrasyon=kalib, agirliklar=m.agirliklar()[:10], kopya=kopya)
+                 brier=round(brier, 4), brier_taban=round(brier_taban, 4), kalibrasyon=kalib, agirliklar=m.agirliklar()[:10], kopya=kopya,
+                 ileri=ileri, p_sahte=p_sahte)
     return sonuc, (m if kabul else None)
