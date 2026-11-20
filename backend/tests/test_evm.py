@@ -134,6 +134,12 @@ class Test(unittest.TestCase):
         self.assertEqual(r["decision"], "KOPYALANDI"); self.assertGreater(r["pnl"], 0)
         self.assertEqual(k.karar("e2", W, TOK, "sell", 2)["decision"], "ATLANDI")
 
+    def test_zaman_asimi(self):
+        k = self.k(); k.karar("e1", W, TOK, "buy", 2)
+        acilis = k.p.acilis_ts(TOK)
+        self.assertEqual(k.zaman_asimi(now=acilis + 60), [])
+        self.assertEqual(k.zaman_asimi(now=acilis + 86401)[0][1], "KOPYALANDI"); self.assertEqual(k.p.portfolio()["positions"], [])
+
     def test_reddler(self):
         self.assertIn("honeypot", self.k(guv=Guv(False)).karar("e", W, TOK, "buy", 1)["reason"])
         self.assertIn("al-sat kaybı", self.k(t=Teklif(geri=0.9)).karar("e", W, TOK, "buy", 1)["reason"])

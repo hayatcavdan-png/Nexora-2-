@@ -54,6 +54,14 @@ class SimuleTests(unittest.TestCase):
         a, b = D.simule(sig, max_poz=8, oran=0.05)["kz"], D.simule(sig, max_poz=8, oran=0.05, ek_ucret=0.1)["kz"]
         self.assertAlmostEqual(a - b, 0.2, places=2)               # 5$'lık pozisyon: +0.50$ → +0.30$
 
+    def test_gunluk_zarar_siniri_ve_token_gunluk(self):
+        sig = [s(0, 60, "A", "T1", -40.0), s(100, 200, "B", "T2", 50.0), s(90_000, 90_100, "C", "T3", 10.0),
+               s(90_200, 90_300, "C", "T3", 10.0), s(90_400, 90_500, "D", "T3", 10.0)]
+        a = D.simule(sig, max_poz=8, oran=0.05, cuzdan_siniri=4)
+        b = D.simule(sig, max_poz=8, oran=0.05, cuzdan_siniri=4, gunluk_zarar=0.01, token_gunluk=2)
+        self.assertEqual(a["islem"], 5); self.assertEqual(b["limit_durdu"], 1)      # -2$ kayıp (%2) sonrası T2 alınmaz; ertesi gün sıfırlanır
+        self.assertEqual(b["islem"], 3)                                            # T3 günde 2 giriş
+
     def test_masa_veritabanindan(self):
         d = tempfile.mkdtemp(); db = os.path.join(d, "e.db")
         c = sqlite3.connect(db); c.executescript(SEMA)

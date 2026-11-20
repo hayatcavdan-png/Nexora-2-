@@ -109,6 +109,24 @@ class Decider:
             out.append((t, r.get("decision"), r.get("reason")))
         return out
 
+    # 20.11: deney masası ve yapay zekâ 'kaynak' sonucunu en geç 24 saatte ölçüyor (kaynak satmadıysa 24. saatteki teklif).
+    # Canlı defter ise kaynak satana kadar bekliyordu: 8 yerden biri günlerce dolu kalabiliyor, sonuç ölçülenden ayrışıyordu.
+    ZAMAN_ASIMI_SN = float(os.getenv("ZAMAN_ASIMI_SAAT", "24")) * 3600      # 0: kapalı
+
+    def zaman_asimi(self, now=None):
+        """Açılışından ZAMAN_ASIMI_SN geçmiş (kaynak hâlâ satmamış) pozisyonları gerçek satış teklifiyle kapatır."""
+        import time as _t
+        now = now if now is not None else _t.time()
+        out = []
+        if self.ZAMAN_ASIMI_SN <= 0: return out
+        for pos in self.paper.portfolio()["positions"]:
+            w, t = pos.get("wallet"), pos["token"]
+            if not w or w == "MANUEL" or not pos.get("qty_raw") or not pos.get("opened_ts"): continue
+            if now - pos["opened_ts"] < self.ZAMAN_ASIMI_SN: continue
+            r = self.decide(f"zaman:{t}:{int(now)}", w, t, "sell", 0.0, neden="zaman aşımı (kaynak 24 saatte satmadı)")
+            out.append((t, r.get("decision"), r.get("reason")))
+        return out
+
     KISMI_ESIK = 0.95             # kaynak bundan azını sattıysa "kısmi satış" sayılır
     KISMI_SURE_SN = 86400         # ölçüm en geç 24 saatte kalan gerçek teklifle kapanır
 

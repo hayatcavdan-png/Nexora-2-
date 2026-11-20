@@ -178,6 +178,8 @@ def main():
                     for t, karar, neden in decider.kaynak_denetimi(lambda w, t: kaynak_bakiyesi(client, w, t)):
                         print(f"  kaynakta token kalmadı: {short(t)} -> {karar} ({neden})", flush=True)
                     decider.kismi_zaman_asimi()
+                    for t, karar, neden in decider.zaman_asimi():
+                        print(f"  zaman aşımı: {short(t)} -> {karar} ({neden})", flush=True)
                 except Exception as e:
                     print(f"  kaynak denetimi yapılamadı: {type(e).__name__}", flush=True)
             for w, res in tr.poll_all().items():

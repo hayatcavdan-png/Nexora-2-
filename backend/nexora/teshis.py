@@ -67,7 +67,9 @@ def rapor(now=None, GUN=3.0):
     for s in sat:
         a = min(acan.get(s["token"], []), key=lambda v: abs(v[0] - s["ts"]), default=None)
         if a is None or abs(a[0] - s["ts"]) > 120: continue
-        grup["açan cüzdan" if s["wallet"] in (a[1], "MANUEL") or "aktarim" in str(s["event_id"]) else "BAŞKA cüzdan"].append(s["pnl"] or 0)
+        ev = str(s["event_id"])
+        grup["zaman aşımı (24 sa)" if ev.startswith("zaman:") else "kaynakta token kalmadı" if ev.startswith("aktarim:")
+             else "açan cüzdan" if s["wallet"] in (a[1], "MANUEL") else "BAŞKA cüzdan"].append(s["pnl"] or 0)
     if grup:
         L.append("    Çıkışı tetikleyen: " + "; ".join(f"{k} {len(v)} satış {sum(v):+.2f}$" for k, v in sorted(grup.items())))
     takili = _q(p, "SELECT COUNT(*) n FROM durum_gecis WHERE yeni='TAKILDI' AND ts>=?", (bas,))
@@ -166,7 +168,8 @@ def rapor(now=None, GUN=3.0):
             L.append("    kural / işlem / kaçan / K/Z / kazanan / en büyük düşüş")
             for r in m["sonuclar"]:
                 L.append(f"    {r['ad']}")
-                L.append(f"      {r['islem']:>4} işlem {r['kacan']:>4} kaçan  {r['kz']:+7.2f}$  %{r['kazanan']:<3} düşüş {r['dusus']:.2f}$")
+                L.append(f"      {r['islem']:>4} işlem {r['kacan']:>4} kaçan  {r['kz']:+7.2f}$  %{r['kazanan']:<3} düşüş {r['dusus']:.2f}$"
+                         + (f"  (sınır yüzünden {r['limit_durdu']} alım yok)" if r.get("limit_durdu") else ""))
     except Exception as ex:
         L.append(f"[10] deney masası hesaplanamadı: {type(ex).__name__}")
     try:                                   # 10b) ALPHA HUNTER X fikirleri: çoklu cüzdan teyidi ve geri çekilmede giriş

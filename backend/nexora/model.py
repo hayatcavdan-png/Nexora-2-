@@ -114,9 +114,10 @@ def ileri_sinama(veri, kesimler=ILERI_KESIMLER, aralik_sn=ARALIK_SN):
     return out
 
 
-def sahte_sinama(egt, sin, gercek_fark, tur=SAHTE_TUR, tohum=11):
+def sahte_sinama(egt, sin, gercek_fark, tur=None, tohum=11):
     """Etiketler karıştırılarak eğitilen modellerin kaçı gerçek farka ulaştı (p değeri; küçük iyi)."""
     if gercek_fark is None: return None
+    tur = SAHTE_TUR if tur is None else tur
     rnd = random.Random(tohum); y = [g for *_, g in egt]; ulasan = 0
     for _ in range(tur):
         k = y[:]; rnd.shuffle(k)

@@ -367,3 +367,18 @@ class CikisSaticiTests(unittest.TestCase):
     def test_kaynak_denetimi_acan_cuzdana_bakar(self):
         out = self.d.kaynak_denetimi(lambda w, t: 0, now=10 ** 10)
         self.assertEqual(out[0][1], "KOPYALANDI"); self.assertIsNone(self.p.position(TOK))
+
+
+class ZamanAsimiTests(unittest.TestCase):
+    def test_24_saat_sonra_kapanir(self):
+        p, q = Paper(), FakeQuoter(); d = Decider(p, q, Safe())
+        d.decide("e1", "W1", TOK, "buy", 1); q.sell_price = 1.0
+        acilis = p.portfolio()["positions"][0]["opened_ts"]
+        self.assertEqual(d.zaman_asimi(now=acilis + 3600), []); self.assertIsNotNone(p.position(TOK))
+        out = d.zaman_asimi(now=acilis + 86400 + 1)
+        self.assertEqual(out[0][1], "KOPYALANDI"); self.assertIsNone(p.position(TOK))
+        eski = Decider.ZAMAN_ASIMI_SN; Decider.ZAMAN_ASIMI_SN = 0
+        try:
+            d.decide("e2", "W1", "T2", "buy", 1); self.assertEqual(d.zaman_asimi(now=10 ** 11), [])
+        finally:
+            Decider.ZAMAN_ASIMI_SN = eski

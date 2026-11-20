@@ -4,7 +4,7 @@ AYNI kurallarla (pozisyon başına %5, günlük %3 zarar, en fazla 8 pozisyon, b
 Alım öncesi sıra: güvenlik (GoPlus: honeypot, vergi, satılamama) -> alış teklifi (KyberSwap, USD stablecoin ile)
 -> hemen geri satış teklifi (al-sat kaybı > %6 ise alınmaz) -> paper alım. Satım: kaynak cüzdan satınca güncel teklifle.
 Fiyat teklifi zaten kaymayı içerdiği için paper motoruna ek kayma verilmez. Gerçek emir YOK."""
-import json, time
+import json, os, time
 
 from nexora.evm import EvmHatasi, ZINCIRLER, coz_tam
 from nexora.core import BASKA_SATICI
@@ -46,6 +46,18 @@ class EvmKarar:
         if rt < -2.0: return self._red(ev, w, token, yon, f"teklif tutarsız (al-sat %{rt:.1f})")
         adet = al["cikis_raw"] / 10 ** dec
         return p.handle_signal(ev, w, token, "buy", boyut / adet, max(g["likidite_usd"], 0.0), yas)
+
+    ZAMAN_ASIMI_SN = float(os.getenv("ZAMAN_ASIMI_SAAT", "24")) * 3600       # Solana ile aynı: kaynak 24 sa satmazsa çık
+
+    def zaman_asimi(self, now=None):
+        now = now if now is not None else time.time(); out = []
+        if self.ZAMAN_ASIMI_SN <= 0: return out
+        for poz in self.p.portfolio()["positions"]:
+            acilis = poz.get("opened_ts") or self.p.acilis_ts(poz["token"])
+            if not acilis or now - acilis < self.ZAMAN_ASIMI_SN or not poz.get("wallet"): continue
+            r = self.karar(f"zaman:{poz['token']}:{int(now)}", poz["wallet"], poz["token"], "sell", 0.0)
+            out.append((poz["token"], r.get("decision"), r.get("reason")))
+        return out
 
     def degerle(self):
         ok = 0

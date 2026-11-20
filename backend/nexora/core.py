@@ -629,6 +629,14 @@ class Paper:
         with self.lock:
             return [dict(r) for r in self.db.execute("SELECT * FROM shadow ORDER BY id")]
 
+    def acilis_ts(self, token):
+        """Açık pozisyonun açılış anı: ölçüm kaydından, yoksa (EVM/eski yol) son kopyalanan alımdan."""
+        d = self.db.execute("SELECT opened_ts FROM pos_iz WHERE token=? AND status='open' ORDER BY id DESC LIMIT 1", (token,)).fetchone()
+        if d and d["opened_ts"]: return d["opened_ts"]
+        b = self.db.execute("SELECT ts FROM trades WHERE token=? AND side='buy' AND decision='KOPYALANDI' ORDER BY id DESC LIMIT 1",
+                            (token,)).fetchone()
+        return b["ts"] if b else None
+
     def portfolio(self):
         rows = [dict(r) for r in self.db.execute("SELECT * FROM positions")]
         for r in rows:

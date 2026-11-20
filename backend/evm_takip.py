@@ -33,7 +33,10 @@ def main(argv):
             for o in t.tur():
                 print(f"  SİNYAL {o['yon']} {o['token'][:6]}…{o['token'][-4:]} cüzdan {o['cuzdan'][:6]}…{o['cuzdan'][-4:]} "
                       f"gecikme {o['yas']:.0f} sn -> {o['karar']} ({o['neden']})", flush=True)
-            if time.time() - son_deger > DEGERLE_SN: k.degerle(); son_deger = time.time()
+            if time.time() - son_deger > DEGERLE_SN:
+                k.degerle(); son_deger = time.time()
+                for t, karar, neden in k.zaman_asimi():
+                    print(f"  zaman aşımı: {t[:10]} -> {karar} ({neden})", flush=True)
             paper.nabiz()
         except EvmHatasi as e:
             print(f"  tur hatası: {e}", flush=True)

@@ -155,7 +155,7 @@ def tutarlilik(paper_db=None, etiket_db=None, bas=DUZELTME_TS, now=None, golge=N
     canli["toplam_pct"] = round(100 * (canli["gerceklesen"] + canli["acik_kz"]) / bas_oz, 2) if bas_oz > 0 else None
     golge = D.golge_seti() if golge is None else set(golge)
     s = [x for x in D.sinyaller(etiket_db, now, gun=max(1.0, (now - bas) / 86400 + 1)) if x[0] >= bas and x[2] not in golge]
-    deney = dict(sinyal=len(s), **D.simule(s, **D.MODEL_AYAR))
+    deney = dict(sinyal=len(s), **D.simule(s, **D.MODEL_AYAR, gunluk_zarar=0.03, token_gunluk=2))   # canlıdaki sınırlarla
     deney["toplam_pct"] = deney["kz"]                       # simülasyon 100 $ ile başlar: K/Z = yüzde
     fark = None if canli["toplam_pct"] is None else round(canli["toplam_pct"] - deney["toplam_pct"], 2)
     gun = (now - bas) / 86400

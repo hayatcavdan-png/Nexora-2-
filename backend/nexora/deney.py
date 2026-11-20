@@ -43,10 +43,13 @@ def _seviye(gecmis, aktif=False):
 
 
 def simule(sinyal, max_poz=16, oran=0.025, seviyeler=None, cuzdan_siniri=2, rt_max=3.0, kadro=False, toplam_risk=0.40,
-           sermaye=100.0, aktif=(), ek_ucret=0.0):
+           sermaye=100.0, aktif=(), ek_ucret=0.0, gunluk_zarar=None, token_gunluk=None):
     """Kural setini oynatır. seviyeler: {seviye: (cüzdan başına poz, oran)} verilirse büyüklük/sınır seviyeden gelir.
     kadro=True: cüzdan yalnızca o ana kadarki ölçümüyle terfi koşulunu sağlıyorsa kopyalanır.
-    ek_ucret: etiket tekliflerinde olmayan, işlem başına sabit maliyet ($; öncelik ücreti + Jito bahşişi). Al ve sat: 2 kez."""
+    ek_ucret: etiket tekliflerinde olmayan, işlem başına sabit maliyet ($; öncelik ücreti + Jito bahşişi). Al ve sat: 2 kez.
+    gunluk_zarar: canlıdaki günlük zarar sınırı (ör. 0.03): UTC gün başındaki özkaynağa göre gün içi GERÇEKLEŞEN kayıp bu orana
+    ulaşınca o gün yeni alım yok (canlı açık pozisyon değerini de sayar, yani canlı daha sık durur: bu yaklaşık bir alt sınırdır).
+    token_gunluk: aynı token'a bir UTC gününde en fazla bu kadar giriş (canlı: 2)."""
     nakit, acik, gecmis = sermaye, [], {}
     olcum = []                    # kadro ölçümü: kopyalansın kopyalanmasın HER sinyalin sonucu, çıkış anında görünür olur
     islem = kacan = 0; sonuc = []
@@ -66,12 +69,20 @@ def simule(sinyal, max_poz=16, oran=0.025, seviyeler=None, cuzdan_siniri=2, rt_m
                 kalan.append(p)
         acik[:] = kalan
 
+    gun, gun_basi, durdu, tok_gun = None, sermaye, 0, {}
     for sg in sinyal:
         giris, cikis, w, tok, g, rt = sg[:6]
         kat = sg[6] if len(sg) > 6 else 1.0          # güçlendirici: teyitli sinyalde büyüklük çarpanı
         kapat(giris)
         olcum.append((cikis, w, g))
         if rt is not None and rt > rt_max: continue
+        bugun = int(giris // 86400)
+        if bugun != gun:
+            gun, gun_basi, tok_gun = bugun, nakit + sum(p["maliyet"] for p in acik), {}
+        if gunluk_zarar is not None and gun_basi > 0 and (gun_basi - nakit - sum(p["maliyet"] for p in acik)) / gun_basi >= gunluk_zarar:
+            durdu += 1; continue
+        if token_gunluk is not None and tok_gun.get(tok, 0) >= token_gunluk and not any(p["t"] == tok for p in acik):
+            continue
         if kadro == "gevsek":                 # herkes kopyalanır; yalnızca ölçülmüş kötüler (8+ ölçüm, ortalama < 0) düşer
             gg = gecmis.get(w, [])
             if len(gg) >= K.DUSUR_N and sum(gg) / len(gg) < 0: continue
@@ -92,8 +103,9 @@ def simule(sinyal, max_poz=16, oran=0.025, seviyeler=None, cuzdan_siniri=2, rt_m
                 or sum(p["maliyet"] for p in acik) + boyut > toplam_risk * ozkaynak + 1e-9 or boyut > nakit):
             kacan += 1; continue
         nakit -= boyut; acik.append(dict(t=tok, w=w, maliyet=boyut, g=g, cikis=cikis, ek=ek)); islem += 1
+        if not ek: tok_gun[tok] = tok_gun.get(tok, 0) + 1
     kapat(float("inf"))
-    return dict(islem=islem, kacan=kacan, kz=round(gercek, 2), kazanan=round(100 * sum(1 for v in sonuc if v > 0) / len(sonuc)) if sonuc else 0,
+    return dict(islem=islem, kacan=kacan, limit_durdu=durdu, kz=round(gercek, 2), kazanan=round(100 * sum(1 for v in sonuc if v > 0) / len(sonuc)) if sonuc else 0,
                 dusus=round(dusus, 2))
 
 
@@ -112,6 +124,10 @@ DENEYLER = [
     ("10x%4, %3, kötüler düşer", dict(max_poz=10, oran=0.04, rt_max=3.0, kadro="gevsek")),
     ("8x%5, %3, kötüler düşer", dict(max_poz=8, oran=0.05, rt_max=3.0, kadro="gevsek")),
     ("Yer sınırsız 40x%1, %3, herkes", dict(max_poz=40, oran=0.01, rt_max=3.0, cuzdan_siniri=40)),
+    # Günlük zarar sınırı (20.11): canlıda %3 sınırı 14 günde 5.531 alımı reddetti; deney masası bunu hiç oynatmıyordu.
+    ("Şimdiki + günlük zarar sınırı %3 (canlıdaki gibi)", dict(max_poz=8, oran=0.05, rt_max=3.0, gunluk_zarar=0.03, token_gunluk=2)),
+    ("Şimdiki + günlük zarar sınırı %6", dict(max_poz=8, oran=0.05, rt_max=3.0, gunluk_zarar=0.06, token_gunluk=2)),
+    ("Şimdiki + günlük sınır yok, token/gün 2", dict(max_poz=8, oran=0.05, rt_max=3.0, token_gunluk=2)),
     # Ücret duyarlılığı (20.11): paper 0,01$/işlem varsayıyor; yoğun anlarda öncelik ücreti + Jito bahşişi daha yüksek.
     # Pozisyon ~5$ olduğundan sabit ücret yüzde olarak büyür: 0,05$ ≈ gidiş-dönüş %2, 0,10$ ≈ %4.
     ("Şimdiki + işlem başı 0,05$ ek ücret", dict(max_poz=8, oran=0.05, rt_max=3.0, ek_ucret=0.05)),

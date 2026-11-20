@@ -3,6 +3,8 @@ from nexora import etiket as E
 from nexora.ozellik import ozellikler, veri_seti, temel_cizgiler, kalite, OZELLIKLER, T0_SUTUNLAR, GECMIS_OZ, gecmis_ozellikler
 from nexora.model import degerlendir, Model
 import yz_veri, yz_model
+import nexora.model as _MM
+_MM.SAHTE_TUR = 10           # testte 10 sahte model yeter (en küçük p = 1/11 < 0,1) (sunucuda güncelleme testleri dakikalar sürüyordu); üretimde 20
 
 
 def doldur(path, n, isaret=True, tohum=1):
