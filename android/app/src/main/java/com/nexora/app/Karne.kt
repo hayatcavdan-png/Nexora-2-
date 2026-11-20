@@ -86,8 +86,9 @@ private fun EkoSatir(ad: String, durum: String, renk: androidx.compose.ui.graphi
 }
 
 /** Karne sekmesi: zararlar dahil, her kaynağın şeffaf paper sonucu. Pazarlamanın dayanağı burası. */
-fun LazyListScope.karne(v: Veri, git: (String) -> Unit) {
-    item(key = "kr_bas") { SayfaBasligi("Karne", "Zararlar dahil, gerçek fiyatlarla paper sonuçları", ikon = { NexoYuz(44.dp, NexoIfade.DUSUN) }) }
+fun LazyListScope.karne(v: Veri, git: (String) -> Unit, ust: (@Composable () -> Unit)? = null) {
+    item(key = "kr_bas") { SekmeBasligi("karne", v.kurucu) }
+    if (ust != null) item(key = "kr_ust") { ust() }
     item(key = "kr_solana") {
         NeonKart(Modifier.fillMaxWidth(), kenar = Nx.KenarParlak, dolgu = Nx.DolguMor) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -113,6 +114,17 @@ fun LazyListScope.karne(v: Veri, git: (String) -> Unit) {
                     Text(h?.optString("aciklama") ?: "Karne sunucudan bekleniyor", color = Nx.Soluk, fontSize = 12.sp, lineHeight = 16.sp)
                 }
                 if (h != null) Text("${h.optInt("gecen")}/${h.optInt("toplam")}", color = Nx.Nane, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+            }
+        }
+    }
+    item(key = "kr_rapor") {
+        NeonKart(Modifier.fillMaxWidth().clickable { git("rapor") }) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Ayrıntılı rapor", color = Nx.Metin, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                    Text(if (v.kurucu) "Günlük rapor, strateji teşhisi ve yapay zekâ yorumu" else "Günlük rapor", color = Nx.Soluk, fontSize = 12.sp)
+                }
+                Text("›", color = Nx.Soluk, fontSize = 22.sp)
             }
         }
     }

@@ -187,7 +187,9 @@ fun App() {
         islemMesgul = false
     }
     LaunchedEffect(key, url) { while (true) { yukleSessiz(); delay(15_000) } }
-    BackHandler(enabled = ekran != "ana") { ekran = when { ekran == "hazir" -> "karne"; ekran in ALT_EKRAN || ekran == "bot" -> "profil"; else -> "ana" } }
+    var rehber by remember { mutableStateOf(!sp.getBoolean("rehber_v1", false)) }
+    fun ust(e: String) = when (e) { "hazir", "rapor" -> "karne"; "takip", "hl" -> "kesfet"; "bot", "sistem", "yol", "uye" -> "profil"; else -> "ana" }
+    BackHandler(enabled = ekran != "ana") { ekran = if (ekran in ANA_SEKMELER) "ana" else ust(ekran) }
 
     if (acilis) { AcilisEkrani { acilis = false }; return }
     if (kilitli) { Box(Modifier.fillMaxSize()) { AiArkaplan(); KilitEkrani(sp) { kilitli = false } }; return }
@@ -204,7 +206,7 @@ fun App() {
         )
     }
 
-    val menuSecili = when { ekran in ANA_SEKMELER -> ekran; ekran == "takip" -> "kesfet"; ekran == "hazir" -> "karne"; else -> "profil" }
+    val menuSecili = if (ekran in ANA_SEKMELER) ekran else ust(ekran)
     Box(Modifier.fillMaxSize()) {
     AiArkaplan()
     Scaffold(containerColor = Color.Transparent, bottomBar = { AltMenu2(menuSecili) { ekran = it } }) { pad ->
@@ -214,9 +216,12 @@ fun App() {
                 contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
-                if (ekran == "ana") item(key = "ust") { AnaUstBaslik({ ekran = it }, v.kurucu) }
+                if (ekran == "ana") item(key = "ust") { OzetUstBaslik({ rehber = true }, { ekran = "rapor" }) }
+                if (ekran == "ana" && rehber) item(key = "rehber") {
+                    NexoraRehberi(v.kurucu, { ekran = it }) { rehber = false; sp.edit().putBoolean("rehber_v1", true).apply() }
+                }
                 if (ekran in ALT_EKRAN) item(key = "alt_bas") {
-                    SayfaBasligi(ALT_EKRAN[ekran]!!, when (ekran) { "takip" -> "Analiz ve takip durumu"; "uye" -> "Üyelik, davet ve bağlantılar"; "hazir" -> "Gerçek paraya geçiş ölçütleri"; "hl" -> "Büyük trader'lar · gölge ölçüm"; "sistem" -> "Servisler, sürüm ve canlı tutarlılık"; else -> "NEXORA" }, geri = { ekran = if (ekran == "hazir") "karne" else "profil" })
+                    SayfaBasligi(ALT_EKRAN[ekran]!!, when (ekran) { "takip" -> "Analiz ve takip durumu"; "uye" -> "Üyelik, davet ve bağlantılar"; "hazir" -> "Gerçek paraya geçiş ölçütleri"; "hl" -> "Büyük trader'lar · gölge ölçüm"; "sistem" -> "Servisler, sürüm ve canlı tutarlılık"; else -> "NEXORA" }, geri = { ekran = ust(ekran) })
                 }
                 val bagliDegil = !v.bagli && v.guncelleme == 0.0
                 if (v.hata.isNotEmpty() && !(bagliDegil && ekran == "ana")) item(key = "hata") { Text(v.hata, color = Nx.Kirmizi, fontSize = 13.sp) }
@@ -229,24 +234,28 @@ fun App() {
                 } else when (ekran) {
                     "ana" -> anaSayfa(v, gizle, { gizle = !gizle; sp.edit().putBoolean("gizle", gizle).apply() }, aralik, { aralik = it },
                                       { ekran = it }, eko, { eko = it }, { mesaj(it) }, { if (v.kurucu) durdurOnay = true })
-                    "karne" -> {
-                        if (v.kurucu && v.bagli) item(key = "karne_tut") { TutarlilikKarti(url, key) }
-                        karne(v) { ekran = it }
-                    }
+                    "karne" -> karne(v, { ekran = it }, if (v.kurucu && v.bagli) ({ TutarlilikKarti(url, key) }) else null)
                     "kesfet" -> {
-                        item(key = "k_sekme") {
+                        item(key = "k_bas") { SekmeBasligi("kesfet", v.kurucu) }
+                        if (v.kurucu) item(key = "k_sekme") {
                             Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(50)).background(Nx.Yuzey2).padding(4.dp),
                                 horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                (if (v.kurucu) listOf("Token Radar", "Wallet DNA", "Takip") else listOf("Token Radar"))
+                                listOf("Solana", "Hyperliquid", "Token'lar", "Analiz")
                                     .forEachIndexed { i, ad -> Hap(ad, kesfetSekme == i, Modifier.weight(1f)) { kesfetSekme = i } }
                             }
                         }
-                        when (if (v.kurucu) kesfetSekme else 0) {
-                            0 -> tokenRadar(v, radarArama, { radarArama = it }, radarSira, { radarSira = it }, favoriler,
+                        if (v.kurucu && kesfetSekme == 0) item(key = "k_acik0") {
+                            BilgiKutusu("Solana'da takip edilen cüzdanlar: üstteki 'kopyalanan' cüzdanların alımları sanal parayla kopyalanır; " +
+                                        "diğerleri yalnızca izlenir ve ölçülür.")
+                        }
+                        if (v.kurucu && kesfetSekme == 2) item(key = "k_eko") { EkosistemSecici(eko, { eko = it }) { mesaj(it) } }
+                        when (if (v.kurucu) kesfetSekme else 2) {
+                            0 -> takipListesi(v)
+                            1 -> if (v.bagli) item(key = "hl_k") { HlEkrani(url, key) } else item(key = "hl_kb") { BilgiKutusu("Sunucuya bağlı değil.") }
+                            2 -> tokenRadar(v, radarArama, { radarArama = it }, radarSira, { radarSira = it }, favoriler,
                                     { t -> favoriler = if (t in favoriler) favoriler - t else favoriler + t; sp.edit().putStringSet("favori", favoriler).apply() },
                                     { t -> seciliToken = t.token; portfoySekme = 0; ekran = "portfoy" }, eko)
-                            1 -> walletDna(v, dnaAdres, { dnaAdres = it; dnaSonuc = null }, dnaYukleniyor, dnaSonuc, dnaHata) { dnaAnaliz() }
-                            else -> takipListesi(v)
+                            else -> walletDna(v, dnaAdres, { dnaAdres = it; dnaSonuc = null }, dnaYukleniyor, dnaSonuc, dnaHata) { dnaAnaliz() }
                         }
                     }
                     "takip" -> if (v.kurucu) takipListesi(v) else item(key = "takip_uye") { BilgiKutusu(KURUCU_NOTU) }
@@ -256,10 +265,12 @@ fun App() {
                         if (ekosistemKapsamDisi(eko)) item(key = "sinyal_eko") { BilgiKutusu("Sinyal akışı şimdilik yalnızca Solana öncü cüzdanlarındandır. Bu ekosistemin sinyalleri ayrı izlenir; sonuçları Karne sekmesinde.") }
                         else items(v.sinyaller, key = { "s_" + it.ts + it.token + it.yon }) { SinyalKarti(it) }
                     }
-                    "portfoy" -> portfoy(v, { ekran = "ana" }, portfoySekme, { portfoySekme = it }, { t ->
+                    "portfoy" -> {
+                        item(key = "pf_eko") { EkosistemSecici(eko, { eko = it }) { mesaj(it) } }
+                        portfoy(v, { ekran = "ana" }, portfoySekme, { portfoySekme = it }, { t ->
                         if (v.kurucu) { manuelIslem(t, "sell", null); mesaj("Kapatma isteği gönderildi") } else mesaj(KURUCU_NOTU) }, eko) {
                         if (v.kurucu) IslemFormu(v, seciliToken, { seciliToken = it }, { t, y, u -> manuelIslem(t, y, u) }, islemSonuc, islemMesgul)
-                    }
+                    } }
                     "profil" -> profil(v, { ekran = it }) {
                         AyarlarEkrani(v, url, key, bildirim, { acik ->
                             if (acik && android.os.Build.VERSION.SDK_INT >= 33 &&

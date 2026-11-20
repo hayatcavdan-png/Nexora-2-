@@ -124,15 +124,6 @@ fun nexoDurum(v: Veri, d24: Double, kz24: Double): Triple<NexoIfade, NexoPoz, St
 fun LazyListScope.anaSayfa(v: Veri, gizle: Boolean, gizleDegis: () -> Unit, aralik: String, aralikSec: (String) -> Unit,
                            git: (String) -> Unit, eko: String, ekoSec: (String) -> Unit, bilgi: (String) -> Unit,
                            durdurIste: () -> Unit = {}) {
-    item(key = "eko") { EkosistemSecici(eko, ekoSec, bilgi) }
-    item(key = "nexo") {
-        val simdi = System.currentTimeMillis() / 1000.0
-        val ref = degerAni(v.gecmis, simdi - 86400, v.baslangic)
-        val (ifade, poz, metin) = nexoDurum(v, if (ref > 0) (v.toplam - ref) / ref * 100 else 0.0, v.toplam - ref)
-        NexoKonusuyor(metin, ifade, Modifier.fillMaxWidth(), poz = poz)
-    }
-    item(key = "demo") { DemoHap() }
-    item(key = "bugun") { BugunKarti(v, durdurIste) { git("portfoy") } }
     item(key = "bakiye") {
         val simdi = System.currentTimeMillis() / 1000.0
         // 24 saatten eski veri yoksa değişim başlangıca göre gösterilir (etiket de buna göre değişir)
@@ -179,6 +170,8 @@ fun LazyListScope.anaSayfa(v: Veri, gizle: Boolean, gizleDegis: () -> Unit, aral
             }
         }
     }
+    item(key = "bugun") { BugunKarti(v, durdurIste) { git("portfoy") } }
+    item(key = "sorular") { HizliSorular(v.kurucu, git) }
     item(key = "ekosistem") { EkosistemOzeti(v) { git("karne") } }
 }
 
@@ -456,7 +449,7 @@ fun LazyListScope.portfoy(v: Veri, geri: () -> Unit, sekme: Int, sekmeSec: (Int)
                           islemFormu: @Composable () -> Unit) {
     val poz = if (eko == "tumu") v.pozisyonlar else v.pozisyonlar.filter { it.eko == eko }
     val isl = if (eko == "tumu") v.islemler else v.islemler.filter { it.eko == eko }
-    item(key = "pf_bas") { SayfaBasligi("Portföy", "Sanal portföyünü yönet", ikon = { NexoYuz(44.dp, NexoIfade.YILDIZ) }, geri = geri) }
+    item(key = "pf_bas") { SekmeBasligi("portfoy", v.kurucu) }
     item(key = "pf_deger") {
         val simdi = System.currentTimeMillis() / 1000.0
         val ref = degerAni(v.gecmis, simdi - 86400, v.baslangic)
@@ -562,26 +555,20 @@ fun IslemFormu(v: Veri, secili: String, seciliDegis: (String) -> Unit, gonder: (
 // ------------------------------------------------------------------ Profil
 
 fun LazyListScope.profil(v: Veri, git: (String) -> Unit, ayarlar: @Composable () -> Unit) {
-    item(key = "pr_kart") {
-        NeonKart(Modifier.fillMaxWidth(), kenar = Nx.KenarParlak, dolgu = Nx.DolguMor) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                Column {
-                    Logo(28.sp)
-                    Text("Paper hesabı · gerçek işlem kapalı", color = Nx.Soluk, fontSize = 12.sp)
-                    Text("Sürüm ${BuildConfig.VERSION_NAME}", color = Nx.Soluk, fontSize = 11.sp)
-                }
-            }
-        }
-    }
+    item(key = "pr_bas") { SekmeBasligi("profil", v.kurucu) }
     item(key = "pr_menu") {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            if (v.kurucu) ProfilSatiri("Otomatik Pilot · Risk · Acil Durdurma", { IkonRobot(Nx.MorAcik) }) { git("bot") }
-            ProfilSatiri("Hesabım · Davet · Bağlantılar", { Icon(Icons.Filled.AccountCircle, null, tint = Nx.MorAcik) }) { git("uye") }
-            ProfilSatiri("Günlük Rapor", { Icon(Icons.Filled.DateRange, null, tint = Nx.MorAcik) }) { git("rapor") }
-            ProfilSatiri("Yol Haritası", { Icon(Icons.Filled.List, null, tint = Nx.MorAcik) }) { git("yol") }
-            if (v.kurucu) ProfilSatiri("Takip Edilen Cüzdanlar", { IkonDna(Nx.MorAcik) }) { git("takip") }
-            if (v.kurucu) ProfilSatiri("Sistem Sağlığı · Canlı tutarlılık", { IkonKalkan(Nx.MorAcik) }) { git("sistem") }
-            if (v.kurucu) ProfilSatiri("Hyperliquid Takibi · Yapay zekâ analizi", { IkonRobot(Nx.MorAcik) }) { git("hl") }
+            if (v.kurucu) {
+                GrupBasligi("Bot kontrolü")
+                ProfilSatiri("Otomatik pilot · risk ayarları · acil durdurma", { IkonRobot(Nx.MorAcik) }) { git("bot") }
+                GrupBasligi("Sistem")
+                ProfilSatiri("Sistem sağlığı (servisler çalışıyor mu?)", { IkonKalkan(Nx.MorAcik) }) { git("sistem") }
+            }
+            ProfilSatiri("Yol haritası (hangi aşamadayız?)", { Icon(Icons.Filled.List, null, tint = Nx.MorAcik) }) { git("yol") }
+            GrupBasligi("Hesap")
+            ProfilSatiri("Hesabım · davet · bağlantılar", { Icon(Icons.Filled.AccountCircle, null, tint = Nx.MorAcik) }) { git("uye") }
+            Text("Sürüm ${BuildConfig.VERSION_NAME} · sanal para (paper) · gerçek işlem kapalı", color = Nx.Soluk, fontSize = 11.sp)
+            GrupBasligi("Ayarlar")
         }
     }
     item(key = "pr_ayar") { Column(verticalArrangement = Arrangement.spacedBy(12.dp)) { ayarlar() } }
@@ -605,8 +592,8 @@ data class Sekme(val id: String, val ad: String, val ikon: @Composable (Color) -
 fun AltMenu2(secili: String, sec: (String) -> Unit) {
     // Her sekmede Nexo'nun ayrı bir ifadesi: seçilen büyür, parlar ve altında ışık yanar.
     val sekmeler = listOf(
-        Triple("ana", "Ana Sayfa", NexoIfade.GULUS), Triple("kesfet", "Keşfet", NexoIfade.MERAK), Triple("portfoy", "Portföy", NexoIfade.YILDIZ),
-        Triple("karne", "Karne", NexoIfade.ODAK), Triple("profil", "Profil", NexoIfade.HAVALI),
+        Triple("ana", "Özet", NexoIfade.GULUS), Triple("kesfet", "Takip", NexoIfade.MERAK), Triple("portfoy", "İşlemler", NexoIfade.YILDIZ),
+        Triple("karne", "Sonuçlar", NexoIfade.ODAK), Triple("profil", "Yönetim", NexoIfade.HAVALI),
     )
     Column(Modifier.fillMaxWidth().background(Nx.Zemin.copy(alpha = 0.94f))) {
         Box(Modifier.fillMaxWidth().height(1.dp).background(Nx.KenarParlak))
