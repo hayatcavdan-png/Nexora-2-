@@ -1,6 +1,6 @@
 import json, math, os, random, sqlite3, tempfile, unittest
 from nexora import etiket as E
-from nexora.ozellik import ozellikler, veri_seti, temel_cizgiler, kalite, OZELLIKLER, T0_SUTUNLAR
+from nexora.ozellik import ozellikler, veri_seti, temel_cizgiler, kalite, OZELLIKLER, T0_SUTUNLAR, GECMIS_OZ, gecmis_ozellikler
 from nexora.model import degerlendir, Model
 import yz_veri, yz_model
 
@@ -16,7 +16,7 @@ def doldur(path, n, isaret=True, tohum=1):
             tb_organik, tb_likidite, cuzdan, durum) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (f"e{i}", 1000 + i * 600, f"W{i % 7}", f"T{i}", r.uniform(0, 5), "KOPYALANDI" if i % 3 else "REDDEDİLDİ",
              i % 24, 0, r.uniform(1, 10), org, None if i % 10 == 0 else r.uniform(1e3, 1e6), json.dumps({"skor": r.random()}), "tamam"))
-        c.execute("INSERT INTO etiket_sonuc VALUES(?,?,?,?,?,?,?)", (f"e{i}", "kaynak", 0, 5, y, 0, None))
+        c.execute("INSERT INTO etiket_sonuc VALUES(?,?,?,?,?,?,?)", (f"e{i}", "kaynak", 1000 + i * 600 + 1800, 5, y, 0, None))
     c.commit(); c.close()
 
 
@@ -24,14 +24,37 @@ class SizintiTests(unittest.TestCase):
     def test_only_t0_columns_allowed(self):
         with self.assertRaises(ValueError): ozellikler({"event_id": "e", "getiri_pct": 5})
         o = ozellikler({"event_id": "e", "karar": "KOPYALANDI", "saat_utc": 6})
-        self.assertEqual(set(o), set(OZELLIKLER)); self.assertAlmostEqual(o["saat_sin"], 1.0)
+        self.assertEqual(set(o) | set(GECMIS_OZ), set(OZELLIKLER)); self.assertAlmostEqual(o["saat_sin"], 1.0)
 
     def test_features_independent_of_outcomes(self):
+        """Sinyalin kendi ve t0'dan SONRA belli olan sonuçları özellikleri değiştirmez. (Geçmiş özellikleri yalnızca t0'dan önce
+        sonuçlanmış önceki sinyalleri kullanır; bu bilgi canlıda da t0'da bilinir.)"""
         p = os.path.join(tempfile.mkdtemp(), "e.db"); doldur(p, 60)
-        once = {e: o for _, e, _, o, _ in veri_seti(p)}
-        c = sqlite3.connect(p); c.execute("UPDATE etiket_sonuc SET getiri_pct = -getiri_pct * 3"); c.commit(); c.close()
-        sonra = {e: o for _, e, _, o, _ in veri_seti(p)}
-        self.assertEqual(once, sonra)
+        once = {e: (ts, o) for ts, e, _, o, _ in veri_seti(p)}
+        kesim = 1000 + 30 * 600
+        c = sqlite3.connect(p); c.execute("UPDATE etiket_sonuc SET getiri_pct = -getiri_pct * 3 WHERE ts >= ?", (kesim,)); c.commit(); c.close()
+        sonra = {e: (ts, o) for ts, e, _, o, _ in veri_seti(p)}
+        for e, (ts, o) in once.items():
+            if ts <= kesim: self.assertEqual(o, sonra[e][1], e)                        # kesimden önceki t0: hiçbir özellik değişmez
+            else: self.assertEqual({k: v for k, v in o.items() if k not in GECMIS_OZ},
+                                   {k: v for k, v in sonra[e][1].items() if k not in GECMIS_OZ})
+        self.assertNotEqual(once["e59"][1]["c_gecmis_ort"], sonra["e59"][1]["c_gecmis_ort"])   # geçmiş gerçekten kullanılıyor
+
+    def test_gecmis_ozellikler(self):
+        p = os.path.join(tempfile.mkdtemp(), "e.db"); E.Etiketci(p, None).db.close()
+        c = sqlite3.connect(p)
+        ekle = lambda e, ts, w, t, yas, bt: c.execute("""INSERT INTO etiket_olay(event_id, ts, wallet, token, tb_yas_sn, block_time, durum)
+                                                        VALUES(?,?,?,?,?,?,'tamam')""", (e, ts, w, t, yas, bt))
+        for i in range(4):
+            ekle(f"a{i}", 100 + i, "A", f"X{i}", 30, 100 + i)
+            c.execute("INSERT INTO etiket_sonuc VALUES(?,?,?,?,?,?,?)", (f"a{i}", "kaynak", 500 if i < 3 else 5000, 5, -10.0, 0, None))
+        ekle("b", 990, "B", "T", 10, 990.0); ekle("c", 995, "C", "T", 10, 999.5); ekle("d", 999, "D", "T", 10, 990.0)
+        o = gecmis_ozellikler(c, "A", "T", 1000, 999.8)
+        self.assertAlmostEqual(o["c_hiz_log"], math.log1p(30 / 3600))
+        self.assertEqual(o["c_gecmis_n_log"], math.log1p(3)); self.assertEqual(o["c_gecmis_ort"], -10.0)   # 4. sonuç t0'dan sonra
+        self.assertEqual(o["teyit_ayni_blok"], 1.0); self.assertAlmostEqual(o["teyit_bagimsiz_log"], math.log1p(2))
+        o = gecmis_ozellikler(c, "Z", "T", 1000)
+        self.assertIsNone(o["c_hiz_log"]); self.assertIsNone(o["c_gecmis_ort"])
 
     def test_time_order_and_unlabeled_excluded(self):
         p = os.path.join(tempfile.mkdtemp(), "e.db"); doldur(p, 30)

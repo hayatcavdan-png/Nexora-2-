@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS etiket_olay(event_id TEXT PRIMARY KEY, ts REAL, walle
   al_sat_kaybi_pct REAL, tb_yas_sn REAL, tb_likidite REAL, tb_mcap REAL, tb_sahip REAL, tb_organik REAL, tb_top_pct REAL,
   tb_dev_pct REAL, tb_sus INTEGER, cuzdan TEXT, durum TEXT, hata TEXT);
 CREATE INDEX IF NOT EXISTS etiket_olay_wt ON etiket_olay(wallet, token, ts);
+CREATE INDEX IF NOT EXISTS etiket_olay_tt ON etiket_olay(token, ts);
 CREATE TABLE IF NOT EXISTS etiket_sonuc(event_id TEXT, ufuk TEXT, ts REAL, cikis_usdc REAL, getiri_pct REAL, sapma_sn REAL,
   hata TEXT, PRIMARY KEY(event_id, ufuk));
 """
@@ -127,7 +128,7 @@ class Etiketci:
             self.db.commit()
             if satir["durum"] == "izleniyor" and self.model is not None:
                 try:
-                    k = self.model.olasilik(satir)
+                    k = self.model.olasilik(satir, self.db)
                     if k is not None: golge_yaz(self.db, event_id, t0, k); self.db.commit()
                 except Exception:
                     pass                                # gölge karar ölçümdür: hata etiketlemeyi durdurmaz

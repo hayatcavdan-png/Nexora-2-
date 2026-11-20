@@ -14,7 +14,12 @@ TUTARSIZ_ESIK = -2.0
 
 OZELLIKLER = ["log_gecikme", "al_sat_kaybi", "giris_etki", "log_likidite", "log_yas_saat", "log_mcap", "log_sahip",
               "organik", "top_pay", "dev_pay", "supheli", "c_kazanma", "c_kar_faktoru", "c_ort_getiri", "c_skor",
-              "c_dusus", "c_sifir_tur", "saat_sin", "saat_cos", "bot_kopyaladi", "log_teyit"]
+              "c_dusus", "c_sifir_tur", "saat_sin", "saat_cos", "bot_kopyaladi", "log_teyit",
+              # 20.11 (dış araştırma + teşhis [14]/[15]): cüzdanın giriş hızı, ileriye dönük geçmişi, teyidin bağımsızlığı
+              "c_hiz_log", "c_gecmis_n_log", "c_gecmis_ort", "teyit_bagimsiz_log", "teyit_ayni_blok"]
+GECMIS_OZ = ("c_hiz_log", "c_gecmis_n_log", "c_gecmis_ort", "teyit_bagimsiz_log", "teyit_ayni_blok")
+GECMIS_EN_AZ = 3              # c_gecmis_ort için en az bu kadar sonuçlanmış önceki sinyal
+AYNI_BLOK_SN = 1.0
 
 
 def _f(v):
@@ -54,6 +59,27 @@ def ozellikler(satir):
     )
 
 
+def gecmis_ozellikler(c, wallet, token, ts, block_time=None, ufuk="kaynak", pencere=900):
+    """Yalnızca t0'dan ÖNCE bilinenlerden: cüzdanın önceki sinyallerindeki medyan token yaşı (giriş hızı), sonucu t0'dan
+    önce belli olmuş önceki sinyallerinin sayısı ve ortalama getirisi (ileriye dönük ölçüm), son 15 dk'da aynı token'ı
+    alan diğer cüzdanlardan farklı zamanda (bağımsız) ve aynı blokta (bağlı olabilir) alanların sayısı.
+    Eğitim (veri_seti) ve canlı gölge karar (model_kapisi) AYNI fonksiyonu kullanır: eğitim/canlı farkı olmaz."""
+    yas = [r[0] for r in c.execute("""SELECT tb_yas_sn FROM etiket_olay WHERE wallet=? AND ts<? AND tb_yas_sn IS NOT NULL
+                                      ORDER BY ts DESC LIMIT 50""", (wallet, ts))]
+    yas.sort()
+    hiz = None if not yas else math.log1p(max(0.0, yas[len(yas) // 2]) / 3600)
+    g = [r[0] for r in c.execute("""SELECT s.getiri_pct FROM etiket_sonuc s JOIN etiket_olay o ON o.event_id = s.event_id
+                                    WHERE o.wallet=? AND o.ts<? AND s.ufuk=? AND s.ts<? AND s.getiri_pct IS NOT NULL
+                                    ORDER BY o.ts DESC LIMIT 30""", (wallet, ts, ufuk, ts))]
+    bag, ayni = set(), set()
+    for w, bt in c.execute("""SELECT wallet, block_time FROM etiket_olay WHERE token=? AND wallet!=? AND ts>=? AND ts<=?""",
+                           (token, wallet, ts - pencere, ts)):
+        (ayni if bt is not None and block_time is not None and abs(bt - block_time) <= AYNI_BLOK_SN else bag).add(w)
+    return dict(c_hiz_log=hiz, c_gecmis_n_log=math.log1p(len(g)),
+                c_gecmis_ort=None if len(g) < GECMIS_EN_AZ else max(-100.0, min(200.0, sum(g) / len(g))),
+                teyit_bagimsiz_log=math.log1p(len(bag - ayni)), teyit_ayni_blok=float(len(ayni)))
+
+
 def _teyit_doldur(olaylar, db_path, pencere=900):
     """'teyit' sütunu eklenmeden önceki satırlar için aynı tanımla geriye doldurur: o ana kadar (t0 dahil, öncesi 15 dk)
     aynı token'ı alan farklı cüzdan sayısı. Yalnızca geçmiş satırlar kullanılır (sızıntı yok)."""
@@ -74,15 +100,18 @@ def veri_seti(db_path, ufuk="kaynak"):
     c = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True); c.row_factory = sqlite3.Row
     try:
         sutunlar = ", ".join(T0_SUTUNLAR)
-        olaylar = {r["event_id"]: dict(r) for r in c.execute(f"SELECT {sutunlar} FROM etiket_olay WHERE durum != 'giris_yok'")}
+        olaylar = {r["event_id"]: dict(r) for r in c.execute(f"SELECT {sutunlar}, block_time FROM etiket_olay WHERE durum != 'giris_yok'")}
         etiket = {r["event_id"]: r["getiri_pct"] for r in c.execute(
             "SELECT event_id, getiri_pct FROM etiket_sonuc WHERE ufuk=? AND getiri_pct IS NOT NULL", (ufuk,))}
+        # Tutarsız teklifle (al-sat 'kazancı' > %2) başlayan örnekler dışarıda: etiketleri gerçekleşemeyecek kârla şişer.
+        _teyit_doldur(olaylar, db_path)
+        out = []
+        for e, o in olaylar.items():
+            if e not in etiket or (o.get("al_sat_kaybi_pct") is not None and o["al_sat_kaybi_pct"] < TUTARSIZ_ESIK): continue
+            oz = ozellikler(o); oz.update(gecmis_ozellikler(c, o["wallet"], o["token"], o["ts"], o.get("block_time"), ufuk))
+            out.append((o["ts"], e, o["wallet"], oz, etiket[e]))
     finally:
         c.close()
-    # Tutarsız teklifle (al-sat 'kazancı' > %2) başlayan örnekler dışarıda: etiketleri gerçekleşemeyecek kârla şişer.
-    _teyit_doldur(olaylar, db_path)
-    out = [(o["ts"], e, o["wallet"], ozellikler(o), etiket[e]) for e, o in olaylar.items()
-           if e in etiket and not (o.get("al_sat_kaybi_pct") is not None and o["al_sat_kaybi_pct"] < TUTARSIZ_ESIK)]
     out.sort(key=lambda x: x[0])
     return out
 

@@ -11,7 +11,7 @@ Gerçek para bu modülden etkilenmez; gerçek emir yalnızca N12 onayıyla."""
 import hashlib, json, os, sqlite3, time
 
 from nexora.model import Model
-from nexora.ozellik import T0_SUTUNLAR, ozellikler
+from nexora.ozellik import T0_SUTUNLAR, GECMIS_OZ, gecmis_ozellikler, ozellikler
 
 MODEL_YOLU = "yz_model.json"
 FILTRE_YOLU = "model_filtre.json"
@@ -42,11 +42,23 @@ class ModelDosyasi:
                 self._m = None
         return self._m
 
-    def olasilik(self, t0_satir):
+    def olasilik(self, t0_satir, db=None):
         m = self.yukle()
         if m is None: return None
         model, esik, surum = m
-        p = model.olasilik([ozellikler({k: v for k, v in t0_satir.items() if k in T0_SUTUNLAR})])[0]
+        oz = ozellikler({k: v for k, v in t0_satir.items() if k in T0_SUTUNLAR})
+        if any(k in GECMIS_OZ for k in model.oz):                 # geçmiş özellikleri eğitimdekiyle AYNI fonksiyondan
+            kendi, yol = db is None, os.getenv("ETIKET_DB", "nexora_etiket.db")
+            try:
+                if kendi and os.path.exists(yol): db = sqlite3.connect(f"file:{yol}?mode=ro", uri=True, timeout=5)
+                if db is not None:
+                    oz.update(gecmis_ozellikler(db, t0_satir.get("wallet"), t0_satir.get("token"),
+                                                t0_satir.get("ts") or time.time(), t0_satir.get("block_time")))
+            except sqlite3.Error:
+                pass                                               # okunamazsa eksik değer (eğitimdeki medyanla doldurulur)
+            finally:
+                if kendi and db is not None: db.close()
+        p = model.olasilik([oz])[0]
         return dict(olasilik=round(p, 4), esik=esik, surum=surum, secerdi=p >= esik)
 
 
@@ -122,7 +134,7 @@ class ModelKapisi:
     def izin(self, wallet, token, gecikme_sn, giris_etki, al_sat_kaybi_pct):
         if not self.acik(): return None
         g = time.gmtime(self.clock())
-        satir = dict(wallet=wallet, token=token, gecikme_sn=gecikme_sn, karar="KOPYALANDI", saat_utc=g.tm_hour, gun=g.tm_wday,
+        satir = dict(ts=self.clock(), wallet=wallet, token=token, gecikme_sn=gecikme_sn, karar="KOPYALANDI", saat_utc=g.tm_hour, gun=g.tm_wday,
                      giris_etki=giris_etki, al_sat_kaybi_pct=al_sat_kaybi_pct, cuzdan=json.dumps(self.cuzdanlar.get(wallet) or {}))
         if self.bilgi is not None:
             try:

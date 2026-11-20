@@ -131,7 +131,7 @@
    "ad": "Android uygulaması",
    "grup": "Ürün",
    "durum": "devam",
-   "yuzde": 92,
+   "yuzde": 93,
    "yapilan": "Uygulama 4.0 (COMMAND X tasarımı): ateş kızılı X'li NEXORA logosu ve N amblemi simgesi; Ana Sayfa (bakiye, 24s değişim, aralıklı grafik, AutoPilot, Shield), Keşfet (gerçek Token Radar, Wallet DNA analizi, takip edilen cüzdanlar), AutoPilot X (risk seviyesi ve sınırlar), Portföy (elle paper işlem, pozisyonlar, geçmiş), Profil; aşağı çekip yenileme; optimize (R8) derleme; bildirimler, PIN kilidi, yedek indirme, rapor kartları; 5.0.0 yeni tasarım: NEXORA AI paleti, Nexo maskotu (10 ifade), yeni logo ve simge, açılış animasyonu, canlı arka plan, Yapay Zekâ Çekirdeği kartı. 5.1–5.3: Hesabım (giriş, davet, bağlantılar, kişisel sanal hesap) ve Hazırlık Karnesi ekranları. 5.5: ana sayfada Bugün kartı (yer durumu, günlük özet, işlem açılmama nedeni), pozisyon yaşı ve tek dokunuşla paper kapatma, animasyonları azalt ayarı; Strateji teşhisi kartı (1/3/7/14 gün), rol ayrımı (üyede kurucu bölümleri gizli), şifre sıfırlama",
    "eksik": "Gerçek kullanımda akıcılık geri bildirimi; normal kullanıcı için sade arayüz (sonraya bırakıldı)"
   },
@@ -158,7 +158,7 @@
    "ad": "Özellik seti ve veri kalitesi",
    "grup": "Yapay zekâ",
    "durum": "devam",
-   "yuzde": 85,
+   "yuzde": 88,
    "yapilan": "Özellik seti sabitlendi (20 özellik, yalnızca alım anı bilgisi); sızıntı testleri (izinli sütun listesi, sonuçlar değişince özelliklerin değişmemesi); veri kalitesi raporu; temel çizgiler (hepsini kopyala, botun kararı, iki basit kural); CSV dışa aktarım (yz_veri.py); yeni özellik log_teyit (alım anında aynı token'ı alan farklı cüzdan sayısı, eski satırlar aynı tanımla geriye dolduruluyor); izlenen sinyalde 'bot kopyaladı' özelliği bilinmiyor sayılır (sızıntı önlemi); 18.11: 767 gerçek örnekle çalıştı. En etkili özellikler: cüzdan kazanma oranı (+), token yaşı (+), sahip sayısı (−), likidite ve piyasa değeri (+)",
    "eksik": "Özellik önemlerinin haftalık izlenmesi; teyit özelliğinin katkısı (yeni veriyle)"
   },
@@ -167,9 +167,9 @@
    "ad": "Seçim modeli",
    "grup": "Yapay zekâ",
    "durum": "devam",
-   "yuzde": 65,
-   "yapilan": "Açıklanabilir lojistik regresyon (ek paket yok), zamana göre eğit/sına, eşik yalnızca eğitimde seçilir, bootstrap güven aralığı, kalibrasyon ve Brier skoru, özellik etkileri; yapay veride gerçek işareti buldu, işaretsiz veride sahte avantaj üretmedi (yz_model.py); her gece otomatik yeniden sınama (≥500 örnekte; kabul edilirse yz_model.json yazılır, yalnızca gölge karar başlar); 18.11: İLK KABUL. 767 örnek (eğitim 536, sınama 231, zamana göre). Hepsini kopyala %-1.39, model seçtikleri (32) %+7.04, fark %95 GA [+5.4, +11.5]; kopyalanan cüzdanlarda hepsi %+0.29, seçilen (18) %+6.07; Brier 0.219 < 0.257. yz_model.json kaydedildi; her gece otomatik yeniden sınanıyor; 20.11: kabul sağlamlaştırıldı: yürüyen (walk-forward) sınama 4 dilim, eğitim-sınama arasında 1 saat boşluk, etiketleri karıştırılmış 20 modele karşı şans sınaması (p<0,1); kabul için dilimlerin çoğu olumlu olmalı; 20.11 YENİDEN SINAMA (1891 örnek, sağlamlık ölçütleriyle): AVANTAJ BULUNAMADI. Hepsini kopyala %-1.84, model seçtikleri (112) %-4.83, GA [-6.5, +0.4]; yürüyen sınama 4 dilimin 3'ünde olumsuz; şans sınaması p=0.81. 18.11 kabulü küçük örneklemde şanstı. Eski model yalnızca gölge ölçümde kalır",
-   "eksik": "Yeni özellikler (cüzdanın giriş hızı/sniper profili, bağımsız teyit, token yaşı) ve daha fazla veri; kabul yalnızca sağlamlık ölçütleriyle"
+   "yuzde": 70,
+   "yapilan": "Açıklanabilir lojistik regresyon (ek paket yok), zamana göre eğit/sına, eşik yalnızca eğitimde seçilir, bootstrap güven aralığı, kalibrasyon ve Brier skoru, özellik etkileri; yapay veride gerçek işareti buldu, işaretsiz veride sahte avantaj üretmedi (yz_model.py); her gece otomatik yeniden sınama (≥500 örnekte; kabul edilirse yz_model.json yazılır, yalnızca gölge karar başlar); 18.11: İLK KABUL. 767 örnek (eğitim 536, sınama 231, zamana göre). Hepsini kopyala %-1.39, model seçtikleri (32) %+7.04, fark %95 GA [+5.4, +11.5]; kopyalanan cüzdanlarda hepsi %+0.29, seçilen (18) %+6.07; Brier 0.219 < 0.257. yz_model.json kaydedildi; her gece otomatik yeniden sınanıyor; 20.11: kabul sağlamlaştırıldı: yürüyen (walk-forward) sınama 4 dilim, eğitim-sınama arasında 1 saat boşluk, etiketleri karıştırılmış 20 modele karşı şans sınaması (p<0,1); kabul için dilimlerin çoğu olumlu olmalı; 20.11 YENİDEN SINAMA (1891 örnek, sağlamlık ölçütleriyle): AVANTAJ BULUNAMADI. Hepsini kopyala %-1.84, model seçtikleri (112) %-4.83, GA [-6.5, +0.4]; yürüyen sınama 4 dilimin 3'ünde olumsuz; şans sınaması p=0.81. 18.11 kabulü küçük örneklemde şanstı. Eski model yalnızca gölge ölçümde kalır; 20.11: 5 yeni özellik (aynı fonksiyon eğitimde ve canlı gölge kararda, sızıntı testli): cüzdanın giriş hızı (önceki sinyallerindeki medyan token yaşı), t0'dan önce sonuçlanmış önceki sinyallerinin sayısı ve ortalama getirisi, bağımsız teyit ve aynı blok teyidi sayısı. Gece sınaması yeni özelliklerle yapılır",
+   "eksik": "Yeni özelliklerle gece sınamasının sonucu (yürüyen sınama + şans sınaması); daha fazla veri"
   },
   {
    "kod": "N19",
@@ -193,10 +193,10 @@
    "kod": "N21",
    "ad": "Dil modeli yardımcıları",
    "grup": "Yapay zekâ",
-   "durum": "baslamadi",
-   "yuzde": 0,
-   "yapilan": "Planlandı (isteğe bağlı)",
-   "eksik": "Yalnızca engelleyen sosyal risk vetosu (gölge A/B ile ölçülür); Türkçe rapor yorumcusu. API anahtarı ve maliyet onayı gerekir"
+   "durum": "devam",
+   "yuzde": 30,
+   "yapilan": "Planlandı (isteğe bağlı)20.11: Türkçe rapor yorumcusu hazır (yapay zekâ analizi kartı, Hyperliquid ve strateji teşhisi; Claude API, salt okunur, önbellek ve günlük sınır). ANTHROPIC_API_KEY girilince etkin; yoksa kural tabanlı özet",
+   "eksik": "API anahtarı ve maliyet onayı (kullanıcı); sosyal risk vetosu (gölge A/B) sonraya"
   },
   {
    "kod": "N22",
@@ -293,8 +293,8 @@
    "ad": "Bildirim sinyalleri",
    "grup": "Faz 2 · Çoklu platform",
    "durum": "devam",
-   "yuzde": 70,
-   "yapilan": "Bildirimler: listesiz token alımları (öncü cüzdan), paper işlem açılış/kapanış (Solana, BNB, Base; K/Z dahil) ve günlük zarar sınırı aşımı (paper, gün başına %3; gün başına tek bildirim). Her bildirim bir kez gider; hepsi 'gerçek para kullanılmadı' der. Saatlik zamanlayıcı ve uygulamada Bildirimler kartı (5.15.0); her sabah 09:00 günlük özet bildirimi (alım/satış, gerçekleşen ve açık K/Z, reddedilenler)",
+   "yuzde": 78,
+   "yapilan": "Bildirimler: listesiz token alımları (öncü cüzdan), paper işlem açılış/kapanış (Solana, BNB, Base; K/Z dahil) ve günlük zarar sınırı aşımı (paper, gün başına %3; gün başına tek bildirim). Her bildirim bir kez gider; hepsi 'gerçek para kullanılmadı' der. Saatlik zamanlayıcı ve uygulamada Bildirimler kartı (5.15.0); her sabah 09:00 günlük özet bildirimi (alım/satış, gerçekleşen ve açık K/Z, reddedilenler); 5.22.0: servis kesintisi (90 sn+) ve düzelme, yapay zekâ kararı değişimi, yeni terfi adayı bildirimleri",
    "eksik": "Cihaz bildirimi (push) için karar ve izin ekranı; ilk birkaç günün bildirimlerinin gözden geçirilmesi (gürültü var mı?)."
   },
   {
@@ -302,8 +302,8 @@
    "ad": "Arayüz yenileme",
    "grup": "Faz 2 · Çoklu platform",
    "durum": "devam",
-   "yuzde": 60,
-   "yapilan": "5.5–5.7: Bugün kartı, pozisyon yaşı ve kapatma, animasyonları azalt. 5.8: ana sayfada ekosistem seçici (Tümü · Solana · BNB · Base · TON · DeFi; açılmayanlar 'yakında' ve aşama kodu), ana sayfa sadeleşti (Bugün, Portföy değeri, Ekosistemler); alt menü Ana Sayfa · Keşfet · Portföy · Karne · Profil; Bot ekranı Profil'e taşındı; acil durdurma Bugün kartında; yeni Karne sekmesi (Solana sonucu, hazırlık, stratejiler, borsa, yapay zekâ, risk bildirimi).",
+   "yuzde": 72,
+   "yapilan": "5.5–5.7: Bugün kartı, pozisyon yaşı ve kapatma, animasyonları azalt. 5.8: ana sayfada ekosistem seçici (Tümü · Solana · BNB · Base · TON · DeFi; açılmayanlar 'yakında' ve aşama kodu), ana sayfa sadeleşti (Bugün, Portföy değeri, Ekosistemler); alt menü Ana Sayfa · Keşfet · Portföy · Karne · Profil; Bot ekranı Profil'e taşındı; acil durdurma Bugün kartında; yeni Karne sekmesi (Solana sonucu, hazırlık, stratejiler, borsa, yapay zekâ, risk bildirimi).; 5.24.0 sade düzen: beş sekme beş soru (Özet, Takip, İşlemler, Sonuçlar, Yönetim), ilk açılış rehberi, her sekmede amaç satırı; Hyperliquid ve Sistem Sağlığı ekranları",
    "eksik": "Borsa bağlantı ekranı (N29 ile); ekosistem seçicinin veriyi süzmesi (N23 sonrası); gerçek telefonda kullanılabilirlik geri bildirimi"
   },
   {
@@ -364,7 +364,7 @@
  "meta": [
   {
    "label": "Kaynak",
-   "value": "Claude'un proje değerlendirmesi, 20.11.2026 16:40. Yüzdeler tahmini; hiçbir aşama kabul kriterleri karşılanmadan tamamlandı sayılmaz. N16–N21: yapay zekâ seçim hattı. N23–N38: Faz 2 · çoklu platform (emanetsiz: para her zaman kullanıcının kendi borsa hesabında)."
+   "value": "Claude'un proje değerlendirmesi, 20.11.2026 22:20. Yüzdeler tahmini; hiçbir aşama kabul kriterleri karşılanmadan tamamlandı sayılmaz. N16–N21: yapay zekâ seçim hattı. N23–N38: Faz 2 · çoklu platform (emanetsiz: para her zaman kullanıcının kendi borsa hesabında)."
   }
  ]
 }

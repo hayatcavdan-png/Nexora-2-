@@ -45,7 +45,7 @@ class EtiketTests(unittest.TestCase):
     def test_shadow_model_decision(self):
         gorulen = []
         class M:
-            def olasilik(self, satir):
+            def olasilik(self, satir, db=None):
                 gorulen.append(satir); return dict(olasilik=0.8, esik=0.5, surum="v1", secerdi=True)
         self.e.model = M()
         self.e.sinyal("W:s1", "W", "TOK", "buy", "s1", 999_990, 1.5, "KOPYALANDI", "")
