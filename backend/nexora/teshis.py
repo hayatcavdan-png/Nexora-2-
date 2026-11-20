@@ -207,6 +207,12 @@ def rapor(now=None, GUN=3.0):
     except Exception as ex:
         L.append(f"[12] YZ gölge karar hesaplanamadı: {type(ex).__name__}")
 
+    try:                                   # 13-15) Giriş/çıkış deneyleri (dış araştırma, 20.11): çıkış, token yaşı, teyit bağımsızlığı
+        from nexora import giris_cikis as GC
+        L += GC.satirlar(GC.rapor(os.getenv("ETIKET_DB", "nexora_etiket.db"), now, 14), 14)
+    except Exception as ex:
+        L.append(f"[13] giriş/çıkış deneyleri hesaplanamadı: {type(ex).__name__}")
+
     # 6b) Kısmi satış ölçümü
     km = _q(p, "SELECT * FROM kismi_olcum WHERE acilis_ts>=?", (bas,))
     if km:
