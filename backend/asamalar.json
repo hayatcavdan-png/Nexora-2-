@@ -356,8 +356,8 @@
    "ad": "Hyperliquid trader takibi (gölge)",
    "grup": "Faz 2 · Çoklu platform",
    "durum": "devam",
-   "yuzde": 35,
-   "yapilan": "20.11 (kullanıcı onayı): salt okunur ölçüm servisi nexora-hl. Liderlik tablosundan 40 trader (hesap ≥50 bin $, haftalık/aylık/tüm zaman kârı pozitif, aylık getiri %5–1000, yüksek frekans hariç; günlük yenilenir). Takip edilen cüzdan sıfırdan pozisyon açınca sanal pozisyon, gördüğümüz andaki orta fiyattan (taraf başı %0,065 ücret+kayma); kaynak kapatınca kapanır; 30 dk karşılaştırması, gecikme maliyeti, cüzdan bazında sonuç (teşhis [16]). Kaldıraç kopyalanmaz, fonlama hariç; uygulamada ayrı ekran (Profil > Hyperliquid Takibi, 5.21.0): özet, trader tablosu, son ölçümler; yapay zekâ analizi kartı (Claude ile yorum, ANTHROPIC_API_KEY ile etkin; yoksa kural tabanlı özet). Teşhis ekranına da yapay zekâ yorumu eklendi",
+   "yuzde": 45,
+   "yapilan": "20.11 (kullanıcı onayı): salt okunur ölçüm servisi nexora-hl. Liderlik tablosundan 40 trader (hesap ≥50 bin $, haftalık/aylık/tüm zaman kârı pozitif, aylık getiri %5–1000, yüksek frekans hariç; günlük yenilenir). Takip edilen cüzdan sıfırdan pozisyon açınca sanal pozisyon, gördüğümüz andaki orta fiyattan (taraf başı %0,065 ücret+kayma); kaynak kapatınca kapanır; 30 dk karşılaştırması, gecikme maliyeti, cüzdan bazında sonuç (teşhis [16]). Kaldıraç kopyalanmaz, fonlama hariç; uygulamada ayrı ekran (Profil > Hyperliquid Takibi, 5.21.0): özet, trader tablosu, son ölçümler; yapay zekâ analizi kartı (Claude ile yorum, ANTHROPIC_API_KEY ile etkin; yoksa kural tabanlı özet). Teşhis ekranına da yapay zekâ yorumu eklendi; 20.11 aşama 1 (gerçekçi ölçüm): emir defterinden dolum (100$, taker %0,045), saatlik fonlama, NET getiri; trader'ın kaldıracı ve tasfiye fiyatı; en kötü/en iyi an ve zarar durdur %3/%5/%10 karşılaştırması; uygulamada trader detayı (5.23.0)",
    "eksik": "14 gün ölçüm; ileriye dönük kârlı trader'lar ve gecikme maliyeti; olumluysa paper kopyalama (kendi risk kurallarıyla, kullanıcı onayı); gerçek para için hukuki görüş"
   }
  ],

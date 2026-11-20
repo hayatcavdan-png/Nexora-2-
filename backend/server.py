@@ -279,6 +279,9 @@ class H(BaseHTTPRequestHandler):
         if parts.path == "/tutarlilik":                     # 5.22.0: canlı defter vs deney masası (yalnızca kurucu)
             from nexora import saglik
             self._send(200, saglik.tutarlilik()); return
+        if parts.path == "/hl-cuzdan":                      # trader detayı (yalnızca kurucu)
+            from nexora import hl
+            self._send(200, hl.cuzdan_detay(os.getenv("HL_DB", "nexora_hl.db"), (parse_qs(parts.query).get("w") or [""])[0])); return
         if parts.path == "/hl":                             # N39: Hyperliquid gölge ölçümü (yalnızca kurucu)
             from nexora import hl
             self._send(200, hl.ekran(os.getenv("HL_DB", "nexora_hl.db"))); return

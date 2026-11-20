@@ -86,3 +86,33 @@ class EkranTests(unittest.TestCase):
 
 
 d_ = d
+
+
+class GercekciTests(unittest.TestCase):
+    def test_defter_fonlama_kaldirac_durak(self):
+        now = [10_000.0]; ist = FakeIst(); yol = os.path.join(tempfile.mkdtemp(), "h.db")
+        ist.defter = lambda coin: ([(ist.mids[coin] * 0.999, 1e6)], [(ist.mids[coin] * 1.001, 0.5), (ist.mids[coin] * 1.002, 1e6)])
+        ist.fonlama = lambda coin, a, b: [0.0001, 0.0001]                     # long 2 saat öder: -%0,02
+        ist.pozisyon = lambda w, coin: dict(kaldirac=20.0, tasfiye_px=95.0, giris_px=99.0)
+        o = hl.Olcer(yol, ist, saat=lambda: now[0])
+        ist.fills[W] = [d_(1, 9990, "BTC", "B", 1, 0, 99.0)]; o.tur([W])
+        sg = o.db.execute("SELECT * FROM hl_sinyal").fetchone()
+        self.assertEqual(sg["kaldirac"], 20.0)
+        self.assertGreater(sg["giris_defter"], 100.1); self.assertLess(sg["giris_defter"], 100.2)    # 0.5 adet yetmez, ikinci seviye
+        ist.mids["BTC"] = 93.0; now[0] = 10_100; o.tur([W])                   # en kötü an -%7
+        ist.mids["BTC"] = 110.0; now[0] = 10_200; ist.fills[W].append(d_(2, 10_190, "BTC", "A", 1, 1, 111.0)); o.tur([W])
+        sg = o.db.execute("SELECT * FROM hl_sinyal").fetchone()
+        self.assertAlmostEqual(sg["en_kotu_pct"], -7.0, places=3)
+        self.assertAlmostEqual(sg["fonlama_pct"], -0.02, places=4)
+        self.assertAlmostEqual(sg["getiri_net_pct"], sg["getiri_defter_pct"] - 0.02, places=4)
+        r = hl.rapor(yol, now=10_300)
+        self.assertEqual(r["defter"]["n"], 1); self.assertIn(">10x", r["kaldirac"])
+        du = {x["durak"]: x for x in r["duraklar"]}
+        self.assertEqual(du[5.0]["tetik"], 1); self.assertEqual(du[10.0]["tetik"], 0)
+        self.assertAlmostEqual(du[5.0]["ort"], -5 - 2 * hl.UCRET_PCT, places=3)
+        metin = "\n".join(hl.satirlar(r)); self.assertIn("NET", metin); self.assertIn("zarar durdur", metin)
+        dt = hl.cuzdan_detay(yol, W, now=10_300)
+        self.assertEqual(dt["ozet"]["n"], 1); self.assertEqual(dt["olcumler"][0]["kaldirac"], 20.0)
+
+    def test_vwap(self):
+        self.assertAlmostEqual(hl.vwap([(10.0, 5)], 20), 10.0); self.assertIsNone(hl.vwap([(10.0, 1)], 20))
