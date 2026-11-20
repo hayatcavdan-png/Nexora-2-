@@ -52,6 +52,7 @@ def calistir(kesif=None, analiz=None, now=None, denetim=None, liste=None, evm=No
     now = now if now is not None else time.time()
     kesif = kesif or cuzdan_kesif.main
     analiz = analiz or (lambda: cuzdan_analiz.main(list_path=cuzdan_kesif.OUT_TXT))
+    onceki = _oku_json(SON, {})                 # dünkü sonuç: yapay zekâ kararı ve terfi adayı değişimini bildirmek için
     gorulen = {w: t for w, t in _oku_json(GORULEN, {}).items() if now - t < TEKRAR_GUN * 86400}
     with open(GORULEN_TXT, "w") as f:
         f.write("# otomatik_kesif.py: son 14 günde analiz edilen adaylar\n"); f.writelines(w + "\n" for w in gorulen)
@@ -88,11 +89,16 @@ def calistir(kesif=None, analiz=None, now=None, denetim=None, liste=None, evm=No
     try:                                        # gölge havuz: kopyalanmayan ama etiketlenen geniş havuz (yapay zekâ verisi, teyit)
         from nexora import golge as _golge
         sonuc["golge"] = _golge.doldur()
+        sonuc["terfi"] = _golge.karne(os.getenv("ETIKET_DB", "nexora_etiket.db"), now=now)["terfi"]
+        sonuc["terfi_yeni"] = [w for w in sonuc["terfi"] if w not in set(onceki.get("terfi") or [])]
     except Exception as e:
         sonuc["golge"] = dict(hata=f"{type(e).__name__}: {str(e)[:120]}")
     try:                                        # yapay zekâ: yeterli etiket varsa modeli her gece yeniden sına (kabul edilirse
         import yz_model                         # yz_model.json yazılır ve gölge karar başlar; işlem kuralına DOKUNMAZ)
         sonuc["yz"] = yz_model.calistir(os.getenv("ETIKET_DB", "nexora_etiket.db")).splitlines()[0][:160]
+        o, y = str(onceki.get("yz") or ""), sonuc["yz"]
+        if o.startswith("Karar:") and y.startswith("Karar:") and o.split("(")[0].strip() != y.split("(")[0].strip():
+            sonuc["yz_degisti"] = dict(onceki=o.split("(")[0].strip(), yeni=y.split("(")[0].strip())
     except Exception as e:
         sonuc["yz"] = f"çalışmadı: {type(e).__name__}"
     try:                                        # keşif sonuç vermese de takip listesi her gün denetlenir

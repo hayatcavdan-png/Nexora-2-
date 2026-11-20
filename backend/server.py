@@ -272,6 +272,13 @@ class H(BaseHTTPRequestHandler):
             try: gun = min(14.0, max(1.0, float(parse_qs(parts.query).get("gun", ["3"])[0])))
             except ValueError: gun = 3.0
             self._send(200, dict(metin=teshis.rapor(GUN=gun), gun=gun, ozet=teshis.gunluk_ozet(gun=1.0))); return
+        if parts.path == "/sistem":                         # 5.22.0: servisler, sürüm, zamanlar, paper durumu (yalnızca kurucu)
+            from nexora import saglik
+            self._send(200, dict(saglik.durum(paper), panel=panel.saglik(os.getenv("NEXORA_DB", "nexora_paper.db"),
+                                                                        os.getenv("TRACKER_DB", "nexora_tracker.db")))); return
+        if parts.path == "/tutarlilik":                     # 5.22.0: canlı defter vs deney masası (yalnızca kurucu)
+            from nexora import saglik
+            self._send(200, saglik.tutarlilik()); return
         if parts.path == "/hl":                             # N39: Hyperliquid gölge ölçümü (yalnızca kurucu)
             from nexora import hl
             self._send(200, hl.ekran(os.getenv("HL_DB", "nexora_hl.db"))); return

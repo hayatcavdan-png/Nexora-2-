@@ -50,3 +50,5 @@ backend/golge_listesi.txt.tmp
 backend/golge_kayit.json
 backend/hl_cuzdanlar.txt
 backend/hl_cuzdanlar.txt.tmp
+backend/saglik_durum.json
+backend/yz_yorum_*.json

@@ -178,6 +178,26 @@ def kesif_olayi(path, son):
                 metin=f"{satir}. Eklemek için sunucuda: sudo bash /opt/nexora/deploy/calistir.sh cuzdan_ekle.py --uygula")
 
 
+def gece_olaylari(path, son):
+    """Gece işinin (kesif_son.json) ek olayları: yapay zekâ kararı değişti, yeni terfi adayı."""
+    try:
+        with open(path) as f: k = json.load(f)
+    except (OSError, ValueError):
+        return []
+    ts = float(k.get("ts") or 0); out = []
+    if ts <= son: return out
+    yd = k.get("yz_degisti")
+    if yd:
+        out.append(dict(id=f"y{int(ts)}", ts=ts + 0.001, tur="bilgi", baslik="Yapay zekâ modeli: karar değişti",
+                        metin=f"{yd.get('onceki')} → {yd.get('yeni')}. Model işlemlere bağlı değil; ayrıntı: Günlük Rapor."))
+    ty = k.get("terfi_yeni") or []
+    if ty:
+        out.append(dict(id=f"p{int(ts)}", ts=ts + 0.002, tur="kesif", baslik=f"Yeni terfi adayı: {len(ty)} gölge cüzdan",
+                        metin=", ".join(w[:4] + "…" + w[-4:] for w in ty[:4]) + " ileriye dönük ölçümde iyi. "
+                              "Kopyalamaya almak sizin onayınızla yapılır."))
+    return out
+
+
 OZET_SAAT_UTC = 6     # günlük özet her gün 06:00 UTC'de (09:00 İstanbul) bir kez
 
 
@@ -239,6 +259,12 @@ def olaylar(paper_path, tracker_path, son=0.0, limit=20, now=None, kesif_path=No
             tc.close()
     ke = kesif_olayi(kesif_path, son) if kesif_path else None
     if ke: out.append(ke)
+    if kesif_path: out += gece_olaylari(kesif_path, son)
+    try:                                       # servis kesintileri (systemd): 90 sn'den uzun süren
+        from nexora import saglik as _sg
+        out += _sg.olaylar(son, now)
+    except Exception:
+        pass
     if ozet:                                   # günlük özet: bugünün özet anı geçtiyse ve uygulama henüz görmediyse
         an = now - now % 86400 + OZET_SAAT_UTC * 3600
         if an > now: an -= 86400

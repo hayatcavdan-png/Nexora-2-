@@ -40,7 +40,7 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {   // BiometricPr
 
 private val ANA_SEKMELER = setOf("ana", "kesfet", "portfoy", "karne", "profil")
 private val ALT_EKRAN = mapOf("rapor" to "Günlük Rapor", "yol" to "Yol Haritası", "takip" to "Takip Edilen Cüzdanlar", "uye" to "Hesabım", "hazir" to "Hazırlık Karnesi",
-                                    "hl" to "Hyperliquid Takibi")
+                                    "hl" to "Hyperliquid Takibi", "sistem" to "Sistem Sağlığı")
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -216,7 +216,7 @@ fun App() {
             ) {
                 if (ekran == "ana") item(key = "ust") { AnaUstBaslik({ ekran = it }, v.kurucu) }
                 if (ekran in ALT_EKRAN) item(key = "alt_bas") {
-                    SayfaBasligi(ALT_EKRAN[ekran]!!, when (ekran) { "takip" -> "Analiz ve takip durumu"; "uye" -> "Üyelik, davet ve bağlantılar"; "hazir" -> "Gerçek paraya geçiş ölçütleri"; "hl" -> "Büyük trader'lar · gölge ölçüm"; else -> "NEXORA" }, geri = { ekran = if (ekran == "hazir") "karne" else "profil" })
+                    SayfaBasligi(ALT_EKRAN[ekran]!!, when (ekran) { "takip" -> "Analiz ve takip durumu"; "uye" -> "Üyelik, davet ve bağlantılar"; "hazir" -> "Gerçek paraya geçiş ölçütleri"; "hl" -> "Büyük trader'lar · gölge ölçüm"; "sistem" -> "Servisler, sürüm ve canlı tutarlılık"; else -> "NEXORA" }, geri = { ekran = if (ekran == "hazir") "karne" else "profil" })
                 }
                 val bagliDegil = !v.bagli && v.guncelleme == 0.0
                 if (v.hata.isNotEmpty() && !(bagliDegil && ekran == "ana")) item(key = "hata") { Text(v.hata, color = Nx.Kirmizi, fontSize = 13.sp) }
@@ -229,7 +229,10 @@ fun App() {
                 } else when (ekran) {
                     "ana" -> anaSayfa(v, gizle, { gizle = !gizle; sp.edit().putBoolean("gizle", gizle).apply() }, aralik, { aralik = it },
                                       { ekran = it }, eko, { eko = it }, { mesaj(it) }, { if (v.kurucu) durdurOnay = true })
-                    "karne" -> karne(v) { ekran = it }
+                    "karne" -> {
+                        if (v.kurucu && v.bagli) item(key = "karne_tut") { TutarlilikKarti(url, key) }
+                        karne(v) { ekran = it }
+                    }
                     "kesfet" -> {
                         item(key = "k_sekme") {
                             Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(50)).background(Nx.Yuzey2).padding(4.dp),
@@ -275,6 +278,10 @@ fun App() {
                         GorunumAyari(sp)
                     }
                     "hazir" -> item(key = "hazir") { HazirlikEkrani(v) }
+                    "sistem" -> if (v.kurucu && v.bagli) {
+                        item(key = "sistem_tut") { TutarlilikKarti(url, key) }
+                        item(key = "sistem") { SistemEkrani(url, key) }
+                    } else item(key = "sistem_uye") { BilgiKutusu(KURUCU_NOTU) }
                     "hl" -> if (v.kurucu && v.bagli) item(key = "hl") { HlEkrani(url, key) } else item(key = "hl_uye") { BilgiKutusu(KURUCU_NOTU) }
                     "uye" -> item(key = "uye") { UyeEkrani(url, key, sp) { cekYenile() } }
                     "rapor" -> {
@@ -322,6 +329,7 @@ fun AnaUstBaslik(git: (String) -> Unit, kurucu: Boolean = true) {
                 DropdownMenuItem({ Text("Yol Haritası") }, { menu = false; git("yol") })
                 if (kurucu) DropdownMenuItem({ Text("Takip Edilen Cüzdanlar") }, { menu = false; git("takip") })
                 if (kurucu) DropdownMenuItem({ Text("Hyperliquid Takibi") }, { menu = false; git("hl") })
+                if (kurucu) DropdownMenuItem({ Text("Sistem Sağlığı") }, { menu = false; git("sistem") })
                 DropdownMenuItem({ Text("Ayarlar") }, { menu = false; git("profil") })
             }
         }
