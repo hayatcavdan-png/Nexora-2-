@@ -1,8 +1,11 @@
 """N18 · Seçim modeli: zamana göre eğit/sına, maliyet sonrası 'hepsini kopyala' ile karşılaştır.
-Çalıştır (backend klasöründe): python yz_model.py
+Çalıştır (backend klasöründe): python yz_model.py        # gece sınamasının kayıtlı raporu (anında)
+                                python yz_model.py yeni   # şimdi yeniden sına (sunucuda birkaç dakika sürer)
 En az 500 etiketli örnek gerekir (YZ_ZORLA=1 yalnızca deneme içindir; sonucu karar için kullanılmaz).
 Kabul edilirse model yz_model.json'a yazılır (N19 gölge kararı bunu kullanır). İşlem kuralını DEĞİŞTİRMEZ."""
-import os
+import os, sys, time
+
+RAPOR = "yz_model_rapor.txt"
 
 from nexora.ozellik import veri_seti
 from nexora.model import degerlendir
@@ -37,8 +40,19 @@ def calistir(db, ufuk="kaynak", zorla=False, yol="yz_model.json"):
         if os.path.exists(yol):
             L.append(f"Not: {yol} daha önce kabul edilmiş eski bir model. Yalnızca gölge karar ölçümü için kalır; "
                      "bugünkü sınamayı geçemediği için canlı filtreye (N20) önerilmez.")
-    return "\n".join(L)
+    metin = "\n".join(L)
+    if not zorla:
+        try:
+            with open(RAPOR + ".tmp", "w") as f: f.write(f"Sınama zamanı: {time.strftime('%d.%m.%Y %H:%M', time.gmtime())} UTC\n{metin}\n")
+            os.replace(RAPOR + ".tmp", RAPOR)
+        except OSError:
+            pass
+    return metin
 
 
 if __name__ == "__main__":
-    print(calistir(os.getenv("ETIKET_DB", "nexora_etiket.db"), os.getenv("YZ_UFUK", "kaynak"), os.getenv("YZ_ZORLA") == "1"))
+    if "yeni" not in sys.argv[1:] and os.path.exists(RAPOR) and os.getenv("YZ_ZORLA") != "1":
+        print(open(RAPOR).read().rstrip()); print("\n(Gece sınamasının kayıtlı raporu. Şimdi yeniden sınamak için: yz_model.py yeni — birkaç dakika sürer)")
+    else:
+        print("Sınanıyor, sunucuda birkaç dakika sürebilir…", flush=True)
+        print(calistir(os.getenv("ETIKET_DB", "nexora_etiket.db"), os.getenv("YZ_UFUK", "kaynak"), os.getenv("YZ_ZORLA") == "1"))
