@@ -15,10 +15,12 @@ object Yedek {
     private const val KLASOR = "NEXORA"
     private const val SAKLA = 7
 
-    fun indir(base: String, key: String): Pair<String, ByteArray> {
+    fun indir(base: String, key: String, oturum: String = ""): Pair<String, ByteArray> {
         val c = URL(base.trim().trimEnd('/') + "/yedek/son").openConnection() as HttpURLConnection
         c.connectTimeout = 10_000; c.readTimeout = 60_000
-        c.setRequestProperty("X-API-Key", key.trim())
+        if (key.isNotBlank()) c.setRequestProperty("X-API-Key", key.trim())
+        val o = oturum.ifEmpty { if (key.isBlank()) Oturum.deger else "" }
+        if (o.isNotEmpty()) c.setRequestProperty("X-Oturum", o)
         if (c.responseCode != 200) error(if (c.responseCode == 404) "sunucuda henüz yedek yok" else "HTTP ${c.responseCode}")
         val ad = c.getHeaderField("X-Yedek-Ad")?.takeIf { Regex("nexora_\\d{8}_\\d{6}\\.tar\\.gz").matches(it) }
             ?: error("yedek adı geçersiz")
@@ -62,12 +64,12 @@ object Yedek {
     }
 
     /** Bildirim servisinden çağrılır: 6 saatte bir bakar, sunucuda yeni bir yedek varsa indirir. */
-    fun otomatik(ctx: Context, base: String, key: String) {
+    fun otomatik(ctx: Context, base: String, key: String, oturum: String = "") {
         val sp = ctx.getSharedPreferences("nx", Context.MODE_PRIVATE)
         val simdi = System.currentTimeMillis()
         if (simdi - sp.getLong("yedek_deneme", 0L) < 6 * 3600_000L) return
         sp.edit().putLong("yedek_deneme", simdi).apply()
-        val (ad, veri) = indir(base, key)
+        val (ad, veri) = indir(base, key, oturum)
         if (ad == sp.getString("yedek_son_ad", "")) return
         kaydet(ctx, ad, veri)
         sp.edit().putString("yedek_son_ad", ad).putLong("yedek_son_ts", simdi).apply()

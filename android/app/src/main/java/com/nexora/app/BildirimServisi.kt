@@ -54,9 +54,10 @@ class BildirimServisi : Service() {
             try {
                 val url = sp.getString("url", "http://127.0.0.1:8000")!!
                 val key = Kasa.oku(sp, "key")
+                val oturum = if (key.isEmpty()) Kasa.oku(sp, "oturum") else ""      // 5.25.1: anahtar yoksa üye oturumu (iki adımlı girişle)
                 val son = sp.getString("bildirim_son", "0")!!
-                if (key.isNotEmpty()) {
-                    val r = JSONObject(api(url, key, "/olaylar?son=$son"))
+                if (key.isNotEmpty() || oturum.isNotEmpty()) {
+                    val r = JSONObject(api(url, key, "/olaylar?son=$son", oturum = oturum))
                     val arr = r.getJSONArray("olaylar")
                     var enSon = son.toDoubleOrNull() ?: 0.0
                     for (i in 0 until arr.length()) {
@@ -65,7 +66,7 @@ class BildirimServisi : Service() {
                         enSon = maxOf(enSon, e.optDouble("ts", enSon))
                     }
                     sp.edit().putString("bildirim_son", enSon.toString()).apply()
-                    try { Yedek.otomatik(this, url, key) } catch (e: Exception) { /* yedek bir sonraki denemede */ }
+                    try { Yedek.otomatik(this, url, key, oturum) } catch (e: Exception) { /* yedek bir sonraki denemede */ }
                     if (uyarildi) goster("baglanti_geri", "Sunucuya yeniden bağlanıldı", "NEXORA tekrar izleniyor.", "bilgi")
                     hataBas = 0L; uyarildi = false
                 }
