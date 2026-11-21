@@ -30,7 +30,7 @@ fun TeshisKarti(url: String, key: String) {
         try {
             val d = JSONObject(withContext(Dispatchers.IO) { api(url, key, "/teshis?gun=$gun", zamanAsimi = 20_000) })
             metin = d.optString("metin"); ozet = d.optJSONObject("ozet")
-        } catch (e: Exception) {
+        } catch (e: Exception) { if (e is kotlinx.coroutines.CancellationException) throw e
             hata = if (e.message?.contains("403") == true) "Teşhis yalnızca kurucuya açık." else "Teşhis alınamadı: ${e.message}"
         }
         yukleniyor = false

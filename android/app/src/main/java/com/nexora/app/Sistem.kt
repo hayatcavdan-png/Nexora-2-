@@ -39,7 +39,7 @@ fun SistemEkrani(url: String, key: String) {
     LaunchedEffect(tetik) {
         yukleniyor = true; hata = ""
         try { d = JSONObject(withContext(Dispatchers.IO) { api(url, key, "/sistem", zamanAsimi = 20_000) }) }
-        catch (e: Exception) { hata = if (e.message?.contains("404") == true) "Sunucu güncel değil: guncelle" else "Durum alınamadı: ${e.message}" }
+        catch (e: Exception) { if (e is kotlinx.coroutines.CancellationException) throw e; hata = if (e.message?.contains("404") == true) "Sunucu güncel değil: guncelle" else "Durum alınamadı: ${e.message}" }
         yukleniyor = false
     }
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -115,7 +115,7 @@ fun TutarlilikKarti(url: String, key: String) {
     LaunchedEffect(tetik) {
         hata = ""
         try { d = JSONObject(withContext(Dispatchers.IO) { api(url, key, "/tutarlilik", zamanAsimi = 30_000) }) }
-        catch (e: Exception) { hata = if (e.message?.contains("404") == true) "Sunucu güncel değil: guncelle" else "Alınamadı: ${e.message}" }
+        catch (e: Exception) { if (e is kotlinx.coroutines.CancellationException) throw e; hata = if (e.message?.contains("404") == true) "Sunucu güncel değil: guncelle" else "Alınamadı: ${e.message}" }
     }
     NeonKart(Modifier.fillMaxWidth(), kenar = Nx.KenarParlak) {
         Row(verticalAlignment = Alignment.CenterVertically) {

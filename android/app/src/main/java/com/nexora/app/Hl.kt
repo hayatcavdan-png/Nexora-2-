@@ -33,7 +33,7 @@ fun HlEkrani(url: String, key: String) {
     LaunchedEffect(tetik) {
         yukleniyor = true; hata = ""
         try { d = JSONObject(withContext(Dispatchers.IO) { api(url, key, "/hl", zamanAsimi = 20_000) }) }
-        catch (e: Exception) {
+        catch (e: Exception) { if (e is kotlinx.coroutines.CancellationException) throw e
             hata = when {
                 e.message?.contains("403") == true -> "Bu ekran yalnızca kurucuya açık."
                 e.message?.contains("404") == true -> "Sunucu güncel değil: guncelle"
@@ -141,7 +141,7 @@ fun YzAnalizKarti(url: String, key: String, konu: String, dis: Int = 0) {
         if (istek == 0) return@LaunchedEffect
         yukleniyor = true; hata = ""
         try { d = JSONObject(withContext(Dispatchers.IO) { api(url, key, "/yz-analiz?konu=$konu&yenile=${if (yenile) 1 else 0}", zamanAsimi = 75_000) }) }
-        catch (e: Exception) { hata = if (e.message?.contains("404") == true) "Sunucu güncel değil: guncelle" else "Yorum alınamadı: ${e.message}" }
+        catch (e: Exception) { if (e is kotlinx.coroutines.CancellationException) throw e; hata = if (e.message?.contains("404") == true) "Sunucu güncel değil: guncelle" else "Yorum alınamadı: ${e.message}" }
         yukleniyor = false
     }
     NeonKart(Modifier.fillMaxWidth(), kenar = Nx.KenarParlak) {
@@ -174,7 +174,7 @@ private fun TraderDetay(url: String, key: String, w: String) {
     var hata by remember(w) { mutableStateOf("") }
     LaunchedEffect(w) {
         try { d = JSONObject(withContext(Dispatchers.IO) { api(url, key, "/hl-cuzdan?w=$w", zamanAsimi = 20_000) }) }
-        catch (e: Exception) { hata = if (e.message?.contains("404") == true) "Sunucu güncel değil: guncelle" else "Alınamadı: ${e.message}" }
+        catch (e: Exception) { if (e is kotlinx.coroutines.CancellationException) throw e; hata = if (e.message?.contains("404") == true) "Sunucu güncel değil: guncelle" else "Alınamadı: ${e.message}" }
     }
     Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Nx.DolguMor).padding(10.dp),
            verticalArrangement = Arrangement.spacedBy(3.dp)) {
