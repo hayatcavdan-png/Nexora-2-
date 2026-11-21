@@ -100,6 +100,7 @@ class ModelTests(unittest.TestCase):
         out = yz_model.calistir(p2, yol=os.path.join(d, "m.json"))
         self.assertIn("AVANTAJ VAR", out)
         j = json.load(open(os.path.join(d, "m.json"))); self.assertEqual(j["ozellikler"][0], "log_gecikme")
+        self.assertTrue(os.path.exists(os.path.join(d, "yz_model_rapor.txt")))       # rapor modelin yanında, çalışma klasöründe değil
         self.assertIn("esik", j)
 
 

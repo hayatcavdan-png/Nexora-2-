@@ -41,10 +41,11 @@ def calistir(db, ufuk="kaynak", zorla=False, yol="yz_model.json"):
             L.append(f"Not: {yol} daha önce kabul edilmiş eski bir model. Yalnızca gölge karar ölçümü için kalır; "
                      "bugünkü sınamayı geçemediği için canlı filtreye (N20) önerilmez.")
     metin = "\n".join(L)
-    if not zorla:
+    if not zorla:                        # rapor model dosyasının yanına yazılır (testler geçici klasör verir, canlı rapor bozulmaz)
+        rapor = os.path.join(os.path.dirname(os.path.abspath(yol)), RAPOR)
         try:
-            with open(RAPOR + ".tmp", "w") as f: f.write(f"Sınama zamanı: {time.strftime('%d.%m.%Y %H:%M', time.gmtime())} UTC\n{metin}\n")
-            os.replace(RAPOR + ".tmp", RAPOR)
+            with open(rapor + ".tmp", "w") as f: f.write(f"Sınama zamanı: {time.strftime('%d.%m.%Y %H:%M', time.gmtime())} UTC\n{metin}\n")
+            os.replace(rapor + ".tmp", rapor)
         except OSError:
             pass
     return metin

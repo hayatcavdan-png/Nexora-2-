@@ -260,9 +260,9 @@ def olaylar(paper_path, tracker_path, son=0.0, limit=20, now=None, kesif_path=No
     ke = kesif_olayi(kesif_path, son) if kesif_path else None
     if ke: out.append(ke)
     if kesif_path: out += gece_olaylari(kesif_path, son)
-    try:                                       # servis kesintileri (systemd): 90 sn'den uzun süren
-        from nexora import saglik as _sg
-        out += _sg.olaylar(son, now)
+    try:                                       # servis kesintileri (systemd): 90 sn'den uzun süren. Yalnızca gerçek zamanda
+        from nexora import saglik as _sg       # (sabit 'now' veren testler sunucudaki durum dosyasını bozmasın)
+        if now is None or abs(now - time.time()) < 3600: out += _sg.olaylar(son, now)
     except Exception:
         pass
     if ozet:                                   # günlük özet: bugünün özet anı geçtiyse ve uygulama henüz görmediyse
