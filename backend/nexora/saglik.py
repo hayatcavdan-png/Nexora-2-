@@ -159,8 +159,42 @@ def tutarlilik(paper_db=None, etiket_db=None, bas=DUZELTME_TS, now=None, golge=N
     deney["toplam_pct"] = deney["kz"]                       # simülasyon 100 $ ile başlar: K/Z = yüzde
     fark = None if canli["toplam_pct"] is None else round(canli["toplam_pct"] - deney["toplam_pct"], 2)
     gun = (now - bas) / 86400
-    if canli["satis"] < 10 or deney["islem"] < 10: yorum = "Henüz erken: iki tarafta da en az 10 kapanan işlem gerekiyor."
+    es = eslesme(paper_db, etiket_db, bas)
+    if es["n"] >= 10:                          # asıl ölçüt: AYNI sinyallerde canlı sonuç ile ölçülen sonuç
+        f = es["fark_medyan"]
+        if abs(f) <= 2.0: yorum = f"Aynı {es['n']} işlemde canlı, ölçümü tutuyor (medyan fark %{f:+.1f})."
+        elif f < 0: yorum = f"Aynı {es['n']} işlemde canlı ölçümün GERİSİNDE (medyan %{f:+.1f}): yürütme (kayma, gecikme, ücret) incelenmeli."
+        else: yorum = f"Aynı {es['n']} işlemde canlı ölçümün önünde (medyan %{f:+.1f}); örneklem büyüdükçe izlenecek."
+    elif canli["satis"] < 10 or deney["islem"] < 10: yorum = "Henüz erken: iki tarafta da en az 10 kapanan işlem gerekiyor."
     elif fark is not None and abs(fark) <= max(2.0, abs(deney["toplam_pct"]) * 0.5): yorum = "Canlı defter ölçümü tutuyor."
     elif fark is not None and fark < 0: yorum = "Canlı defter ölçümün GERİSİNDE: farkın nedeni incelenmeli (red nedenleri, gecikme, limit)."
     else: yorum = "Canlı defter ölçümün önünde (şans olabilir; örneklem büyüdükçe izlenecek)."
-    return dict(bas=bas, gun=round(gun, 1), canli=canli, deney=deney, fark_pct=fark, yorum=yorum)
+    return dict(bas=bas, gun=round(gun, 1), canli=canli, deney=deney, fark_pct=fark, yorum=yorum, eslesme=es)
+
+
+def eslesme(paper_db, etiket_db, bas):
+    """Aynı sinyal, iki sonuç (21.11): canlıda kapanan her pozisyonun getirisi (K/Z / maliyet) ile o pozisyonu açan sinyalin
+    etiket motorundaki 'kaynak' getirisi. Deney masası yalnızca etiketlenmiş alt kümeyi oynatabildiği için (günde 400 sınırı,
+    24 sa sonuç) portföy karşılaştırması ilk günlerde yanıltıcıdır; bu eşleştirme doğrudan yürütme farkını ölçer."""
+    out = dict(n=0, canli_ort=None, olculen_ort=None, fark_ort=None, fark_medyan=None, etiketsiz=0)
+    if not (os.path.exists(paper_db) and os.path.exists(etiket_db)): return out
+    p = sqlite3.connect(f"file:{paper_db}?mode=ro", uri=True, timeout=10); e = sqlite3.connect(f"file:{etiket_db}?mode=ro", uri=True, timeout=10)
+    try:
+        ciftler = []
+        for tok, w, ac, cost, pnl in p.execute("""SELECT token, wallet, opened_ts, cost, pnl FROM pos_iz WHERE status='closed' AND tam=1
+                                                  AND closed_ts>=? AND cost>0 AND pnl IS NOT NULL""", (bas,)):
+            b = p.execute("""SELECT event_id FROM trades WHERE token=? AND wallet=? AND side='buy' AND decision='KOPYALANDI'
+                             AND ABS(ts-?)<10 ORDER BY ABS(ts-?) LIMIT 1""", (tok, w, ac, ac)).fetchone()
+            if not b: continue
+            g = e.execute("SELECT getiri_pct FROM etiket_sonuc WHERE event_id=? AND ufuk='kaynak' AND getiri_pct IS NOT NULL", (b[0],)).fetchone()
+            if g is None: out["etiketsiz"] += 1; continue
+            ciftler.append((100 * pnl / cost, float(g[0])))
+    except sqlite3.Error:
+        return out
+    finally:
+        p.close(); e.close()
+    if not ciftler: return out
+    fk = sorted(c - o for c, o in ciftler); n = len(ciftler)
+    out.update(n=n, canli_ort=round(sum(c for c, _ in ciftler) / n, 2), olculen_ort=round(sum(o for _, o in ciftler) / n, 2),
+               fark_ort=round(sum(fk) / n, 2), fark_medyan=round(fk[n // 2] if n % 2 else (fk[n // 2 - 1] + fk[n // 2]) / 2, 2))
+    return out

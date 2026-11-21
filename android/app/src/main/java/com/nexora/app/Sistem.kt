@@ -142,6 +142,16 @@ fun TutarlilikKarti(url: String, key: String) {
                     Text("${x.optInt("sinyal")} sonuçlanan sinyal", color = Nx.Soluk, fontSize = 11.sp)
                 }
             }
+            r.optJSONObject("eslesme")?.let { e ->
+                if (e.optInt("n") > 0) {
+                    Text("Aynı sinyaller, iki sonuç (${e.optInt("n")} işlem)", color = Nx.Metin, fontSize = 13.sp,
+                         fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 6.dp))
+                    Text(String.format(Locale.US, "canlı ort %+.1f%% · ölçülen ort %+.1f%% · fark medyan %+.1f%%",
+                         e.optDouble("canli_ort"), e.optDouble("olculen_ort"), e.optDouble("fark_medyan")), color = Nx.Soluk, fontSize = 12.sp)
+                }
+            }
+            Text("Deney masası yalnızca sonucu kesinleşmiş (etiketli) sinyalleri oynatır; ilk günlerde canlıdan az işlem görür.",
+                 color = Nx.Soluk, fontSize = 11.sp)
             Text(r.optString("yorum"), color = Nx.Metin, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
             if (c.optInt("baska_satici") > 0)
                 Text("Başka cüzdanın satışı ${c.optInt("baska_satici")} kez pozisyonu kapatmadı (düzeltme çalışıyor).", color = Nx.Soluk, fontSize = 11.sp)

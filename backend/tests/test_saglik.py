@@ -1,4 +1,4 @@
-import json, os, sys, tempfile, time, unittest
+import json, os, sqlite3, sys, tempfile, time, unittest
 HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, os.path.join(HERE, ".."))
 from nexora import saglik as S, panel
 from nexora.core import Paper
@@ -54,3 +54,18 @@ class GeceOlayTests(unittest.TestCase):
 
 
 if __name__ == "__main__": unittest.main()
+
+
+class EslesmeTests(unittest.TestCase):
+    def test_ayni_sinyal_iki_sonuc(self):
+        from nexora import etiket as E
+        d = tempfile.mkdtemp(); pyol, eyol = os.path.join(d, "p.db"), os.path.join(d, "e.db")
+        p = Paper(pyol); E.Etiketci(eyol, None).db.close()
+        p.record_buy("W:1", "W", "T1", 5.0, 1000, 6); p.record_sell("W:2", "W", "T1", 6.0)     # canlı ~ +%20
+        p.record_buy("W:3", "W", "T2", 5.0, 1000, 6); p.record_sell("W:4", "W", "T2", 4.0)     # etiketsiz
+        c = sqlite3.connect(eyol); c.execute("INSERT INTO etiket_sonuc(event_id, ufuk, ts, getiri_pct) VALUES('W:1','kaynak',1,15.0)")
+        c.commit(); c.close()
+        r = S.eslesme(pyol, eyol, 0)
+        self.assertEqual((r["n"], r["etiketsiz"]), (1, 1)); self.assertAlmostEqual(r["olculen_ort"], 15.0)
+        self.assertGreater(r["fark_ort"], 3); self.assertLess(r["fark_ort"], 6)
+        self.assertEqual(S.eslesme("/yok", eyol, 0)["n"], 0)

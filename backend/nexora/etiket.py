@@ -100,7 +100,9 @@ class Etiketci:
             izlenen = gerekce == IZLENEN
             n = self.db.execute("SELECT COUNT(*) FROM etiket_olay WHERE ts >= ? AND (COALESCE(gerekce,'') = ?) = ?",
                                 (gun_bas, IZLENEN, 1 if izlenen else 0)).fetchone()[0]
-            if n >= (GOLGE_GUNLUK if izlenen else GUNLUK): return "sinir"
+            # 21.11: KOPYALANAN alımlar sınıra takılmaz: günlük sınır reddedilen sinyallerle dolunca günün geri kalanındaki gerçek
+            # işlemler etiketlenmiyordu (deney masası ve 'aynı sinyal, iki sonuç' karşılaştırması eksik kalıyordu).
+            if n >= (GOLGE_GUNLUK if izlenen else GUNLUK) and karar != "KOPYALANDI": return "sinir"
             teyit = 1 + self.db.execute("SELECT COUNT(DISTINCT wallet) FROM etiket_olay WHERE token=? AND wallet != ? AND ts BETWEEN ? AND ?",
                                         (token, wallet, t0 - TEYIT_SN, t0)).fetchone()[0]
         g = time.gmtime(t0)

@@ -86,6 +86,8 @@ class EtiketTests(unittest.TestCase):
         try:
             self.e.sinyal("Z:d", "Z", "T2", "buy", "d", 0, 1, "x", "x"); self.run_all()
             self.assertEqual(len(self.rows("SELECT * FROM etiket_olay")), 2)
+            self.e.sinyal("Z:e", "Z", "T3", "buy", "e", 0, 1, "KOPYALANDI", "ok"); self.run_all()     # gerçek işlem sınıra takılmaz
+            self.assertEqual(len(self.rows("SELECT * FROM etiket_olay")), 3)
         finally:
             E.GUNLUK = old
 
