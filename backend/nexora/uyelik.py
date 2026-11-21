@@ -7,7 +7,7 @@ Kapsam (bilinçli olarak dar):
   yalnızca şifreli (kasa.py) saklanır ve şimdilik yalnızca bakiye OKUMAK için kullanılır. Emir gönderme yok (N31).
 - Parola: scrypt + kişiye özel tuz. Oturum anahtarı rastgele; veritabanında yalnızca SHA-256 özeti tutulur.
 """
-import hashlib, hmac, json, os, re, secrets, sqlite3, time
+import base64, hashlib, hmac, json, os, re, secrets, sqlite3, struct, time
 
 from nexora.ed25519 import _ALFABE
 
@@ -31,6 +31,29 @@ SIFIRLA_SN, SIFIRLA_TALEP, SIFIRLA_DENEME = 30 * 60, 3, 5     # kod 30 dk geçer
 
 class UyelikHatasi(ValueError):
     pass
+
+
+# ---- İki adımlı doğrulama (N35, 21.11.2026): RFC 6238 TOTP (30 sn, 6 hane, SHA-1) — Google Authenticator, Microsoft
+# Authenticator, Authy, 2FAS vb. ile uyumlu. Gizli anahtar sunucuda tutulur; kullanılan kod tekrar kullanılamaz.
+IKI_ADIM_GEREKLI = "iki adımlı doğrulama kodu gerekli"
+TOTP_ADIM, TOTP_HANE, TOTP_PENCERE = 30, 6, 1
+
+
+def totp(gizli, sayac):
+    k = base64.b32decode(gizli.upper() + "=" * (-len(gizli) % 8))
+    h = hmac.new(k, struct.pack(">Q", sayac), hashlib.sha1).digest()
+    o = h[-1] & 0x0F
+    return str((struct.unpack(">I", h[o:o + 4])[0] & 0x7FFFFFFF) % 10 ** TOTP_HANE).zfill(TOTP_HANE)
+
+
+def totp_dogrula(gizli, kod, now, son=0):
+    """Doğruysa kullanılan sayaç (tekrar kullanımı engellemek için saklanır), değilse None. ±1 adım saat kayması kabul."""
+    kod = re.sub(r"\s", "", str(kod or ""))
+    if not gizli or not re.fullmatch(r"\d{6}", kod): return None
+    c = int(now // TOTP_ADIM)
+    for s in range(c - TOTP_PENCERE, c + TOTP_PENCERE + 1):
+        if s > (son or 0) and hmac.compare_digest(totp(gizli, s), kod): return s
+    return None
 
 
 def adres_gecerli(a):
@@ -74,8 +97,12 @@ class Uyelik:
         CREATE TABLE IF NOT EXISTS borsa_anahtar(uye INTEGER NOT NULL, borsa TEXT NOT NULL, sifreli TEXT NOT NULL, maske TEXT NOT NULL,
             izin TEXT NOT NULL, ts REAL NOT NULL, PRIMARY KEY(uye, borsa));
         """)
-        if "rol" not in {r["name"] for r in self.db.execute("PRAGMA table_info(uye)")}:   # rol ayrımı (eski veritabanı)
+        var = {r["name"] for r in self.db.execute("PRAGMA table_info(uye)")}
+        if "rol" not in var:                                                              # rol ayrımı (eski veritabanı)
             self.db.execute("ALTER TABLE uye ADD COLUMN rol TEXT NOT NULL DEFAULT 'uye'"); self.db.commit()
+        for k, t in (("totp", "TEXT"), ("totp_acik", "INTEGER NOT NULL DEFAULT 0"), ("totp_son", "INTEGER NOT NULL DEFAULT 0")):
+            if k not in var: self.db.execute(f"ALTER TABLE uye ADD COLUMN {k} {t}")
+        self.db.commit()
 
     ROLLER = ("uye", "kurucu")
 
@@ -122,7 +149,55 @@ class Uyelik:
             raise UyelikHatasi("bu e-posta zaten kayıtlı") from None
         return self._oturum(c.lastrowid)
 
-    def giris(self, eposta, parola, now=None):
+    # ---- iki adımlı doğrulama
+    def iki_adim_kur(self, uye_id):
+        """Yeni gizli anahtar üretir (henüz AÇIK değil; ilk doğru kodla açılır). Dönüş: gizli anahtar ve otpauth bağlantısı."""
+        r = self.db.execute("SELECT eposta, totp_acik FROM uye WHERE id=?", (uye_id,)).fetchone()
+        if not r: raise UyelikHatasi("üye yok")
+        if r["totp_acik"]: raise UyelikHatasi("iki adımlı doğrulama zaten açık")
+        gizli = base64.b32encode(secrets.token_bytes(20)).decode().rstrip("=")
+        self.db.execute("UPDATE uye SET totp=?, totp_son=0 WHERE id=?", (gizli, uye_id)); self.db.commit()
+        from urllib.parse import quote
+        uri = f"otpauth://totp/NEXORA:{quote(r['eposta'])}?secret={gizli}&issuer=NEXORA&digits={TOTP_HANE}&period={TOTP_ADIM}"
+        return dict(gizli=gizli, uri=uri)
+
+    def _kod_denetle(self, r, kod, now, sayac_adi):
+        self.db.execute("DELETE FROM giris_deneme WHERE ts<?", (now - GIRIS_PENCERE_SN,))
+        if self.db.execute("SELECT COUNT(*) FROM giris_deneme WHERE anahtar=?", (sayac_adi,)).fetchone()[0] >= GIRIS_DENEME:
+            raise PermissionError("çok fazla deneme: 10 dakika sonra tekrar deneyin")
+        s = totp_dogrula(r["totp"], kod, now, r["totp_son"])
+        if s is None:
+            self.db.execute("INSERT INTO giris_deneme VALUES(?,?)", (sayac_adi, now)); self.db.commit()
+            raise UyelikHatasi("doğrulama kodu hatalı")
+        self.db.execute("UPDATE uye SET totp_son=? WHERE id=?", (s, r["id"])); self.db.commit()
+
+    def iki_adim_onayla(self, uye_id, kod, now=None):
+        now = now or time.time()
+        r = self.db.execute("SELECT * FROM uye WHERE id=?", (uye_id,)).fetchone()
+        if not r or not r["totp"]: raise UyelikHatasi("önce kurulumu başlatın")
+        self._kod_denetle(r, kod, now, f"totp:{uye_id}")
+        self.db.execute("UPDATE uye SET totp_acik=1 WHERE id=?", (uye_id,)); self.db.commit()
+        return True
+
+    def iki_adim_kapat(self, uye_id, parola, kod, now=None):
+        """Kapatmak için parola VE geçerli kod gerekir (çalınmış oturumla kapatılamasın)."""
+        now = now or time.time()
+        r = self.db.execute("SELECT * FROM uye WHERE id=?", (uye_id,)).fetchone()
+        if not r or not r["totp_acik"]: raise UyelikHatasi("iki adımlı doğrulama zaten kapalı")
+        if not hmac.compare_digest(_ozet(parola if isinstance(parola, str) else "", r["tuz"]), r["ozet"]):
+            raise UyelikHatasi("parola hatalı")
+        self._kod_denetle(r, kod, now, f"totp:{uye_id}")
+        self.db.execute("UPDATE uye SET totp=NULL, totp_acik=0, totp_son=0 WHERE id=?", (uye_id,)); self.db.commit()
+        return True
+
+    def iki_adim_sifirla(self, eposta):
+        """Telefon kaybında yalnızca SUNUCUDA: python3 -m nexora.uyelik 2fa-kapat <eposta>. Oturumlar da kapanır."""
+        r = self.db.execute("SELECT id FROM uye WHERE eposta=?", ((eposta or "").strip().lower(),)).fetchone()
+        if not r: raise UyelikHatasi("bu e-postayla kayıtlı üye yok")
+        self.db.execute("UPDATE uye SET totp=NULL, totp_acik=0, totp_son=0 WHERE id=?", (r["id"],))
+        self.db.execute("DELETE FROM oturum WHERE uye=?", (r["id"],)); self.db.commit()
+
+    def giris(self, eposta, parola, now=None, kod=None):
         now = now or time.time(); eposta = (eposta or "").strip().lower()
         self.db.execute("DELETE FROM giris_deneme WHERE ts<?", (now - GIRIS_PENCERE_SN,))
         if self.db.execute("SELECT COUNT(*) FROM giris_deneme WHERE anahtar=?", (eposta,)).fetchone()[0] >= GIRIS_DENEME:
@@ -133,6 +208,9 @@ class Uyelik:
         if not ok:
             self.db.execute("INSERT INTO giris_deneme VALUES(?,?)", (eposta, now)); self.db.commit()
             raise UyelikHatasi("e-posta veya parola hatalı")
+        if r["totp_acik"]:
+            if not str(kod or "").strip(): raise UyelikHatasi(IKI_ADIM_GEREKLI)
+            self._kod_denetle(r, kod, now, f"totp:{r['id']}")
         return self._oturum(r["id"], now)
 
     # ---- şifre sıfırlama (e-posta kodu)
@@ -299,7 +377,7 @@ class Uyelik:
         davetliler = [dict(eposta=maskele(r["eposta"]), ts=r["ts"]) for r in
                       self.db.execute("SELECT eposta, ts FROM uye WHERE davet_eden=? ORDER BY id DESC", (u["id"],))]
         return dict(eposta=u["eposta"], davet_kodu=u["davet_kodu"], davet_sayisi=len(davetliler), davetliler=davetliler[:20],
-                    baglantilar=self.baglantilar(u["id"]), rol=u.get("rol") or "uye")
+                    baglantilar=self.baglantilar(u["id"]), rol=u.get("rol") or "uye", iki_adim=bool(u.get("totp_acik")))
 
     # ---- üye başına sanal hesap (N15: hesap izolasyonu)
     def portfoy_baslat(self, uye_id, baslangic, sistem_deger, now=None):
@@ -338,7 +416,12 @@ class Uyelik:
 if __name__ == "__main__":                       # sunucuda:  python3 -m nexora.uyelik kurucu <eposta>   |   uye <eposta>   |   liste
     import sys
     u = Uyelik(os.getenv("UYELIK_DB", "nexora_uyelik.db"))
-    if len(sys.argv) == 2 and sys.argv[1] == "liste":
+    if len(sys.argv) == 3 and sys.argv[1] == "2fa-kapat":
+        try:
+            u.iki_adim_sifirla(sys.argv[2]); print(f"{sys.argv[2]}: iki adımlı doğrulama kapatıldı, oturumlar kapandı. Uygulamadan yeniden kurun.")
+        except UyelikHatasi as e:
+            sys.exit(f"Hata: {e}")
+    elif len(sys.argv) == 2 and sys.argv[1] == "liste":
         print("Kurucular:", ", ".join(u.kurucular()) or "yok")
     elif len(sys.argv) == 3 and sys.argv[1] in Uyelik.ROLLER:
         try:
@@ -346,4 +429,4 @@ if __name__ == "__main__":                       # sunucuda:  python3 -m nexora.
         except UyelikHatasi as e:
             sys.exit(f"Hata: {e}")
     else:
-        sys.exit("Kullanım: python3 -m nexora.uyelik kurucu <eposta> | uye <eposta> | liste")
+        sys.exit("Kullanım: python3 -m nexora.uyelik kurucu <eposta> | uye <eposta> | liste | 2fa-kapat <eposta>")

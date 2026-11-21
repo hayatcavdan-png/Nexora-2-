@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -47,6 +48,9 @@ fun UyeEkrani(url: String, key: String, sp: SharedPreferences, oturumDegisti: ()
     var gercek by remember { mutableStateOf<JSONObject?>(null) }
     var sifirla by remember { mutableStateOf(false) }                 // şifre sıfırlama: e-postadaki kodla yeni parola
     var kod by remember { mutableStateOf("") }
+    var ikiAdimIste by remember { mutableStateOf(false) }            // N35: sunucu 'iki adımlı doğrulama kodu gerekli' dedi
+    var totpKod by remember { mutableStateOf("") }
+    LaunchedEffect(mesaj) { if (mesaj.contains("iki adımlı doğrulama kodu gerekli")) { ikiAdimIste = true; mesaj = "Doğrulama uygulamandaki 6 haneli kodu gir." } }
 
     fun cagri(yol: String, post: Boolean = false, govde: JSONObject = JSONObject(), basari: (String) -> Unit) = scope.launch {
         mesgul = true; mesaj = ""
@@ -89,6 +93,9 @@ fun UyeEkrani(url: String, key: String, sp: SharedPreferences, oturumDegisti: ()
                                   keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password))
                 if (sifirla) OutlinedTextField(kod, { kod = it.trim().uppercase(Locale.ROOT) }, label = { Text("E-postadaki 8 karakterli kod") },
                                   singleLine = true, modifier = Modifier.fillMaxWidth())
+                if (ikiAdimIste && !kayitModu && !sifirla) OutlinedTextField(totpKod, { totpKod = it.filter { c -> c.isDigit() }.take(6) },
+                                  label = { Text("Doğrulama kodu (6 hane)") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
+                                  keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
                 if (kayitModu) OutlinedTextField(davet, { davet = it.trim().uppercase(Locale.ROOT) }, label = { Text("Davet kodu (isteğe bağlı)") },
                                   singleLine = true, modifier = Modifier.fillMaxWidth())
                 Spacer(Modifier.height(10.dp))
@@ -98,7 +105,8 @@ fun UyeEkrani(url: String, key: String, sp: SharedPreferences, oturumDegisti: ()
                     } else {
                         val g = JSONObject().put("eposta", eposta).put("parola", parola)
                         if (kayitModu) g.put("davet", davet)
-                        cagri(if (kayitModu) "/uye/kayit" else "/uye/giris", true, g) { girisBitti(it) }
+                        if (ikiAdimIste && !kayitModu) g.put("kod", totpKod)
+                        cagri(if (kayitModu) "/uye/kayit" else "/uye/giris", true, g) { ikiAdimIste = false; totpKod = ""; girisBitti(it) }
                     }
                 }, Modifier.fillMaxWidth(),
                     enabled = !mesgul && eposta.isNotEmpty() && parola.isNotEmpty() && (!sifirla || kod.length >= 8), colors = NxButonRenk()) {
@@ -207,6 +215,10 @@ fun UyeEkrani(url: String, key: String, sp: SharedPreferences, oturumDegisti: ()
                     borsalar = JSONObject(it).optJSONArray("borsalar"); gercek = null; mesaj = "Bağlandı: para çekme izni kapalı doğrulandı."; bitti() } },
                 sil = { b -> cagri("/uye/borsa", true, JSONObject().put("borsa", b).put("sil", true)) { borsalar = JSONObject(it).optJSONArray("borsalar"); gercek = null } },
                 oku = { cagri("/uye/borsa?bakiye=1") { gercek = JSONObject(it) } })
+            IkiAdimKarti(p?.optBoolean("iki_adim") == true, mesgul,
+                kur = { tamam -> cagri("/uye/2fa/kur", true) { tamam(JSONObject(it)) } },
+                onayla = { k -> cagri("/uye/2fa/onayla", true, JSONObject().put("kod", k)) { mesaj = ""; yukle() } },
+                kapat = { pr, k -> cagri("/uye/2fa/kapat", true, JSONObject().put("parola", pr).put("kod", k)) { yukle() } })
             GuvenlikKarti(mesgul,
                 parolaDegistir = { eski, yeni -> cagri("/uye/parola", true, JSONObject().put("eski", eski).put("yeni", yeni)) {
                     oturum = JSONObject(it).optString("oturum"); Kasa.yaz(sp, "oturum", oturum); Oturum.deger = oturum; mesaj = "Parola değişti. Diğer tüm cihazlarda oturum kapandı." } },
@@ -263,6 +275,57 @@ private fun GuvenlikKarti(mesgul: Boolean, parolaDegistir: (String, String) -> U
         }
         TextButton(tumOturumlar, enabled = !mesgul) { Text("Tüm cihazlardaki oturumları kapat", color = Nx.Kirmizi) }
         Text("Kayıp bir cihazınız varsa oturumları kapatın. Borsa anahtarlarınız silinmez.", color = Nx.Soluk, fontSize = 11.sp)
+    }
+}
+
+/** N35: iki adımlı doğrulama (TOTP). Kur -> doğrulama uygulamasına ekle -> ilk kodla onayla. Kapatmak parola + kod ister. */
+@Composable
+private fun IkiAdimKarti(acik: Boolean, mesgul: Boolean, kur: ((JSONObject) -> Unit) -> Unit, onayla: (String) -> Unit,
+                         kapat: (String, String) -> Unit) {
+    val ctx = LocalContext.current
+    var kurulum by remember { mutableStateOf<JSONObject?>(null) }
+    var kod by remember { mutableStateOf("") }
+    var parola by remember { mutableStateOf("") }
+    var kapatAcik by remember { mutableStateOf(false) }
+    LaunchedEffect(acik) { if (acik) { kurulum = null; kod = "" } }
+    Text("İki adımlı doğrulama", color = Nx.Metin, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+    NeonKart(Modifier.fillMaxWidth(), kenar = if (acik) Nx.Kenar else Nx.KenarParlak) {
+        if (acik) {
+            Text("AÇIK · girişte parolaya ek olarak doğrulama uygulamasındaki 6 haneli kod istenir.", color = Nx.Yesil, fontSize = 13.sp)
+            if (!kapatAcik) TextButton({ kapatAcik = true }, enabled = !mesgul) { Text("Kapat", color = Nx.Kirmizi) }
+            else {
+                OutlinedTextField(parola, { parola = it }, label = { Text("Parola") }, singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(kod, { kod = it.filter { c -> c.isDigit() }.take(6) }, label = { Text("Doğrulama kodu") }, singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth())
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button({ kapatAcik = false; parola = ""; kod = "" }, Modifier.weight(1f), colors = NxGriButon()) { Text("Vazgeç") }
+                    Button({ kapat(parola, kod); parola = ""; kod = ""; kapatAcik = false }, Modifier.weight(1f),
+                        enabled = !mesgul && parola.isNotEmpty() && kod.length == 6, colors = NxButonRenk()) { Text("Kapat") }
+                }
+            }
+        } else if (kurulum == null) {
+            Text("KAPALI. Parolan çalınsa bile hesabına girilemesin diye telefonundaki doğrulama uygulamasından " +
+                 "(Google Authenticator, Microsoft Authenticator, 2FAS…) gelen 6 haneli kod da istenir.", color = Nx.Soluk, fontSize = 12.sp)
+            Button({ kur { kurulum = it } }, Modifier.fillMaxWidth(), enabled = !mesgul, colors = NxButonRenk()) { Text("Kur") }
+        } else {
+            val k = kurulum!!
+            Text("1) Doğrulama uygulamasına ekle:", color = Nx.Metin, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+            Button({
+                try { ctx.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(k.optString("uri")))) }
+                catch (e: Exception) { }
+            }, Modifier.fillMaxWidth(), colors = NxGriButon()) { Text("Doğrulama uygulamasında aç") }
+            Text("Açılmazsa uygulamada 'kurulum anahtarı gir' seçip şunu yaz (hesap: NEXORA, zaman tabanlı):", color = Nx.Soluk, fontSize = 12.sp)
+            SelectionContainer { Text(k.optString("gizli").chunked(4).joinToString(" "), color = Nx.Nane, fontSize = 15.sp,
+                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace) }
+            val pano = LocalClipboardManager.current
+            TextButton({ pano.setText(androidx.compose.ui.text.AnnotatedString(k.optString("gizli"))) }) { Text("Anahtarı kopyala", color = Nx.Nane) }
+            Text("2) Uygulamadaki 6 haneli kodu gir:", color = Nx.Metin, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+            OutlinedTextField(kod, { kod = it.filter { c -> c.isDigit() }.take(6) }, label = { Text("Doğrulama kodu") }, singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth())
+            Button({ onayla(kod) }, Modifier.fillMaxWidth(), enabled = !mesgul && kod.length == 6, colors = NxButonRenk()) { Text("Onayla ve aç") }
+            Text("Telefonunu kaybedersen sunucuda: python3 -m nexora.uyelik 2fa-kapat <e-posta>", color = Nx.Soluk, fontSize = 11.sp)
+        }
     }
 }
 

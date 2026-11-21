@@ -120,7 +120,8 @@ class H(BaseHTTPRequestHandler):
     ACIK_POST = {"/uye/kayit", "/uye/giris", "/uye/sifre-unut", "/uye/sifre-sifirla", "/uye/cikis"}
 
     def _yetki(self):
-        if KEY and (self.headers.get("X-API-Key") or "").strip() == KEY: return "kurucu"
+        # API_ANAHTARI_KAPALI=1: kurucu yalnızca e-posta + parola + iki adımlı kodla girer (anahtar yolu kapanır)
+        if KEY and os.getenv("API_ANAHTARI_KAPALI") != "1" and (self.headers.get("X-API-Key") or "").strip() == KEY: return "kurucu"
         u = uyelik.uye((self.headers.get("X-Oturum") or "").strip())
         if not u: return None
         return "kurucu" if u.get("rol") == "kurucu" else "uye"
@@ -150,7 +151,7 @@ class H(BaseHTTPRequestHandler):
         except ValueError: d = {}
         try:
             if yol == "/uye/kayit": self._send(200, {"oturum": uyelik.kayit(d.get("eposta"), d.get("parola"), d.get("davet"))}); return
-            if yol == "/uye/giris": self._send(200, {"oturum": uyelik.giris(d.get("eposta"), d.get("parola"))}); return
+            if yol == "/uye/giris": self._send(200, {"oturum": uyelik.giris(d.get("eposta"), d.get("parola"), kod=d.get("kod"))}); return
             if yol == "/uye/sifre-unut":                    # şifre sıfırlama kodu e-postayla gider; hesap var/yok aynı yanıt
                 from nexora import eposta as _ep
                 def _kod_yolla(alici, kod):
@@ -169,6 +170,9 @@ class H(BaseHTTPRequestHandler):
             if yol == "/uye/parola":                         # N35: parola değiştir; tüm oturumlar kapanır, bu cihaza yeni oturum verilir
                 tok = uyelik.parola_degistir(u["id"], d.get("eski"), d.get("yeni"))
                 self._send(200, {"oturum": tok}); return
+            if yol == "/uye/2fa/kur": self._send(200, uyelik.iki_adim_kur(u["id"])); return          # N35 iki adımlı doğrulama
+            if yol == "/uye/2fa/onayla": uyelik.iki_adim_onayla(u["id"], d.get("kod")); self._send(200, {"ok": True}); return
+            if yol == "/uye/2fa/kapat": uyelik.iki_adim_kapat(u["id"], d.get("parola"), d.get("kod")); self._send(200, {"ok": True}); return
             if yol == "/uye/oturumlari-kapat":               # N35: tüm oturumları kapat (kayıp cihaz için)
                 uyelik.tum_oturumlari_kapat(u["id"]); self._send(200, {"ok": True}); return
             if yol == "/uye/portfoy":

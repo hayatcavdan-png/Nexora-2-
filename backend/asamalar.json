@@ -140,7 +140,7 @@
    "ad": "Çok kullanıcılı ürün",
    "grup": "Ürün",
    "durum": "devam",
-   "yuzde": 40,
+   "yuzde": 45,
    "yapilan": "Paper modda üyelik: e-posta/parola (scrypt), 30 günlük oturum, giriş deneme kilidi; davet kodu ve davetli listesi; üye başına kişisel sanal hesap (katılım anından itibaren, zirve/düşüş, %20 kâr payı gösterimi); bağlantı kayıtları (yalnızca herkese açık adres, Binance kilitli). Hiçbir gizli anahtar saklanmaz; rol ayrımı: kurucu/üye yetkisi sunucuda denetlenir, rol yalnızca sunucuda komutla atanır, üyeye cüzdan adresleri gizli gider; kayıt deneme sınırı",
    "eksik": "Kurucu girişine ikinci doğrulama; sunucuyu dışarıya açma (alan adı, HTTPS) hukuk görüşünden sonra; N29/N30/N36"
   },
@@ -320,9 +320,9 @@
    "ad": "Güvenlik sertleştirme",
    "grup": "Faz 2 · Çoklu platform",
    "durum": "devam",
-   "yuzde": 80,
-   "yapilan": "Anahtarlar loglarda maskeleniyor; karar izi değiştirilemez; pilot anahtarı sunucudan çıkmıyor. 5.9: telefonda sunucu ve oturum anahtarları Android Keystore (AES-256-GCM) ile şifreli; eski düz metin ilk açılışta otomatik şifrelenir. Sunucu kasası (nexora/kasa.py): standart kütüphaneyle önce-şifrele-sonra-doğrula, kayıt bağlamına bağlı etiket, anahtar dosyası 600 izinli ve yedek dışı; kullanıcı borsa anahtarları (N29) için hazır. anahtar_dondur.sh: NEXORA API anahtarını tek komutla yeniler. Parola değiştirme (eski parola doğrulanır, tüm oturumlar kapanır, bu cihaza yeni oturum verilir) ve tüm oturumları kapatma (borsa anahtarlarına dokunmadan); uygulama 5.16.0, Profil › Güvenlik. Kasa anahtarı ve borsa anahtarları şifreli, üye+borsa bağlamlı; e-posta ile şifre sıfırlama (Brevo), rol ayrımı, kayıt sınırı",
-   "eksik": "Kurucu girişine ikinci doğrulama; bağımsız güvenlik denetimi; kasa ana anahtarının çevrimdışı ayrı yedeği"
+   "yuzde": 88,
+   "yapilan": "Anahtarlar loglarda maskeleniyor; karar izi değiştirilemez; pilot anahtarı sunucudan çıkmıyor. 5.9: telefonda sunucu ve oturum anahtarları Android Keystore (AES-256-GCM) ile şifreli; eski düz metin ilk açılışta otomatik şifrelenir. Sunucu kasası (nexora/kasa.py): standart kütüphaneyle önce-şifrele-sonra-doğrula, kayıt bağlamına bağlı etiket, anahtar dosyası 600 izinli ve yedek dışı; kullanıcı borsa anahtarları (N29) için hazır. anahtar_dondur.sh: NEXORA API anahtarını tek komutla yeniler. Parola değiştirme (eski parola doğrulanır, tüm oturumlar kapanır, bu cihaza yeni oturum verilir) ve tüm oturumları kapatma (borsa anahtarlarına dokunmadan); uygulama 5.16.0, Profil › Güvenlik. Kasa anahtarı ve borsa anahtarları şifreli, üye+borsa bağlamlı; e-posta ile şifre sıfırlama (Brevo), rol ayrımı, kayıt sınırı; 21.11: iki adımlı doğrulama (TOTP, RFC 6238): Hesabım > İki adımlı doğrulama ile kurulur; girişte 6 haneli kod; kodlar tekrar kullanılamaz, 5 yanlış denemede 10 dk kilit; kapatmak parola+kod ister; telefon kaybında sunucuda 2fa-kapat; API_ANAHTARI_KAPALI=1 ile kurucu anahtar yolu kapatılabilir",
+   "eksik": "Kurucu hesabında açılması ve API anahtar yolunun kapatılması (kullanıcı); bağımsız güvenlik denetimi; kasa ana anahtarının çevrimdışı yedeği"
   },
   {
    "kod": "N36",

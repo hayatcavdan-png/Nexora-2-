@@ -10,7 +10,7 @@ import json, os, time
 import requests
 
 API = "https://api.anthropic.com/v1/messages"
-MODEL = os.getenv("YZ_YORUM_MODEL", "claude-sonnet-5-5")
+MODEL = os.getenv("YZ_YORUM_MODEL", "claude-haiku-5-5")      # 21.11: en ucuz model (analiz başına ~0,1 sent); istenirse claude-sonnet-5-5
 ONBELLEK_SN = 3600
 YENILE_SN = 300
 GUNLUK = int(os.getenv("YZ_YORUM_GUNLUK", "30"))
