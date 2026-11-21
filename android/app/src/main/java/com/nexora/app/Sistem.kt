@@ -150,6 +150,11 @@ fun TutarlilikKarti(url: String, key: String) {
                          e.optDouble("canli_ort"), e.optDouble("olculen_ort"), e.optDouble("fark_medyan")), color = Nx.Soluk, fontSize = 12.sp)
                 }
             }
+            r.optJSONObject("eslesme")?.let { e ->
+                if (!e.isNull("eksiksizlik"))
+                    Text("Ölçüm kapsamı: ${e.optInt("etiketli_alim")}/${e.optInt("alim")} gerçek alım ölçülüyor (%${e.optInt("eksiksizlik")}; hedef %90+)",
+                         color = if (e.optInt("eksiksizlik") >= 90) Nx.Soluk else Nx.Kehribar, fontSize = 11.sp)
+            }
             Text("Deney masası yalnızca sonucu kesinleşmiş (etiketli) sinyalleri oynatır; ilk günlerde canlıdan az işlem görür.",
                  color = Nx.Soluk, fontSize = 11.sp)
             Text(r.optString("yorum"), color = Nx.Metin, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)

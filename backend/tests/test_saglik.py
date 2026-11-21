@@ -66,6 +66,6 @@ class EslesmeTests(unittest.TestCase):
         c = sqlite3.connect(eyol); c.execute("INSERT INTO etiket_sonuc(event_id, ufuk, ts, getiri_pct) VALUES('W:1','kaynak',1,15.0)")
         c.commit(); c.close()
         r = S.eslesme(pyol, eyol, 0)
-        self.assertEqual((r["n"], r["etiketsiz"]), (1, 1)); self.assertAlmostEqual(r["olculen_ort"], 15.0)
+        self.assertEqual((r["n"], r["etiketsiz"], r["alim"], r["eksiksizlik"]), (1, 1, 2, 0)); self.assertAlmostEqual(r["olculen_ort"], 15.0)
         self.assertGreater(r["fark_ort"], 3); self.assertLess(r["fark_ort"], 6)
         self.assertEqual(S.eslesme("/yok", eyol, 0)["n"], 0)

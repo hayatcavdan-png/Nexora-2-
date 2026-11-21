@@ -176,10 +176,14 @@ def eslesme(paper_db, etiket_db, bas):
     """Aynı sinyal, iki sonuç (21.11): canlıda kapanan her pozisyonun getirisi (K/Z / maliyet) ile o pozisyonu açan sinyalin
     etiket motorundaki 'kaynak' getirisi. Deney masası yalnızca etiketlenmiş alt kümeyi oynatabildiği için (günde 400 sınırı,
     24 sa sonuç) portföy karşılaştırması ilk günlerde yanıltıcıdır; bu eşleştirme doğrudan yürütme farkını ölçer."""
-    out = dict(n=0, canli_ort=None, olculen_ort=None, fark_ort=None, fark_medyan=None, etiketsiz=0)
+    out = dict(n=0, canli_ort=None, olculen_ort=None, fark_ort=None, fark_medyan=None, etiketsiz=0, alim=0, etiketli_alim=0, eksiksizlik=None)
     if not (os.path.exists(paper_db) and os.path.exists(etiket_db)): return out
     p = sqlite3.connect(f"file:{paper_db}?mode=ro", uri=True, timeout=10); e = sqlite3.connect(f"file:{etiket_db}?mode=ro", uri=True, timeout=10)
     try:
+        # N16 eksiksizlik: kopyalanan alımların kaçı etiket motorunda kayıtlı (hedef ≥ %90)
+        alim = [r[0] for r in p.execute("SELECT event_id FROM trades WHERE side='buy' AND decision='KOPYALANDI' AND ts>=?", (bas,))]
+        etk = sum(1 for ev in alim if e.execute("SELECT 1 FROM etiket_olay WHERE event_id=?", (ev,)).fetchone())
+        out.update(alim=len(alim), etiketli_alim=etk, eksiksizlik=round(100 * etk / len(alim)) if alim else None)
         ciftler = []
         for tok, w, ac, cost, pnl in p.execute("""SELECT token, wallet, opened_ts, cost, pnl FROM pos_iz WHERE status='closed' AND tam=1
                                                   AND closed_ts>=? AND cost>0 AND pnl IS NOT NULL""", (bas,)):
