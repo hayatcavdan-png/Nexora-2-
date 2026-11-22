@@ -105,6 +105,7 @@ class Strateji:
     kar_al = zarar_kes = iz = None
     sure_sn = 4 * 3600
     bekleme_sn = 6 * 3600                 # aynı coin'e bu süre içinde yeniden girilmez
+    aktif = True                          # False: yeni giriş yok, açık pozisyonlar kurallarıyla kapanır (durdurulmuş strateji)
 
     def giris(self, g, taban, v, now): return False
 
@@ -156,7 +157,12 @@ class Dip(Strateji):
 # yerine dip alım ölçülüyor. Girişler yalnızca hacme göre en büyük EVREN_SAYI coin'de (küçük coin'de makas ve gürültü zarar ettiriyordu).
 # 17.11.2026 (kullanıcı onayı, borsa deney masası 14 gün): dip alım 7 günde artıda, 14 günde zararda (-3.10$) -> durduruldu.
 # Trend (iz %8) 14 günde en az kaybeden (-0.69$); yalnızca ölçüm için açık.
-STRATEJILER = (Trend(),)
+# 22.11.2026 (kullanıcının genel onayı 'tüm önerilerini uygula'): trend 14 günde 75 işlem, kazanma %19, kâr faktörü 0,50, %-7,09;
+# aynı dönemde BTC'yi tutmak +%0,19. Momentum ve dip gibi durduruldu: yeni giriş yok, 8 açık pozisyon kendi kuralıyla kapanır.
+# Platform 2, BTC'yi tutmayı yenen bir kural deney masasında (borsa_deney.py) kanıtlanmadan yeniden açılmaz.
+_trend = Trend(); _trend.aktif = False
+_trend.aciklama = "DURDURULDU (22.11): 14 günde %-7,09, BTC tutmak +%0,19. Yeni giriş yok; açık pozisyonlar kapanıyor. " + _trend.aciklama
+STRATEJILER = (_trend,)
 EVREN_SAYI = 60
 
 
@@ -195,6 +201,7 @@ class Motor:
                     r = paper.handle_signal(f"{st.ad}:{token}:{int(now)}:sat", st.ad, token, "sell", v["bid"], v["hacim"], 0)
                     if r.get("decision") == "KOPYALANDI": paper._set(f"son_cikis:{token}", str(now)); olay.append((st.ad, "sat", token, neden))
             for taban, v in ev.items():                                        # 2) girişler (yalnızca en hacimli coin'ler)
+                if not st.aktif: break                                         # durdurulmuş strateji: yalnızca çıkışlar
                 if taban not in secili: continue
                 token = f"{v['borsa']}:{taban}/{KARSI}"
                 if paper.position(token): continue

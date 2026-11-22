@@ -92,3 +92,15 @@ class Test(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class DurdurulanTests(unittest.TestCase):
+    def test_durdurulan_yeni_girmez_acigi_kapatir(self):
+        st = P.Trend(); m, pf = motor((st,))
+        tok = "Binance:SOL/" + P.KARSI
+        pf["trend"].handle_signal("x", "trend", tok, "buy", 100.0, 1e7, 0)
+        pf["trend"]._set(f"poz:{tok}", P.json.dumps(dict(giris_fiyat=100.0, giris_ts=0.0, zirve=100.0)))
+        st.aktif = False
+        olay, _ = m.tur(now=10 ** 6, fiyatlar={"Binance": {"SOL": fiyat(90.0), "ETH": fiyat(3000.0)}})
+        self.assertEqual([o[1] for o in olay], ["sat"]); self.assertEqual(pf["trend"].portfolio()["positions"], [])
+        self.assertFalse(P.STRATEJILER[0].aktif)            # canlıda trend durduruldu (22.11)
