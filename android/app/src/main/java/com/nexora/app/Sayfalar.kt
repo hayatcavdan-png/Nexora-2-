@@ -22,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -68,7 +69,7 @@ fun BilgiKutusu(metin: String) {
 fun Hap(metin: String, secili: Boolean, modifier: Modifier = Modifier, secRenk: Color = Nx.MorKoyu, tikla: () -> Unit) {
     Box(modifier.tiklaZipla(tikla = tikla).clip(RoundedCornerShape(50)).background(if (secili) secRenk else Nx.Yuzey2)
         .padding(horizontal = 14.dp, vertical = 9.dp), contentAlignment = Alignment.Center) {
-        Text(metin, color = if (secili) Nx.UstMetin else Nx.Soluk, fontSize = 13.sp, fontWeight = if (secili) FontWeight.SemiBold else FontWeight.Normal,
+        Text(metin, color = if (!secili) Nx.Soluk else if (secRenk.luminance() > 0.45f) Nx.UstMetin else Color.White, fontSize = 13.sp, fontWeight = if (secili) FontWeight.SemiBold else FontWeight.Normal,
              maxLines = 1)
     }
 }

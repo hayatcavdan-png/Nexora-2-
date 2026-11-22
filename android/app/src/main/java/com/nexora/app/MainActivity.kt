@@ -33,14 +33,16 @@ import org.json.JSONObject
 class MainActivity : androidx.fragment.app.FragmentActivity() {   // BiometricPrompt FragmentActivity ister
     override fun onCreate(b: Bundle?) {
         super.onCreate(b)
-        window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(0xFF05080F.toInt()))
+        window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(0xFF0E0B1F.toInt()))
         setContent { MaterialTheme(colorScheme = NxRenkler) { Surface(color = Nx.Zemin) { App() } } }
     }
 }
 
-private val ANA_SEKMELER = setOf("ana", "kesfet", "portfoy", "karne", "profil")
+// 5.26.0 yeni arayüz: üyenin 4 sekmesi + ayrı yönetici modu (yalnızca kurucu; turuncu şerit, alt menü yok)
+private val ANA_SEKMELER = setOf("ana", "cuzdanlar", "islemler", "profil")
+private val YONETICI = setOf("yonetici", "karne", "kesfet", "portfoy", "bot", "sistem", "hl", "rapor", "yol", "hazir", "takip")
 private val ALT_EKRAN = mapOf("rapor" to "Günlük Rapor", "yol" to "Yol Haritası", "takip" to "Takip Edilen Cüzdanlar", "uye" to "Hesabım", "hazir" to "Hazırlık Karnesi",
-                                    "hl" to "Hyperliquid Takibi", "sistem" to "Sistem Sağlığı")
+                                    "hl" to "Hyperliquid Takibi", "sistem" to "Sistem Sağlığı", "ayarlar" to "Ayarlar")
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -73,6 +75,8 @@ fun App() {
     var seciliToken by rememberSaveable { mutableStateOf("") }
     var islemSonuc by remember { mutableStateOf("") }
     var islemMesgul by remember { mutableStateOf(false) }
+    var islemFiltre by rememberSaveable { mutableIntStateOf(0) }
+    var nexoMetni by remember { mutableStateOf<String?>(null) }
 
     // kilit
     var kilitli by remember { mutableStateOf(Kilit.var_(sp)) }
@@ -187,8 +191,16 @@ fun App() {
         islemMesgul = false
     }
     LaunchedEffect(key, url) { while (true) { yukleSessiz(); delay(15_000) } }
-    var rehber by remember { mutableStateOf(!sp.getBoolean("rehber_v1", false)) }
-    fun ust(e: String) = when (e) { "hazir", "rapor" -> "karne"; "takip", "hl" -> "kesfet"; "bot", "sistem", "yol", "uye" -> "profil"; else -> "ana" }
+    LaunchedEffect(key, url) {                                    // NEXO'nun ana sayfa cümlesi (günün özeti, 30 dk'da bir)
+        while (true) {
+            if (key.isNotEmpty() || Oturum.deger.isNotEmpty()) try {
+                nexoMetni = JSONObject(withContext(Dispatchers.IO) { api(url, key, "/asistan", zamanAsimi = 60_000) }).optString("metin").ifBlank { null }
+            } catch (e: CancellationException) { throw e } catch (e: Exception) { }
+            delay(30 * 60_000L)
+        }
+    }
+    fun ust(e: String) = when (e) {
+        "yonetici" -> "profil"; in YONETICI -> "yonetici"; "uye", "ayarlar" -> "profil"; else -> "ana" }
     BackHandler(enabled = ekran != "ana") { ekran = if (ekran in ANA_SEKMELER) "ana" else ust(ekran) }
 
     if (acilis) { AcilisEkrani { acilis = false }; return }
@@ -206,22 +218,21 @@ fun App() {
         )
     }
 
-    val menuSecili = if (ekran in ANA_SEKMELER) ekran else ust(ekran)
+    val yonetici = ekran in YONETICI
+    val menuSecili = if (ekran in ANA_SEKMELER) ekran else if (ekran == "asistan") "ana" else "profil"
     Box(Modifier.fillMaxSize()) {
     AiArkaplan()
-    Scaffold(containerColor = Color.Transparent, bottomBar = { AltMenu2(menuSecili) { ekran = it } }) { pad ->
+    Scaffold(containerColor = Color.Transparent,
+             topBar = { if (yonetici) YoneticiSeridi(ekran == "yonetici", { ekran = "yonetici" }) { ekran = "profil" } },
+             bottomBar = { if (!yonetici) UyeAltMenu(menuSecili) { ekran = it } }) { pad ->
         PullToRefreshBox(isRefreshing = yenileniyor, onRefresh = { cekYenile() }, modifier = Modifier.padding(pad).fillMaxSize()) {
             LazyColumn(
                 Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
-                if (ekran == "ana") item(key = "ust") { OzetUstBaslik({ rehber = true }, { ekran = "rapor" }) }
-                if (ekran == "ana" && rehber) item(key = "rehber") {
-                    NexoraRehberi(v.kurucu, { ekran = it }) { rehber = false; sp.edit().putBoolean("rehber_v1", true).apply() }
-                }
                 if (ekran in ALT_EKRAN) item(key = "alt_bas") {
-                    SayfaBasligi(ALT_EKRAN[ekran]!!, when (ekran) { "takip" -> "Analiz ve takip durumu"; "uye" -> "Üyelik, davet ve bağlantılar"; "hazir" -> "Gerçek paraya geçiş ölçütleri"; "hl" -> "Büyük trader'lar · gölge ölçüm"; "sistem" -> "Servisler, sürüm ve canlı tutarlılık"; else -> "NEXORA" }, geri = { ekran = ust(ekran) })
+                    SayfaBasligi(ALT_EKRAN[ekran]!!, when (ekran) { "takip" -> "Analiz ve takip durumu"; "uye" -> "Giriş, güvenlik ve bağlantılar"; "hazir" -> "Gerçek paraya geçiş ölçütleri"; "hl" -> "Büyük trader'lar · gölge ölçüm"; "sistem" -> "Servisler, sürüm ve canlı tutarlılık"; "ayarlar" -> "Bildirimler, kilit, görünüm, sunucu"; else -> "NEXORA" }, geri = { ekran = ust(ekran) })
                 }
                 val bagliDegil = !v.bagli && v.guncelleme == 0.0
                 if (v.hata.isNotEmpty() && !(bagliDegil && ekran == "ana")) item(key = "hata") { Text(v.hata, color = Nx.Kirmizi, fontSize = 13.sp) }
@@ -231,25 +242,57 @@ fun App() {
                         sp.edit().putString("url", u).apply(); Kasa.yaz(sp, "key", k)
                         if (k.isBlank() && Oturum.deger.isEmpty()) ekran = "uye" else cekYenile()   // üye: önce giriş
                     }
-                } else when (ekran) {
-                    "ana" -> anaSayfa(v, gizle, { gizle = !gizle; sp.edit().putBoolean("gizle", gizle).apply() }, aralik, { aralik = it },
-                                      { ekran = it }, eko, { eko = it }, { mesaj(it) }, { if (v.kurucu) durdurOnay = true })
-                    "karne" -> karne(v, { ekran = it }, if (v.kurucu && v.bagli) ({ TutarlilikKarti(url, key) }) else null)
+                } else if (yonetici && !v.kurucu) item(key = "yon_uye") { BilgiKutusu(KURUCU_NOTU) }
+                else when (ekran) {
+                    // ---- üye görünümü
+                    "ana" -> uyeAnaSayfa(v, gizle, { gizle = !gizle; sp.edit().putBoolean("gizle", gizle).apply() }, aralik, { aralik = it },
+                                         { ekran = it }, nexoMetni)
+                    "cuzdanlar" -> item(key = "cz") { KopyaCuzdanlarEkrani(url, key) }
+                    "islemler" -> uyeIslemler(v, islemFiltre) { islemFiltre = it }
+                    "profil" -> uyeProfil(v, url, key) { ekran = it }
+                    "asistan" -> item(key = "asistan") { AsistanEkrani(url, key) { ekran = "ana" } }
+                    "uye" -> item(key = "uye") { UyeEkrani(url, key, sp, v.kurucu) { cekYenile() } }
+                    "ayarlar" -> {
+                        item(key = "ayarlar") { Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            AyarlarEkrani(v, url, key, bildirim, { acik ->
+                                if (acik && android.os.Build.VERSION.SDK_INT >= 33 &&
+                                    androidx.core.content.ContextCompat.checkSelfPermission(ctx, android.Manifest.permission.POST_NOTIFICATIONS) !=
+                                    android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                                    izinIste.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                                } else bildirimAyarla(acik)
+                            }, { riskKaydet(it) }, { yedekIndir() }) { u, k ->
+                                url = u; key = k
+                                sp.edit().putString("url", u).apply(); Kasa.yaz(sp, "key", k)
+                                if (k.isBlank() && Oturum.deger.isEmpty()) {             // anahtar silindi, oturum yok: giriş ekranına
+                                    v.bagli = false; mesaj("API anahtarı yok: hesabınızla giriş yapın"); ekran = "uye"
+                                } else yenile()
+                            }
+                            KilitAyari(sp)
+                            GorunumAyari(sp)
+                        } }
+                    }
+                    // ---- yönetici modu (yalnızca kurucu)
+                    "yonetici" -> {
+                        yoneticiPaneli(v, url, key) { ekran = it }
+                        item(key = "yp_bugun") { BugunKarti(v, { durdurOnay = true }) { ekran = "portfoy" } }
+                        item(key = "yp_eko") { EkosistemOzeti(v) { ekran = "karne" } }
+                    }
+                    "karne" -> karne(v, { ekran = it }, if (v.bagli) ({ TutarlilikKarti(url, key) }) else null)
                     "kesfet" -> {
-                        item(key = "k_bas") { SekmeBasligi("kesfet", v.kurucu) }
-                        if (v.kurucu) item(key = "k_sekme") {
+                        item(key = "k_bas") { SekmeBasligi("kesfet", true, geri = { ekran = "yonetici" }) }
+                        item(key = "k_sekme") {
                             Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(50)).background(Nx.Yuzey2).padding(4.dp),
                                 horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                 listOf("Solana", "Hyperliquid", "Token'lar", "Analiz")
                                     .forEachIndexed { i, ad -> Hap(ad, kesfetSekme == i, Modifier.weight(1f)) { kesfetSekme = i } }
                             }
                         }
-                        if (v.kurucu && kesfetSekme == 0) item(key = "k_acik0") {
+                        if (kesfetSekme == 0) item(key = "k_acik0") {
                             BilgiKutusu("Solana'da takip edilen cüzdanlar: üstteki 'kopyalanan' cüzdanların alımları sanal parayla kopyalanır; " +
                                         "diğerleri yalnızca izlenir ve ölçülür.")
                         }
-                        if (v.kurucu && kesfetSekme == 2) item(key = "k_eko") { EkosistemSecici(eko, { eko = it }) { mesaj(it) } }
-                        when (if (v.kurucu) kesfetSekme else 2) {
+                        if (kesfetSekme == 2) item(key = "k_eko") { EkosistemSecici(eko, { eko = it }) { mesaj(it) } }
+                        when (kesfetSekme) {
                             0 -> takipListesi(v)
                             1 -> if (v.bagli) item(key = "hl_k") { HlEkrani(url, key) } else item(key = "hl_kb") { BilgiKutusu("Sunucuya bağlı değil.") }
                             2 -> tokenRadar(v, radarArama, { radarArama = it }, radarSira, { radarSira = it }, favoriler,
@@ -258,46 +301,28 @@ fun App() {
                             else -> walletDna(v, dnaAdres, { dnaAdres = it; dnaSonuc = null }, dnaYukleniyor, dnaSonuc, dnaHata) { dnaAnaliz() }
                         }
                     }
-                    "takip" -> if (v.kurucu) takipListesi(v) else item(key = "takip_uye") { BilgiKutusu(KURUCU_NOTU) }
-                    "bot" -> if (!v.kurucu) item(key = "bot_uye") { BilgiKutusu(KURUCU_NOTU) } else {
-                        autoPilot(v, { ekran = "profil" }, { riskKaydet(it) }, { komut("/devam") }, { durdurOnay = true }, { modelKapat() })
+                    "takip" -> takipListesi(v)
+                    "bot" -> {
+                        autoPilot(v, { ekran = "yonetici" }, { riskKaydet(it) }, { komut("/devam") }, { durdurOnay = true }, { modelKapat() })
                         item(key = "bot_ayrinti") { Column(verticalArrangement = Arrangement.spacedBy(12.dp)) { BotEkrani(v, { durdurOnay = true }, { komut("/devam") }) } }
                         if (ekosistemKapsamDisi(eko)) item(key = "sinyal_eko") { BilgiKutusu("Sinyal akışı şimdilik yalnızca Solana öncü cüzdanlarındandır. Bu ekosistemin sinyalleri ayrı izlenir; sonuçları Karne sekmesinde.") }
                         else items(v.sinyaller, key = { "s_" + it.ts + it.token + it.yon }) { SinyalKarti(it) }
                     }
                     "portfoy" -> {
                         item(key = "pf_eko") { EkosistemSecici(eko, { eko = it }) { mesaj(it) } }
-                        portfoy(v, { ekran = "ana" }, portfoySekme, { portfoySekme = it }, { t ->
-                        if (v.kurucu) { manuelIslem(t, "sell", null); mesaj("Kapatma isteği gönderildi") } else mesaj(KURUCU_NOTU) }, eko) {
-                        if (v.kurucu) IslemFormu(v, seciliToken, { seciliToken = it }, { t, y, u -> manuelIslem(t, y, u) }, islemSonuc, islemMesgul)
+                        portfoy(v, { ekran = "yonetici" }, portfoySekme, { portfoySekme = it }, { t ->
+                        manuelIslem(t, "sell", null); mesaj("Kapatma isteği gönderildi") }, eko) {
+                        IslemFormu(v, seciliToken, { seciliToken = it }, { t, y, u -> manuelIslem(t, y, u) }, islemSonuc, islemMesgul)
                     } }
-                    "profil" -> profil(v, { ekran = it }) {
-                        AyarlarEkrani(v, url, key, bildirim, { acik ->
-                            if (acik && android.os.Build.VERSION.SDK_INT >= 33 &&
-                                androidx.core.content.ContextCompat.checkSelfPermission(ctx, android.Manifest.permission.POST_NOTIFICATIONS) !=
-                                android.content.pm.PackageManager.PERMISSION_GRANTED) {
-                                izinIste.launch(android.Manifest.permission.POST_NOTIFICATIONS)
-                            } else bildirimAyarla(acik)
-                        }, { riskKaydet(it) }, { yedekIndir() }) { u, k ->
-                            url = u; key = k
-                            sp.edit().putString("url", u).apply(); Kasa.yaz(sp, "key", k)
-                            if (k.isBlank() && Oturum.deger.isEmpty()) {             // anahtar silindi, oturum yok: giriş ekranına
-                                v.bagli = false; mesaj("API anahtarı yok: hesabınızla giriş yapın"); ekran = "uye"
-                            } else yenile()
-                        }
-                        KilitAyari(sp)
-                        GorunumAyari(sp)
-                    }
                     "hazir" -> item(key = "hazir") { HazirlikEkrani(v) }
-                    "sistem" -> if (v.kurucu && v.bagli) {
+                    "sistem" -> if (v.bagli) {
                         item(key = "sistem_tut") { TutarlilikKarti(url, key) }
                         item(key = "sistem") { SistemEkrani(url, key) }
-                    } else item(key = "sistem_uye") { BilgiKutusu(KURUCU_NOTU) }
-                    "hl" -> if (v.kurucu && v.bagli) item(key = "hl") { HlEkrani(url, key) } else item(key = "hl_uye") { BilgiKutusu(KURUCU_NOTU) }
-                    "uye" -> item(key = "uye") { UyeEkrani(url, key, sp) { cekYenile() } }
+                    } else item(key = "sistem_yok") { BilgiKutusu("Sunucuya bağlı değil.") }
+                    "hl" -> if (v.bagli) item(key = "hl") { HlEkrani(url, key) } else item(key = "hl_yok") { BilgiKutusu("Sunucuya bağlı değil.") }
                     "rapor" -> {
-                        if (v.kurucu && v.bagli) item(key = "teshis") { TeshisKarti(url, key) }
-                        if (v.kurucu && v.bagli) item(key = "teshis_yz") { YzAnalizKarti(url, key, "teshis") }
+                        if (v.bagli) item(key = "teshis") { TeshisKarti(url, key) }
+                        if (v.bagli) item(key = "teshis_yz") { YzAnalizKarti(url, key, "teshis") }
                         item(key = "rapor") { Column(verticalArrangement = Arrangement.spacedBy(12.dp)) { RaporEkrani(v) } }
                     }
                     "yol" -> {
@@ -313,7 +338,7 @@ fun App() {
                         items(v.asamalar, key = { "a_" + it.kod }) { AsamaKarti(it) }
                     }
                 }
-                if (v.guncelleme > 0) item(key = "son") {
+                if (v.guncelleme > 0 && ekran != "asistan") item(key = "son") {
                     Text("Son güncelleme ${saat(v.guncelleme)} · aşağı çekerek yenileyin", color = Nx.Soluk, fontSize = 11.sp,
                          modifier = Modifier.fillMaxWidth())
                 }
@@ -383,4 +408,4 @@ fun BaglanKarti(url: String, key: String, hata: String, kaydet: (String, String)
 
 /** Üye ekranlarında kurucuya ait bölümler yerine gösterilir. Yetki sunucuda denetlenir; bu yalnızca açıklamadır. */
 const val KURUCU_NOTU = "Bu bölüm kurucu tarafından yönetilir: cüzdan seçimi, risk sınırları ve acil durdurma. " +
-    "Sonuçları Ana Sayfa, Portföy ve Karne'de görebilirsiniz."
+    "Sonuçları Ana Sayfa, Cüzdanlar ve İşlemler'de görebilirsiniz."

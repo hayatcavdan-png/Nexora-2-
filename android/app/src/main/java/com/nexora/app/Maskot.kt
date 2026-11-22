@@ -19,6 +19,13 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.drawText
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
@@ -43,6 +50,7 @@ private val SAC = listOf(Color(0xFF6A78C4), Color(0xFF2C3570), Color(0xFF171C40)
 private val GOZ = listOf(Color(0xFFFFE9B8), Color(0xFFFFB13D), Color(0xFFB45A12))
 private val ATES = listOf(Color(0xFFFFD27A), Color(0xFFFF4D00), Color(0xFFC40000))
 private val LED = Color(0xFFFFC24D)
+private val NEON = Color(0xFF2EF2FF)
 private val EKRAN_KOYU = Color(0xFF0B1326)
 private val YUVARLAK_GOZLU = setOf(NexoIfade.GULUS, NexoIfade.MERAK, NexoIfade.ENDISE, NexoIfade.DUSUN, NexoIfade.ODAK)
 
@@ -141,7 +149,7 @@ private fun DrawScope.nexoKafaCiz(ifade: NexoIfade, kapali: Boolean, nabiz: Floa
     val govde = Brush.linearGradient(GOVDE, Offset(32f, 48f), Offset(168f, 172f))
     for (cx in listOf(30f, 170f)) {
         drawCircle(Brush.linearGradient(GOVDE, Offset(cx - 13f, 97f), Offset(cx + 13f, 123f)), 13f, Offset(cx, 110f))
-        drawCircle(LED.copy(alpha = 0.5f + 0.5f * nabiz), 5.5f, Offset(cx, 110f))
+        drawCircle(NEON.copy(alpha = 0.25f * nabiz), 10f, Offset(cx, 110f)); drawCircle(NEON.copy(alpha = 0.55f + 0.45f * nabiz), 5.5f, Offset(cx, 110f))
     }
     drawRoundRect(govde, Offset(32f, 48f), Size(136f, 124f), CornerRadius(50f))
     drawPath(yol { moveTo(48f, 70f); quadraticBezierTo(60f, 54f, 84f, 52f) }, Color.White.copy(alpha = 0.55f), style = Stroke(5f, cap = StrokeCap.Round))
@@ -173,18 +181,26 @@ private fun DrawScope.el(x: Float, y: Float) {
 }
 
 /** Gövde ve eller (200×270 ızgara). f: 0..2π döngü açısı. */
-private fun DrawScope.nexoGovdeCiz(poz: NexoPoz, f: Float) {
-    drawOval(Nx.Nane.copy(alpha = 0.14f + 0.08f * (0.5f + 0.5f * sin(f))), Offset(44f, 248f), Size(112f, 16f))
+private fun DrawScope.nexoGovdeCiz(poz: NexoPoz, f: Float, yazi: TextLayoutResult?) {
+    drawOval(NEON.copy(alpha = 0.16f + 0.10f * (0.5f + 0.5f * sin(f))), Offset(44f, 248f), Size(112f, 16f))
     drawRoundRect(Color(0xFF0A6F60), Offset(88f, 166f), Size(24f, 16f), CornerRadius(5f))
     val g = yol {
         moveTo(62f, 196f); quadraticBezierTo(62f, 178f, 80f, 176f); lineTo(120f, 176f); quadraticBezierTo(138f, 178f, 138f, 196f)
         lineTo(132f, 232f); quadraticBezierTo(130f, 244f, 118f, 244f); lineTo(82f, 244f); quadraticBezierTo(70f, 244f, 68f, 232f); close()
     }
     drawPath(g, Brush.linearGradient(GOVDE, Offset(62f, 176f), Offset(138f, 244f)))
-    drawCircle(LED.copy(alpha = 0.25f + 0.2f * (0.5f + 0.5f * sin(f * 2))), 17f, Offset(100f, 206f))
-    drawCircle(Color(0xFF071022), 13f, Offset(100f, 206f)); drawCircle(LED, 13f, Offset(100f, 206f), style = Stroke(2f))
-    val x = Brush.linearGradient(ATES, Offset(94f, 200f), Offset(106f, 212f))
-    drawLine(x, Offset(94f, 200f), Offset(106f, 212f), 4f, StrokeCap.Round); drawLine(x, Offset(106f, 200f), Offset(94f, 212f), 4f, StrokeCap.Round)
+    // 5.26.0: göğüste neon "NEXO" ekranı (X, amblemdeki gibi ateş kızılı)
+    drawRoundRect(Color.White.copy(alpha = 0.35f), Offset(70f, 182f), Size(26f, 5f), CornerRadius(3f))       // gövde parlaması
+    val isik = 0.5f + 0.5f * sin(f * 2)
+    drawRoundRect(NEON.copy(alpha = 0.18f + 0.22f * isik), Offset(67f, 191f), Size(66f, 32f), CornerRadius(12f))
+    drawRoundRect(Brush.verticalGradient(listOf(Color(0xFF15122B), Color(0xFF07051A)), 194f, 220f), Offset(71f, 194f), Size(58f, 26f), CornerRadius(9f))
+    drawRoundRect(NEON.copy(alpha = 0.6f + 0.4f * isik), Offset(71f, 194f), Size(58f, 26f), CornerRadius(9f), style = Stroke(1.6f))
+    if (yazi != null) {
+        val sk = 48f / yazi.size.width
+        withTransform({ translate(100f - yazi.size.width * sk / 2f, 207f - yazi.size.height * sk / 2f); scale(sk, sk, pivot = Offset.Zero) }) {
+            drawText(yazi)
+        }
+    }
     val s = sin(f * 2)
     when (poz) {
         NexoPoz.KAVUS -> { el(82f, 228f + 1.5f * s); el(118f, 226f - 1.5f * s) }
@@ -200,13 +216,23 @@ fun Nexo(boyut: Dp, ifade: NexoIfade = NexoIfade.GULUS, poz: NexoPoz = NexoPoz.K
     val t = rememberInfiniteTransition(label = "nexo").animateFloat(0f, 1f, infiniteRepeatable(tween(4000, easing = LinearEasing)), label = "t")
     var kapali by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { while (true) { delay(2200L + (0..2800).random()); kapali = true; delay(130); kapali = false } }
+    val olcer = rememberTextMeasurer()
+    val yazi = remember(olcer) {
+        olcer.measure(buildAnnotatedString {
+            withStyle(SpanStyle(color = NEON)) { append("NE") }
+            withStyle(SpanStyle(color = Color(0xFFFF6A1A))) { append("X") }
+            withStyle(SpanStyle(color = NEON)) { append("O") }
+        }, TextStyle(fontFamily = Orbitron, fontWeight = FontWeight.Black, fontSize = 20.sp, letterSpacing = 1.sp,
+                     shadow = Shadow(NEON, blurRadius = 10f)))
+    }
     Canvas(modifier.size(boyut, boyut * 1.35f)) {
         val o = size.width / 200f
         val f = (t.value * 2 * PI).toFloat()
         val nabiz = 0.5f + 0.5f * sin(f * 2)
         val ziplama = if (poz == NexoPoz.SEVINC) -8f * abs(sin(f * 3)) else 0f
         withTransform({ scale(o, o, pivot = Offset.Zero); translate(0f, (if (ifade == NexoIfade.UYKU) 5f else -5f * sin(f)) + ziplama) }) {
-            nexoGovdeCiz(poz, f)
+            drawCircle(Brush.radialGradient(listOf(NEON.copy(alpha = 0.16f + 0.06f * nabiz), Color.Transparent), Offset(100f, 150f), 120f), 120f, Offset(100f, 150f))
+            nexoGovdeCiz(poz, f, yazi)
             nexoKafaCiz(ifade, kapali, nabiz, kivilcim = ifade != NexoIfade.UYKU)
             when (ifade) {
                 NexoIfade.UYKU -> for (i in 0..1) {

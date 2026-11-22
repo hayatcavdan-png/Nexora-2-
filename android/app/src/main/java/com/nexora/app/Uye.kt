@@ -33,7 +33,7 @@ import java.util.Locale
  * Oturum anahtarı yalnızca bu cihazda (SharedPreferences) tutulur.
  */
 @Composable
-fun UyeEkrani(url: String, key: String, sp: SharedPreferences, oturumDegisti: () -> Unit = {}) {
+fun UyeEkrani(url: String, key: String, sp: SharedPreferences, kurucu: Boolean = false, oturumDegisti: () -> Unit = {}) {
     val scope = rememberCoroutineScope()
     var oturum by remember { mutableStateOf(Kasa.oku(sp, "oturum")) }
     var profil by remember { mutableStateOf<JSONObject?>(null) }
@@ -67,7 +67,7 @@ fun UyeEkrani(url: String, key: String, sp: SharedPreferences, oturumDegisti: ()
     fun yukle() {
         cagri("/uye/ben") { profil = JSONObject(it) }
         cagri("/uye/bakiye") { bakiye = JSONObject(it) }
-        cagri("/uye/borsa") { borsalar = JSONObject(it).optJSONArray("borsalar") }
+        if (kurucu) cagri("/uye/borsa") { borsalar = JSONObject(it).optJSONArray("borsalar") }   // 5.26.0: borsalar üyeye görünmez
     }
     fun girisBitti(r: String) {
         oturum = JSONObject(r).optString("oturum"); Kasa.yaz(sp, "oturum", oturum); parola = ""
@@ -210,7 +210,7 @@ fun UyeEkrani(url: String, key: String, sp: SharedPreferences, oturumDegisti: ()
                     kaydet = { adres -> cagri("/uye/baglanti", true, JSONObject().put("tur", b.optString("tur")).put("adres", adres)) { profil = JSONObject(it) } },
                     sil = { cagri("/uye/baglanti", true, JSONObject().put("tur", b.optString("tur")).put("sil", true)) { profil = JSONObject(it) } })
             }
-            BorsaHesaplari(borsalar, gercek, mesgul,
+            if (kurucu) BorsaHesaplari(borsalar, gercek, mesgul,
                 bagla = { b, k, g, p, bitti -> cagri("/uye/borsa", true, JSONObject().put("borsa", b).put("api_key", k).put("api_secret", g).put("passphrase", p)) {
                     borsalar = JSONObject(it).optJSONArray("borsalar"); gercek = null; mesaj = "Bağlandı: para çekme izni kapalı doğrulandı."; bitti() } },
                 sil = { b -> cagri("/uye/borsa", true, JSONObject().put("borsa", b).put("sil", true)) { borsalar = JSONObject(it).optJSONArray("borsalar"); gercek = null } },
@@ -223,7 +223,7 @@ fun UyeEkrani(url: String, key: String, sp: SharedPreferences, oturumDegisti: ()
                 parolaDegistir = { eski, yeni -> cagri("/uye/parola", true, JSONObject().put("eski", eski).put("yeni", yeni)) {
                     oturum = JSONObject(it).optString("oturum"); Kasa.yaz(sp, "oturum", oturum); Oturum.deger = oturum; mesaj = "Parola değişti. Diğer tüm cihazlarda oturum kapandı." } },
                 tumOturumlar = { cagri("/uye/oturumlari-kapat", true) { oturum = ""; Oturum.deger = ""; sp.edit().remove("oturum").apply(); profil = null; bakiye = null; mesaj = "Tüm oturumlar kapatıldı. Tekrar giriş yapın." } })
-            BilgiKutusu("Sistem sunucuları (Helius, Jupiter) sizin adınıza ayrı anahtar gerektirmez. Borsa anahtarınızla şu an yalnızca bakiye okunur; uygulama emir göndermez ve para çekemez.")
+            if (kurucu) BilgiKutusu("Sistem sunucuları (Helius, Jupiter) sizin adınıza ayrı anahtar gerektirmez. Borsa anahtarınızla şu an yalnızca bakiye okunur; uygulama emir göndermez ve para çekemez.")
         }
     }
 }

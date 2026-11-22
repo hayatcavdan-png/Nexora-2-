@@ -57,10 +57,10 @@ def kural_yorumu_hl(r):
     return " ".join(L)
 
 
-def _cagir(anahtar, metin, s=None):
+def _cagir(anahtar, metin, s=None, sistem=None, max_tokens=900):
     s = s or requests
     r = s.post(API, timeout=60, headers={"x-api-key": anahtar, "anthropic-version": "2023-06-01", "content-type": "application/json"},
-               json=dict(model=MODEL, max_tokens=900, system=SISTEM, messages=[{"role": "user", "content": metin}]))
+               json=dict(model=MODEL, max_tokens=max_tokens, system=sistem or SISTEM, messages=[{"role": "user", "content": metin}]))
     if r.status_code != 200:
         raise RuntimeError(f"HTTP {r.status_code}: {r.text[:160]}")
     return "".join(b.get("text", "") for b in r.json().get("content") or [] if b.get("type") == "text").strip()

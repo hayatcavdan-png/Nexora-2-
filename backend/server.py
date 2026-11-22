@@ -124,7 +124,8 @@ class H(BaseHTTPRequestHandler):
     # ---- Rol ayrımı. kurucu: API anahtarı ya da rolü 'kurucu' olan üye oturumu. uye: herhangi bir geçerli üye oturumu.
     # Üye yalnızca UYE_GET listesindeki okumaları ve kendi /uye/* işlemlerini yapabilir; geri kalan her şey kurucuya aittir.
     # Yetki SUNUCUDA denetlenir: uygulama kurcalansa bile üye kurucu işlemi yapamaz.
-    UYE_GET = {"/durum", "/portfoy", "/islemler", "/gecmis", "/olaylar", "/radar", "/uye/ben", "/uye/borsa", "/uye/bakiye"}
+    UYE_GET = {"/durum", "/portfoy", "/islemler", "/gecmis", "/olaylar", "/radar", "/uye/ben", "/uye/borsa", "/uye/bakiye",
+               "/kopya-ozet", "/asistan"}   # 5.26.0: yeni üye ekranları
     ACIK_POST = {"/uye/kayit", "/uye/giris", "/uye/sifre-unut", "/uye/sifre-sifirla", "/uye/cikis"}
 
     def _yetki(self):
@@ -306,6 +307,12 @@ class H(BaseHTTPRequestHandler):
         if parts.path == "/hl":                             # N39: Hyperliquid gölge ölçümü (yalnızca kurucu)
             from nexora import hl
             self._send(200, hl.ekran(os.getenv("HL_DB", "nexora_hl.db"))); return
+        if parts.path == "/kopya-ozet":                     # 5.26.0: kopyalanan cüzdanlar, takma adla (üye de görür)
+            from nexora import uye_ekran
+            self._send(200, uye_ekran.kopya_ozet(os.getenv("NEXORA_DB", "nexora_paper.db"), os.getenv("TRACKER_DB", "nexora_tracker.db"))); return
+        if parts.path == "/asistan":                        # 5.26.0: NEXO günün özeti (üye de görür; salt okunur)
+            from nexora import asistan
+            self._send(200, asistan.ozet(paper)); return
         if parts.path == "/yz-analiz":                      # yapay zekâ yorumu (yalnızca kurucu; salt okunur)
             from nexora import yz_yorum, hl
             q = parse_qs(parts.query); konu = (q.get("konu") or ["hl"])[0]; yenile = (q.get("yenile") or ["0"])[0] == "1"
@@ -353,6 +360,14 @@ class H(BaseHTTPRequestHandler):
         if not izin: return
         n = int(self.headers.get("Content-Length", 0) or 0)
         raw = self.rfile.read(n) if n else b"{}"
+        if self.path == "/uye/asistan":                      # 5.26.0: NEXO Asistan'a soru (kurucu anahtarla da sorabilir)
+            from nexora import asistan
+            try: d = json.loads(raw or b"{}")
+            except ValueError: d = {}
+            u = uyelik.uye((self.headers.get("X-Oturum") or "").strip())
+            try: self._send(200, asistan.sor(paper, u["id"] if u else "kurucu", d.get("soru")))
+            except ValueError as e: self._send(400, {"hata": str(e)})
+            return
         if self.path.startswith("/uye/"): self._uye_islem(self.path, raw); return
         if self.path == "/acil-durdur": paper.set_kill(True); self._send(200, {"acil_durdurma": True})
         elif self.path == "/devam": paper.set_kill(False); self._send(200, {"acil_durdurma": False})

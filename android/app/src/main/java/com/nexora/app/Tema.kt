@@ -39,37 +39,39 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-/** NEXORA AI teması: mürekkep laciverti zemin, nane yeşili ana renk, yapay zekâ öğelerinde nane→gök→lila→pembe geçişi.
- *  (Mor/Camgobegi adları eski koddan kalma takma adlardır: Mor = nane, Camgobegi = gök mavisi.) */
+/** NEXORA teması (5.26.0, yeni arayüz): gece moru zemin, menekşe ana renk, neon camgöbeği ve neon yeşil vurgular.
+ *  (Eski adlar korunur: Nane = neon yeşil, Gok = neon camgöbeği, Mor = açık menekşe.) */
 object Nx {
-    val Zemin = Color(0xFF05080F)
-    val Yuzey = Color(0xFF0C1524)
-    val Yuzey2 = Color(0xFF13203A)
-    val Cizgi = Color(0xFF1E3050)
-    val Nane = Color(0xFF2DF5C0)
-    val Gok = Color(0xFF4FB8FF)
-    val Lila = Color(0xFF9B7BFF)
+    val Zemin = Color(0xFF0E0B1F)
+    val Yuzey = Color(0xFF15122B)
+    val Yuzey2 = Color(0xFF1C1736)
+    val Cizgi = Color(0xFF2A2350)
+    val Nane = Color(0xFF39FF88)          // neon yeşil: kazanç, "çalışıyor"
+    val Gok = Color(0xFF2EF2FF)           // neon camgöbeği: bağlantılar, seçili menü, grafik
+    val Lila = Color(0xFFA78BFA)
+    val Menekse = Color(0xFF7C3AED)       // ana kart ve düğmeler
     val Kehribar = Color(0xFFFFC24D)
-    val Mor = Nane
-    val MorKoyu = Color(0xFF1FD9A8)
-    val MorAcik = Color(0xFF8CFFE0)
-    val Pembe = Color(0xFFFF5CA8)
+    val Turuncu = Color(0xFFF59E0B)       // yönetici modu
+    val Mor = Lila
+    val MorKoyu = Menekse
+    val MorAcik = Color(0xFFC4B5FD)
+    val Pembe = Color(0xFFFF3EA5)
     val Camgobegi = Gok
     val Mavi = Color(0xFF3B82F6)
-    val Yesil = Color(0xFF2DF5C0)
-    val Limon = Color(0xFF8CFFE0)
-    val Kirmizi = Color(0xFFFF4D5E)
+    val Yesil = Nane
+    val Limon = Color(0xFFA7FFC9)
+    val Kirmizi = Color(0xFFFB7185)
     val Sari = Kehribar
-    val Metin = Color(0xFFF4F8FF)
-    val Soluk = Color(0xFF8FA3C8)
-    val UstMetin = Color(0xFF03130E)          // nane zemin üstündeki koyu yazı
-    val Kahraman = Color(0xFF0E1E33)
-    val SeciliZemin = Color(0xFF10303A)
-    val AiRenkler = listOf(Nane, Gok, Lila, Pembe)
-    val Kenar = Brush.linearGradient(listOf(Color(0xFF1E3A55), Color(0xFF16283F)))
+    val Metin = Color(0xFFF5F3FF)
+    val Soluk = Color(0xFFA7A3C2)
+    val UstMetin = Color(0xFF04210F)      // neon yeşil zemin üstündeki koyu yazı
+    val Kahraman = Color(0xFF1C1736)
+    val SeciliZemin = Color(0xFF2A1F55)
+    val AiRenkler = listOf(Gok, Lila, Pembe, Nane)
+    val Kenar = Brush.linearGradient(listOf(Color(0xFF3B2F73), Color(0xFF241E45)))
     val KenarParlak = Brush.linearGradient(AiRenkler)
-    val KenarYesil = Brush.linearGradient(listOf(Color(0xFF1F7A62), Color(0xFF1B5E52)))
-    val DolguMor = Brush.linearGradient(listOf(Color(0xFF0F1D33), Color(0xFF0A1322)))
+    val KenarYesil = Brush.linearGradient(listOf(Color(0xFF1F7A4C), Color(0xFF145A38)))
+    val DolguMor = Brush.linearGradient(listOf(Color(0xFF1C1736), Color(0xFF15122B)))
 }
 
 val NxRenkler = darkColorScheme(
@@ -173,15 +175,15 @@ fun Satir(sol: String, sag: String, sagRenk: Color = Nx.Metin) {
     }
 }
 
-/** Birincil düğme: beyaz hap, koyu yazı (yorucu olmayan yüksek kontrast). */
+/** Birincil düğme: menekşe, beyaz yazı. */
 @Composable
-fun NxButonRenk() = ButtonDefaults.buttonColors(containerColor = Nx.Nane, contentColor = Nx.UstMetin)
+fun NxButonRenk() = ButtonDefaults.buttonColors(containerColor = Nx.Menekse, contentColor = Color.White)
 
 @Composable
 fun NxYesilButon() = ButtonDefaults.buttonColors(containerColor = Nx.Nane, contentColor = Nx.UstMetin)
 
 @Composable
-fun NxGriButon() = ButtonDefaults.buttonColors(containerColor = Color(0xFF1A2740), contentColor = Nx.Metin)
+fun NxGriButon() = ButtonDefaults.buttonColors(containerColor = Nx.Yuzey2, contentColor = Nx.Metin)
 
 @Composable
 fun Nokta(renk: Color) { Box(Modifier.size(8.dp).clip(CircleShape).background(renk)) }

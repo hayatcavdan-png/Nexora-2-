@@ -52,6 +52,8 @@ backend/hl_cuzdanlar.txt
 backend/hl_cuzdanlar.txt.tmp
 backend/saglik_durum.json
 backend/yz_yorum_*.json
+backend/asistan_ozet.json
+backend/asistan_sayac.json
 backend/yz_model_rapor.txt
 backend/gercek_ayar.json
 backend/nexora_gercek.db*
