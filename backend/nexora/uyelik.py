@@ -27,6 +27,16 @@ BAGLANTILAR = {
 }
 BORSA_DENEME, BORSA_PENCERE_SN = 10, 3600
 SIFIRLA_SN, SIFIRLA_TALEP, SIFIRLA_DENEME = 30 * 60, 3, 5     # kod 30 dk geçerli; 10 dk içinde en çok 3 istek, 5 yanlış deneme
+KAYIT_KOD_SN, KAYIT_KOD_DENEME = 30 * 60, 5                       # e-posta onay kodu: 30 dk, 5 yanlış denemede iptal
+ENGELLI_POSTA_VARSAYILAN = {"mailinator.com", "guerrillamail.com", "10minutemail.com", "tempmail.com", "temp-mail.org",
+                            "yopmail.com", "trashmail.com", "sharklasers.com", "getnada.com", "dispostable.com"}
+
+
+def engelli_posta(eposta):
+    """Tek kullanımlık/geçici e-posta sağlayıcısı mı? Liste varsayılan + NEXORA_ENGELLI_POSTA (virgüllü) ile genişletilebilir."""
+    alan = (eposta.rsplit("@", 1)[-1] if "@" in eposta else "").lower()
+    ek = {x.strip().lower() for x in os.getenv("NEXORA_ENGELLI_POSTA", "").split(",") if x.strip()}
+    return alan in (ENGELLI_POSTA_VARSAYILAN | ek)
 
 
 class UyelikHatasi(ValueError):
@@ -94,6 +104,8 @@ class Uyelik:
         CREATE TABLE IF NOT EXISTS uye_portfoy(uye INTEGER PRIMARY KEY, baslangic REAL NOT NULL, giris_deger REAL NOT NULL,
             zirve REAL NOT NULL, ts REAL NOT NULL);
         CREATE TABLE IF NOT EXISTS sifirla(uye INTEGER PRIMARY KEY, ozet TEXT NOT NULL, bitis REAL NOT NULL);
+        CREATE TABLE IF NOT EXISTS kayit_bekleyen(eposta TEXT PRIMARY KEY, tuz BLOB NOT NULL, ozet BLOB NOT NULL, davet_eden INTEGER,
+            kod_ozet TEXT NOT NULL, bitis REAL NOT NULL, deneme INTEGER NOT NULL DEFAULT 0);
         CREATE TABLE IF NOT EXISTS borsa_anahtar(uye INTEGER NOT NULL, borsa TEXT NOT NULL, sifreli TEXT NOT NULL, maske TEXT NOT NULL,
             izin TEXT NOT NULL, ts REAL NOT NULL, PRIMARY KEY(uye, borsa));
         """)
@@ -147,6 +159,54 @@ class Uyelik:
             self.db.commit()
         except sqlite3.IntegrityError:
             raise UyelikHatasi("bu e-posta zaten kayıtlı") from None
+        return self._oturum(c.lastrowid)
+
+    def kayit_iste(self, eposta, parola, davet="", gonder=None, now=None):
+        """E-posta onaylı kayıt, 1. adım: bilgileri bekletir, 6 haneli kodu `gonder(eposta, kod)` ile yollar.
+        Hesap, kod doğrulanana kadar AÇILMAZ. Dönüş: {'onay_gerekli': True}."""
+        now = now or time.time()
+        if gonder is None: raise UyelikHatasi("e-posta gönderici tanımlı değil")
+        if self._say("kayit", now) >= self.KAYIT_SINIRI: raise PermissionError("çok fazla kayıt denemesi: biraz sonra tekrar deneyin")
+        self.db.execute("INSERT INTO giris_deneme VALUES('kayit', ?)", (now,)); self.db.commit()
+        eposta = (eposta or "").strip().lower()
+        if not EPOSTA_RE.match(eposta): raise UyelikHatasi("e-posta geçersiz")
+        if engelli_posta(eposta): raise UyelikHatasi("bu e-posta sağlayıcısı kabul edilmiyor; gerçek bir e-posta adresi kullanın")
+        if not isinstance(parola, str) or not 8 <= len(parola) <= 128: raise UyelikHatasi("parola 8-128 karakter olmalı")
+        if self.db.execute("SELECT 1 FROM uye WHERE eposta=?", (eposta,)).fetchone():
+            raise UyelikHatasi("bu e-posta zaten kayıtlı")
+        eden = None
+        davet = (davet or "").strip().upper()
+        if davet:
+            r = self.db.execute("SELECT id FROM uye WHERE davet_kodu=?", (davet,)).fetchone()
+            if not r: raise UyelikHatasi("davet kodu geçersiz")
+            eden = r["id"]
+        tuz = secrets.token_bytes(16)
+        kod = f"{secrets.randbelow(10 ** 6):06d}"
+        self.db.execute("INSERT OR REPLACE INTO kayit_bekleyen(eposta,tuz,ozet,davet_eden,kod_ozet,bitis,deneme) VALUES(?,?,?,?,?,?,0)",
+                        (eposta, tuz, _ozet(parola, tuz), eden, hashlib.sha256(kod.encode()).hexdigest(), now + KAYIT_KOD_SN))
+        self.db.commit()
+        gonder(eposta, kod)
+        return dict(onay_gerekli=True)
+
+    def kayit_onayla(self, eposta, kod, now=None):
+        """E-posta onaylı kayıt, 2. adım: kod doğruysa hesabı açar ve oturum döner. Kod tek kullanımlık."""
+        now = now or time.time(); eposta = (eposta or "").strip().lower()
+        hata = UyelikHatasi("kod geçersiz veya süresi dolmuş")
+        b = self.db.execute("SELECT * FROM kayit_bekleyen WHERE eposta=?", (eposta,)).fetchone()
+        if b is None: raise hata
+        if b["bitis"] < now or b["deneme"] >= KAYIT_KOD_DENEME:
+            self.db.execute("DELETE FROM kayit_bekleyen WHERE eposta=?", (eposta,)); self.db.commit(); raise hata
+        ok = hmac.compare_digest(b["kod_ozet"], hashlib.sha256(str(kod or "").strip().encode()).hexdigest())
+        if not ok:
+            self.db.execute("UPDATE kayit_bekleyen SET deneme=deneme+1 WHERE eposta=?", (eposta,)); self.db.commit()
+            raise hata
+        try:
+            c = self.db.execute("INSERT INTO uye(eposta,tuz,ozet,davet_kodu,davet_eden,ts) VALUES(?,?,?,?,?,?)",
+                                (eposta, b["tuz"], b["ozet"], self._kod(), b["davet_eden"], now))
+        except sqlite3.IntegrityError:
+            raise UyelikHatasi("bu e-posta zaten kayıtlı") from None
+        self.db.execute("DELETE FROM kayit_bekleyen WHERE eposta=?", (eposta,))
+        self.db.commit()
         return self._oturum(c.lastrowid)
 
     # ---- iki adımlı doğrulama

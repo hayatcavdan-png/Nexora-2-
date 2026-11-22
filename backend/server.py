@@ -62,6 +62,7 @@ def servis(ad):
 
 paper = Paper(os.getenv("NEXORA_DB", "nexora_paper.db"))
 uyelik = Uyelik(os.getenv("UYELIK_DB", "nexora_uyelik.db"))
+KAYIT_ONAY = os.getenv("NEXORA_KAYIT_ONAY", "0") == "1"      # varsayılan kapalı: kurulu uygulama eski kayıt akışını kullanır
 _kasa = []
 def kasa():
     """Borsa anahtarları için şifreleme kasası (ilk kullanımda yüklenir; anahtar dosyası KASA_ANAHTAR)."""
@@ -174,7 +175,19 @@ class H(BaseHTTPRequestHandler):
         try: d = json.loads(raw or b"{}")
         except ValueError: d = {}
         try:
-            if yol == "/uye/kayit": self._send(200, {"oturum": uyelik.kayit(d.get("eposta"), d.get("parola"), d.get("davet"))}); return
+            if yol == "/uye/kayit":
+                if KAYIT_ONAY:                       # e-posta onaylı kayıt (yeni uygulama sürümü bu adımı gösterir)
+                    if d.get("kod"):
+                        self._send(200, {"oturum": uyelik.kayit_onayla(d.get("eposta"), d.get("kod"))}); return
+                    from nexora import eposta as _ep
+                    def _kayit_kodu_yolla(alici, kod):
+                        _ep.gonder(alici, "NEXORA e-posta onay kodu",
+                                   f"NEXORA hesabınızı onaylamak için kodunuz: {kod}\n\n30 dakika geçerlidir. Siz istemediyseniz bu e-postayı yok sayın.")
+                    try:
+                        self._send(200, uyelik.kayit_iste(d.get("eposta"), d.get("parola"), d.get("davet"), gonder=_kayit_kodu_yolla)); return
+                    except _ep.EpostaHatasi:
+                        self._send(503, {"hata": "onay kodu şu an gönderilemedi, biraz sonra tekrar deneyin"}); return
+                self._send(200, {"oturum": uyelik.kayit(d.get("eposta"), d.get("parola"), d.get("davet"))}); return
             if yol == "/uye/giris": self._send(200, {"oturum": uyelik.giris(d.get("eposta"), d.get("parola"), kod=d.get("kod"))}); return
             if yol == "/uye/sifre-unut":                    # şifre sıfırlama kodu e-postayla gider; hesap var/yok aynı yanıt
                 from nexora import eposta as _ep
