@@ -72,5 +72,19 @@ class AcikTests(unittest.TestCase):
         self.assertEqual(r["belirsiz"], 1)
 
 
+class AnahtarModuTests(unittest.TestCase):
+    """Paper motoru pozisyonları token bazında tutar; cüzdan bazlı FIFO ile farkı bu test gösterir."""
+    def test_token_modu_cuzdanlari_birlestirir(self):
+        t = [dict(ts=1, wallet="A", token="T", side="buy", qty=10, price=1.0, fee=0.0, pnl=None),
+             dict(ts=2, wallet="B", token="T", side="buy", qty=10, price=2.0, fee=0.0, pnl=None),
+             dict(ts=3, wallet="B", token="T", side="sell", qty=10, price=3.0, fee=0.0, pnl=None)]
+        kap_c, _, _ = N.eslestir(t, anahtar_modu="cuzdan")
+        kap_t, acik_t, _ = N.eslestir(t, anahtar_modu="token")
+        # cüzdan modu: B kendi 2.0 alımını satar -> brüt 10. Token modu: B, A'nın 1.0 alımını satar -> brüt 20.
+        self.assertAlmostEqual(sum(b["brut_usd"] for b in kap_c), 10.0)
+        self.assertAlmostEqual(sum(b["brut_usd"] for b in kap_t), 20.0)
+        self.assertEqual(len(acik_t), 1)
+
+
 if __name__ == "__main__":
     unittest.main()

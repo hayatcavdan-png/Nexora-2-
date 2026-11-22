@@ -21,15 +21,18 @@ from collections import defaultdict, deque
 TOLERANS_USD = 0.01
 
 
-def eslestir(trades):
+def eslestir(trades, anahtar_modu=None):
     """trades: [dict(ts, wallet, token, side, qty, price, fee, pnl)] zaman sıralı.
     Dönüş: (kapanan_bacaklar, acik_pozisyonlar, satis_mutabakat).
     Bacak: dict(wallet, token, qty, alim_fiyat, satim_fiyat, brut_usd, ucret_usd, net_usd, satim_ts, satim_no).
     satis_mutabakat: her satış olayı için dict(satim_no, net_usd (bacakların toplamı), bildirilen (motorun pnl'i))."""
-    kuyruk = defaultdict(deque)            # (wallet, token) -> [alım dict'leri] FIFO
+    # anahtar_modu: "cuzdan" (varsayılan; cüzdan+token FIFO) | "token" (paper motorunun aynısı: pozisyonlar yalnızca token
+    # bazında tutulur, farklı cüzdanların alımları tek havuzda birleşir). Mutabakat farkının kaynağını ayırt etmek için.
+    modu = anahtar_modu or os.getenv("NET_PNL_ANAHTAR", "cuzdan")
+    kuyruk = defaultdict(deque)            # (wallet, token) veya (token) -> [alım dict'leri] FIFO
     kapanan, satis_mut = [], []
     for no, t in enumerate(sorted(trades, key=lambda x: x["ts"])):
-        anahtar = (t["wallet"], t["token"])
+        anahtar = (t["wallet"], t["token"]) if modu == "cuzdan" else (t["token"],)
         if t["side"] == "buy":
             kuyruk[anahtar].append(dict(qty=float(t["qty"]), price=float(t["price"]), fee=float(t["fee"] or 0), ts=t["ts"]))
             continue
@@ -52,7 +55,8 @@ def eslestir(trades):
         if olay and t.get("pnl") is not None:
             satis_mut.append(dict(satim_no=no, net_usd=round(sum(b["net_usd"] for b in olay), 6), bildirilen=float(t["pnl"])))
     acik = []
-    for (w, tok), q in kuyruk.items():
+    for anahtar, q in kuyruk.items():
+        w, tok = (anahtar if len(anahtar) == 2 else (None, anahtar[0]))
         for al in q:
             if al["qty"] > 1e-12:
                 acik.append(dict(wallet=w, token=tok, qty=al["qty"], alim_fiyat=al["price"], alim_ts=al["ts"], ucret_usd=al["fee"]))
