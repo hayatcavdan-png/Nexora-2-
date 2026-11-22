@@ -97,7 +97,9 @@ def main():
         etiketci = Etiketci(os.getenv("ETIKET_DB", "nexora_etiket.db"), quoter, bilgi=TokenBilgi(api_key=quoter.api_key),
                             cuzdanlar=cuzdan_ist, model=model).baslat()
     borsa = None
-    if os.getenv("BORSA", "1") != "0":                    # Platform 2 (borsa): liste varsa ayrı paper portföy
+    # 22.11.2026 (genel onay): Platform 2 borsa portföyü 14 günde %-23,5 (79 kapanan, 100$ -> 80$). Solana sinyalini borsa
+    # fiyatıyla uygulamak kazandırmıyor -> varsayılan KAPALI; geçmiş veri korunur. Yeniden açmak: BORSA=1.
+    if os.getenv("BORSA", "0") == "1":                    # Platform 2 (borsa): liste varsa ayrı paper portföy
         from nexora import borsa_liste
         from nexora.borsa_motor import BorsaMotoru
         bl = borsa_liste.yukle()
