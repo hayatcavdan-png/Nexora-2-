@@ -1,6 +1,6 @@
 """Bağımlılıksız NEXORA sunucusu (yalnızca Python stdlib).
 Çalıştır: NEXORA_API_KEY=gizli123 python server.py"""
-import os, json, sqlite3
+import os, json, sqlite3, time
 from urllib.parse import urlsplit, parse_qs
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from nexora.core import Paper, CFG
@@ -57,6 +57,11 @@ def kasa():
 KOMISYON_PCT = float(os.getenv("KOMISYON_PCT", "20"))      # uygulama kâr payı (sanal gösterim)
 KEY = os.getenv("NEXORA_API_KEY", "").strip()
 # Telefonda yalnızca bu cihazdan erişilir. Sunucuda (N13) özel ağ adresi verilir: NEXORA_HOST=100.x.y.z
+# 22.11: yenileme yavaşlığı. Tüm işlem geçmişini okuyan raporlar (her redle büyüyen tablo) her çekişte baştan hesaplanıyordu.
+# Bunlar kısa süre önbellekte tutulur; portföy, işlemler, durum ve bildirimler önbelleksizdir (anlık).
+ONBELLEK_SN = {"/rapor": 60, "/cuzdanlar": 60, "/kanit": 60, "/hazirlik": 60, "/defter": 30, "/tutarlilik": 60,
+               "/sistem": 15, "/hl": 30, "/strateji": 30, "/yonlendirici": 30, "/ekosistemler": 60, "/gecmis": 30, "/asamalar": 60}
+_ONB, _ONB_KILIT = {}, __import__("threading").Lock()
 HOST = os.getenv("NEXORA_HOST", "127.0.0.1")
 PORT = int(os.getenv("NEXORA_PORT", "8000"))   # baştaki/sondaki boşluk anahtarı bozmasın
 
@@ -95,6 +100,9 @@ def _yz_ozet():
 class H(BaseHTTPRequestHandler):
     def _send(self, code, obj):
         b = json.dumps(obj).encode()
+        k = getattr(self, "_onb", None)
+        if k is not None and code == 200:
+            with _ONB_KILIT: _ONB[k] = (time.time(), b)
         self.send_response(code); self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(b))); self.end_headers(); self.wfile.write(b)
     def _yedek_gonder(self):
@@ -195,6 +203,15 @@ class H(BaseHTTPRequestHandler):
         parts = urlsplit(self.path)
         izin, yetki = self._izin(parts.path, False)
         if not izin: return
+        self._onb = None
+        sure = ONBELLEK_SN.get(parts.path)
+        if sure and yetki == "kurucu" and not parts.query:   # 22.11: ağır raporlar kısa süre önbellekte (yenileme hızı)
+            k = (parts.path, yetki)
+            with _ONB_KILIT: v = _ONB.get(k)
+            if v and time.time() - v[0] < sure:
+                b = v[1]; self.send_response(200); self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(b))); self.end_headers(); self.wfile.write(b); return
+            self._onb = k
         if yetki == "uye":                                  # üye: sınırlı ve cüzdansız görünüm
             if parts.path == "/durum":
                 self._send(200, dict(mod="PAPER", gercek_islem="KAPALI", acil_durdurma=paper.killed(), takip_nabiz=paper.son_nabiz(),

@@ -83,6 +83,12 @@ CREATE TABLE IF NOT EXISTS kesinti(id INTEGER PRIMARY KEY AUTOINCREMENT, bas REA
 CREATE TABLE IF NOT EXISTS kismi_olcum(id INTEGER PRIMARY KEY AUTOINCREMENT, wallet TEXT, token TEXT, acilis_ts REAL,
   oran REAL, kalan_raw TEXT, simdi_usd REAL, sonra_usd REAL DEFAULT 0, adim INTEGER DEFAULT 0, status TEXT, kapanis_ts REAL, note TEXT);
 CREATE TABLE IF NOT EXISTS stop_tetik(iz_id INTEGER, esik REAL, ts REAL, pnl REAL, PRIMARY KEY(iz_id, esik));
+CREATE INDEX IF NOT EXISTS trades_ts ON trades(ts);
+CREATE INDEX IF NOT EXISTS trades_token_ts ON trades(token, ts);
+CREATE INDEX IF NOT EXISTS trades_reason_ts ON trades(reason, ts);
+CREATE INDEX IF NOT EXISTS trades_karar_ts ON trades(side, decision, ts);
+CREATE INDEX IF NOT EXISTS pos_iz_durum ON pos_iz(status, closed_ts);
+CREATE INDEX IF NOT EXISTS pos_iz_token ON pos_iz(token, status);
 """
 
 # Zarar kesme ölçümü (yalnızca ölçüm, işlem davranışını DEĞİŞTİRMEZ): açık pozisyonun değerlemesi

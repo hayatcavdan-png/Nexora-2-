@@ -108,7 +108,16 @@ class Veri {
 
     fun yukle(url: String, key: String) {
         val eksik = mutableListOf<String>()
-        val d = JSONObject(api(url, key, "/durum"))
+        // 5.25.3: uçlar SIRAYLA değil AYNI ANDA istenir (toplam süre ≈ en yavaş uç, toplam değil)
+        val agir = setOf("/rapor", "/cuzdanlar", "/kanit", "/hazirlik", "/defter", "/radar")
+        val yollar = listOf("/durum", "/portfoy", "/islemler", "/takip", "/gecmis", "/cuzdanlar", "/asamalar", "/rapor", "/saglik",
+                            "/defter", "/hazirlik", "/borsa", "/strateji", "/yonlendirici", "/kanit", "/bildirim", "/ekosistemler", "/radar")
+        val havuz = java.util.concurrent.Executors.newFixedThreadPool(8)
+        val gelecek = yollar.associateWith { y -> havuz.submit<String> { api(url, key, y, zamanAsimi = if (y in agir) 25_000 else 10_000) } }
+        havuz.shutdown()
+        fun al(y: String): String = try { gelecek.getValue(y).get() }
+            catch (e: java.util.concurrent.ExecutionException) { throw (e.cause as? Exception) ?: e }
+        val d = JSONObject(al("/durum"))
         rol = d.optString("rol", "kurucu")
         acilDurdurma = d.optBoolean("acil_durdurma")
         ayarlar = d.optJSONObject("ayarlar") ?: JSONObject()
@@ -116,7 +125,7 @@ class Veri {
         yz = d.optJSONObject("yz")
         baslangic = ayarlar.optDouble("start_cash", 100.0)
 
-        val p = JSONObject(api(url, key, "/portfoy"))
+        val p = JSONObject(al("/portfoy"))
         nakit = p.optDouble("cash"); toplam = p.optDouble("equity"); kz = p.optDouble("pnl")
         val pos = p.getJSONArray("positions")
         pozisyonlar = (0 until pos.length()).map {
@@ -125,7 +134,7 @@ class Veri {
                      x.str("durum").ifEmpty { "ACIK" }, x.dbl("opened_ts"), x.dbl("min_pct"), x.dbl("max_pct"),
                      x.str("ekosistem").ifEmpty { "solana" })
         }
-        val t = JSONArray(api(url, key, "/islemler"))
+        val t = JSONArray(al("/islemler"))
         islemler = (0 until t.length()).map {
             val x = t.getJSONObject(it)
             Islem(x.optDouble("ts", 0.0), x.str("side"), x.str("token"), x.str("wallet"), x.str("decision"), x.str("reason"), x.optDouble("pnl", 0.0),
@@ -133,7 +142,7 @@ class Veri {
         }
 
         try {
-            val tk = JSONObject(api(url, key, "/takip"))
+            val tk = JSONObject(al("/takip"))
             val ss = tk.getJSONArray("sinyaller")
             sinyaller = (0 until ss.length()).map {
                 val x = ss.getJSONObject(it)
@@ -150,14 +159,14 @@ class Veri {
         } catch (e: Exception) { eksik += "takip" }
 
         try {
-            val gj = JSONObject(api(url, key, "/gecmis"))
+            val gj = JSONObject(al("/gecmis"))
             maxDusus = gj.dbl("max_dusus_pct"); zirvedenUzaklik = gj.dbl("zirveden_uzaklik_pct")
             val g = gj.getJSONArray("noktalar")
             gecmis = (0 until g.length()).map { val x = g.getJSONObject(it); Nokta2(x.optDouble("ts"), x.optDouble("deger")) }
         } catch (e: Exception) { eksik += "geçmiş" }
 
         try {
-            val c = JSONObject(api(url, key, "/cuzdanlar"))
+            val c = JSONObject(al("/cuzdanlar"))
             cuzdanOzet = c.optJSONObject("ozet") ?: JSONObject()
             val arr = c.getJSONArray("cuzdanlar")
             cuzdanlar = (0 until arr.length()).map {
@@ -174,7 +183,7 @@ class Veri {
         } catch (e: Exception) { eksik += "cüzdanlar" }
 
         try {
-            val a = JSONObject(api(url, key, "/asamalar"))
+            val a = JSONObject(al("/asamalar"))
             asamaGuncelleme = a.str("guncelleme")
             val arr = a.getJSONArray("rows")
             asamalar = (0 until arr.length()).map {
@@ -183,18 +192,18 @@ class Veri {
             }
         } catch (e: Exception) { eksik += "yol haritası" }
 
-        try { rapor = JSONObject(api(url, key, "/rapor")) } catch (e: Exception) { eksik += "rapor" }
-        try { saglik = JSONObject(api(url, key, "/saglik")) } catch (e: Exception) { eksik += "saglik" }
-        try { defter = JSONObject(api(url, key, "/defter")) } catch (e: Exception) { eksik += "defter" }
-        try { hazirlik = JSONObject(api(url, key, "/hazirlik")) } catch (e: Exception) { eksik += "hazırlık" }
-        try { borsa = JSONObject(api(url, key, "/borsa")) } catch (e: Exception) { eksik += "borsa" }
-        try { strateji = JSONObject(api(url, key, "/strateji")) } catch (e: Exception) { eksik += "strateji" }
-        try { yonlendirici = JSONObject(api(url, key, "/yonlendirici")) } catch (e: Exception) { }
-        try { kanit = JSONObject(api(url, key, "/kanit")) } catch (e: Exception) { }
-        try { bildirim = JSONObject(api(url, key, "/bildirim")) } catch (e: Exception) { }
-        try { ekosistemler = JSONObject(api(url, key, "/ekosistemler")).optJSONArray("ekosistemler") } catch (e: Exception) { eksik += "ekosistem" }
+        try { rapor = JSONObject(al("/rapor")) } catch (e: Exception) { eksik += "rapor" }
+        try { saglik = JSONObject(al("/saglik")) } catch (e: Exception) { eksik += "saglik" }
+        try { defter = JSONObject(al("/defter")) } catch (e: Exception) { eksik += "defter" }
+        try { hazirlik = JSONObject(al("/hazirlik")) } catch (e: Exception) { eksik += "hazırlık" }
+        try { borsa = JSONObject(al("/borsa")) } catch (e: Exception) { eksik += "borsa" }
+        try { strateji = JSONObject(al("/strateji")) } catch (e: Exception) { eksik += "strateji" }
+        try { yonlendirici = JSONObject(al("/yonlendirici")) } catch (e: Exception) { }
+        try { kanit = JSONObject(al("/kanit")) } catch (e: Exception) { }
+        try { bildirim = JSONObject(al("/bildirim")) } catch (e: Exception) { }
+        try { ekosistemler = JSONObject(al("/ekosistemler")).optJSONArray("ekosistemler") } catch (e: Exception) { eksik += "ekosistem" }
         try {
-            val r = JSONObject(api(url, key, "/radar", zamanAsimi = 15000))
+            val r = JSONObject(al("/radar"))
             radarOzet = r.str("ozet")
             val a = r.getJSONArray("tokenler")
             radar = (0 until a.length()).map {
