@@ -105,7 +105,7 @@
    "grup": "Gerçek işlem",
    "durum": "devam",
    "yuzde": 45,
-   "yapilan": "İmzasız hat: pilot cüzdan anahtarı sunucuda üretiliyor (saf Python Ed25519, RFC 8032 test vektörleriyle doğrulandı; dosya 600, üzerine yazmaz); Jupiter /order ile pilot cüzdana işlem oluşturma (JupiterZ dışlanır, sürüm 0); imzalamadan önce yapı denetimi (tek imzacı, ücret ödeyen bizim cüzdan, imza alanı boş); Helius ile zincirde simülasyon. Gönderim kodu yok (/execute ve sendTransaction bulunmuyor, testle korunuyor). pilot_olcum.py: pilot bakiyesi (SOL/USDC) ve son sinyal token'ları için gerçek cüzdan bakiyesiyle alım işlemi oluşturma + denetim + zincir simülasyonu; başarı oranı ve başarısızlık nedenleri pilot_sim tablosunda (gönderim yok, anahtar okunmaz).",
+   "yapilan": "İmzasız hat: pilot cüzdan anahtarı sunucuda üretiliyor (saf Python Ed25519, RFC 8032 test vektörleriyle doğrulandı; dosya 600, üzerine yazmaz); Jupiter /order ile pilot cüzdana işlem oluşturma (JupiterZ dışlanır, sürüm 0); imzalamadan önce yapı denetimi (tek imzacı, ücret ödeyen bizim cüzdan, imza alanı boş); Helius ile zincirde simülasyon. Gönderim kodu yok (/execute ve sendTransaction bulunmuyor, testle korunuyor). pilot_olcum.py: pilot bakiyesi (SOL/USDC) ve son sinyal token'ları için gerçek cüzdan bakiyesiyle alım işlemi oluşturma + denetim + zincir simülasyonu; başarı oranı ve başarısızlık nedenleri pilot_sim tablosunda (gönderim yok, anahtar okunmaz).; 22.11 KULLANICI KARARI: emanet modeli (kullanıcıların parasının bizim cüzdanlarımıza gelmesi) YAPILMAYACAK. Sıra: 1) kurucunun kendi parası, kendi ayrı işlem cüzdanı; 2) hukuki görüşle uygunsa emanetsiz model (para kullanıcının cüzdanında, NEXORA yalnızca sınırlı işlem yetkisi, para çekme yetkisi yok)",
    "eksik": "Bakiyeli ölçüm sonuçları (cüzdana para gelince); imzalama ve gönderim, uzlaştırma yalnızca N12 açık onayıyla Phantom imza akışı (belgeye göre): signTransaction deeplink yalnızca İMZALAR, göndermez; gönderimi biz yaparız. Ancak payload şifreleme şeması (Phantom Encryption sayfası) doğrulanmadan kod yazılmayacak; Android tarafında doğrulanmış kütüphaneyle, cihazda test edilecek."
   },
   {
@@ -141,7 +141,7 @@
    "grup": "Ürün",
    "durum": "devam",
    "yuzde": 45,
-   "yapilan": "Paper modda üyelik: e-posta/parola (scrypt), 30 günlük oturum, giriş deneme kilidi; davet kodu ve davetli listesi; üye başına kişisel sanal hesap (katılım anından itibaren, zirve/düşüş, %20 kâr payı gösterimi); bağlantı kayıtları (yalnızca herkese açık adres, Binance kilitli). Hiçbir gizli anahtar saklanmaz; rol ayrımı: kurucu/üye yetkisi sunucuda denetlenir, rol yalnızca sunucuda komutla atanır, üyeye cüzdan adresleri gizli gider; kayıt deneme sınırı",
+   "yapilan": "Paper modda üyelik: e-posta/parola (scrypt), 30 günlük oturum, giriş deneme kilidi; davet kodu ve davetli listesi; üye başına kişisel sanal hesap (katılım anından itibaren, zirve/düşüş, %20 kâr payı gösterimi); bağlantı kayıtları (yalnızca herkese açık adres, Binance kilitli). Hiçbir gizli anahtar saklanmaz; rol ayrımı: kurucu/üye yetkisi sunucuda denetlenir, rol yalnızca sunucuda komutla atanır, üyeye cüzdan adresleri gizli gider; kayıt deneme sınırı; 22.11 KULLANICI KARARI: emanet modeli (kullanıcıların parasının bizim cüzdanlarımıza gelmesi) YAPILMAYACAK. Sıra: 1) kurucunun kendi parası, kendi ayrı işlem cüzdanı; 2) hukuki görüşle uygunsa emanetsiz model (para kullanıcının cüzdanında, NEXORA yalnızca sınırlı işlem yetkisi, para çekme yetkisi yok)",
    "eksik": "Kurucu girişine ikinci doğrulama; sunucuyu dışarıya açma (alan adı, HTTPS) hukuk görüşünden sonra; N29/N30/N36"
   },
   {
@@ -330,7 +330,7 @@
    "grup": "Faz 2 · Çoklu platform",
    "durum": "devam",
    "yuzde": 10,
-   "yapilan": "Hukuki Değerlendirme Özeti belgesi (avukata sorular) hazır.",
+   "yapilan": "Hukuki Değerlendirme Özeti belgesi (avukata sorular) hazır.; 22.11 KULLANICI KARARI: emanet modeli (kullanıcıların parasının bizim cüzdanlarımıza gelmesi) YAPILMAYACAK. Sıra: 1) kurucunun kendi parası, kendi ayrı işlem cüzdanı; 2) hukuki görüşle uygunsa emanetsiz model (para kullanıcının cüzdanında, NEXORA yalnızca sınırlı işlem yetkisi, para çekme yetkisi yok)",
    "eksik": "Avukat görüşü (lisans, kâr payı, yurt dışı borsalar, KVKK); kullanıcı sözleşmesi ve risk bildirimi; şirket yapısı. Önkoşul: yok; N31 ve N38 için zorunlu."
   },
   {
