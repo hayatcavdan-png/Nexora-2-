@@ -104,18 +104,18 @@
    "ad": "Gerçek emir altyapısı",
    "grup": "Gerçek işlem",
    "durum": "devam",
-   "yuzde": 45,
-   "yapilan": "İmzasız hat: pilot cüzdan anahtarı sunucuda üretiliyor (saf Python Ed25519, RFC 8032 test vektörleriyle doğrulandı; dosya 600, üzerine yazmaz); Jupiter /order ile pilot cüzdana işlem oluşturma (JupiterZ dışlanır, sürüm 0); imzalamadan önce yapı denetimi (tek imzacı, ücret ödeyen bizim cüzdan, imza alanı boş); Helius ile zincirde simülasyon. Gönderim kodu yok (/execute ve sendTransaction bulunmuyor, testle korunuyor). pilot_olcum.py: pilot bakiyesi (SOL/USDC) ve son sinyal token'ları için gerçek cüzdan bakiyesiyle alım işlemi oluşturma + denetim + zincir simülasyonu; başarı oranı ve başarısızlık nedenleri pilot_sim tablosunda (gönderim yok, anahtar okunmaz).; 22.11 KULLANICI KARARI: emanet modeli (kullanıcıların parasının bizim cüzdanlarımıza gelmesi) YAPILMAYACAK. Sıra: 1) kurucunun kendi parası, kendi ayrı işlem cüzdanı; 2) hukuki görüşle uygunsa emanetsiz model (para kullanıcının cüzdanında, NEXORA yalnızca sınırlı işlem yetkisi, para çekme yetkisi yok)",
+   "yuzde": 75,
+   "yapilan": "İmzasız hat: pilot cüzdan anahtarı sunucuda üretiliyor (saf Python Ed25519, RFC 8032 test vektörleriyle doğrulandı; dosya 600, üzerine yazmaz); Jupiter /order ile pilot cüzdana işlem oluşturma (JupiterZ dışlanır, sürüm 0); imzalamadan önce yapı denetimi (tek imzacı, ücret ödeyen bizim cüzdan, imza alanı boş); Helius ile zincirde simülasyon. Gönderim kodu yok (/execute ve sendTransaction bulunmuyor, testle korunuyor). pilot_olcum.py: pilot bakiyesi (SOL/USDC) ve son sinyal token'ları için gerçek cüzdan bakiyesiyle alım işlemi oluşturma + denetim + zincir simülasyonu; başarı oranı ve başarısızlık nedenleri pilot_sim tablosunda (gönderim yok, anahtar okunmaz).; 22.11 KULLANICI KARARI: emanet modeli (kullanıcıların parasının bizim cüzdanlarımıza gelmesi) YAPILMAYACAK. Sıra: 1) kurucunun kendi parası, kendi ayrı işlem cüzdanı; 2) hukuki görüşle uygunsa emanetsiz model (para kullanıcının cüzdanında, NEXORA yalnızca sınırlı işlem yetkisi, para çekme yetkisi yok); 22.11: imzalama eklendi (yalnızca 0. yuva, imzadan önce yapı denetimi; Ed25519 deterministik imza testle doğrulandı)",
    "eksik": "Bakiyeli ölçüm sonuçları (cüzdana para gelince); imzalama ve gönderim, uzlaştırma yalnızca N12 açık onayıyla Phantom imza akışı (belgeye göre): signTransaction deeplink yalnızca İMZALAR, göndermez; gönderimi biz yaparız. Ancak payload şifreleme şeması (Phantom Encryption sayfası) doğrulanmadan kod yazılmayacak; Android tarafında doğrulanmış kütüphaneyle, cihazda test edilecek."
   },
   {
    "kod": "N12",
    "ad": "Kontrollü gerçek pilot",
    "grup": "Gerçek işlem",
-   "durum": "baslamadi",
-   "yuzde": 0,
-   "yapilan": "Ayrıca açık onay gerektirir",
-   "eksik": "Pilot cüzdan, kayıp bütçesi, ilk gerçek emir"
+   "durum": "devam",
+   "yuzde": 50,
+   "yapilan": "22.11 (kullanıcı: 'gerekirse gerçek para ile deneme yapılabilir'): nexora/gercek.py + gercek_pilot.py hazır, KAPALI. Paper KOPYALADI dediği Solana alımını pilot cüzdan sabit USDC tutarıyla Jupiter /order -> denetim -> simülasyon -> imza -> /execute ile alır; paper kapatınca tamamını satar; paper'da karşılığı kalmayan gerçek pozisyon bakımda satılır. Çift kilit (GERCEK_ISLEM=1 + 'ac --onay GERCEK-PARA'); sınırlar: işlem tutarı, bütçe, en fazla pozisyon, günlük gerçek zarar, toplam zararda kendini kapatma, acil durdurma; güçlendirme kopyalanmaz; başarısız gönderimler kaydedilir. Emanet yok: yalnızca kurucunun kendi pilot cüzdanı",
+   "eksik": "Pilot cüzdana USDC + SOL (kullanıcı); GERCEK_ISLEM=1 ve 'ac' (kullanıcı); ilk gerçek işlemlerin paper ile karşılaştırılması; hukuki görüş önerilir"
   },
   {
    "kod": "N13",

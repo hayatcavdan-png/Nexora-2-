@@ -86,6 +86,15 @@ def main():
         kapi = ModelKapisi(model, bilgi=TokenBilgi(api_key=quoter.api_key, throttle=quoter._throttle), cuzdanlar=cuzdan_ist)
         decider = Decider(paper, quoter, TokenSafety(client), bilgi=bilgi, yurutme=YurutmeOlcer(quoter, paper).baslat(),
                           puanlar=puanlar, izle=izle, kapi=kapi)
+        if os.getenv("GERCEK_ISLEM") == "1":                # N12: gerçek pilot (ikinci kilit: gercek_ayar.json acik=true)
+            try:
+                from nexora.gercek import GercekPilot
+                decider.gercek = GercekPilot(paper, client)
+                g = decider.gercek.ozet()
+                print(f"  GERÇEK PİLOT bağlı: cüzdan {g['adres'][:4]}…{g['adres'][-4:]}, "
+                      f"{'AÇIK' if g['etkin'] else 'kapalı (gercek_pilot.py ac)'}; işlem {g['ayar']['islem_usd']}$, bütçe {g['ayar']['butce_usd']}$", flush=True)
+            except Exception as e:
+                print(f"  GERÇEK PİLOT bağlanamadı: {str(e)[:100]}", flush=True)
         kd = kapi.durum()
         if kd["acik"]: print(f"  Model filtresi AÇIK (model {kd['model'] or 'YOK: filtre uygulanmıyor'})", flush=True)
         if izle: print(f"  {len(izle)} cüzdan yalnızca izleniyor (izle listesi, borsa, gölge havuz {len(golge_cuz)}): "
@@ -182,6 +191,8 @@ def main():
                     decider.kismi_zaman_asimi()
                     for t, karar, neden in decider.zaman_asimi():
                         print(f"  zaman aşımı: {short(t)} -> {karar} ({neden})", flush=True)
+                    if decider.gercek is not None:
+                        for t, r in decider.gercek.bakim(): print(f"  GERÇEK uzlaştırma {short(t)}: {r}", flush=True)
                 except Exception as e:
                     print(f"  kaynak denetimi yapılamadı: {type(e).__name__}", flush=True)
             for w, res in tr.poll_all().items():

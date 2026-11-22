@@ -382,3 +382,14 @@ class ZamanAsimiTests(unittest.TestCase):
             d.decide("e2", "W1", "T2", "buy", 1); self.assertEqual(d.zaman_asimi(now=10 ** 11), [])
         finally:
             Decider.ZAMAN_ASIMI_SN = eski
+
+
+class GercekKancaTests(unittest.TestCase):
+    def test_kopyalanan_alim_ve_satis_pilota_bildirilir(self):
+        p, q = Paper(), FakeQuoter(); d = Decider(p, q, Safe())
+        class G:
+            def __init__(self): self.l = []
+            def bildir(self, ev, tok, yon, ek=False): self.l.append((yon, tok, ek))
+        d.gercek = G()
+        d.decide("e1", "W1", TOK, "buy", 1); q.sell_price = 1.0; d.decide("s1", "W2", TOK, "sell", 1); d.decide("s2", "W1", TOK, "sell", 1)
+        self.assertEqual(d.gercek.l, [("buy", TOK, False), ("sell", TOK, False)])   # başka cüzdanın satışı pilota gitmez

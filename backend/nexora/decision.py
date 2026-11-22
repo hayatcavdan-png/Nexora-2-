@@ -48,6 +48,8 @@ def puan_agirligi(puanlar, wallet):
 
 
 class Decider:
+    gercek = None                     # N12: nexora.gercek.GercekPilot (yalnızca GERCEK_ISLEM=1 iken takip servisi bağlar)
+
     def __init__(self, paper, quoter, safety, bilgi=None, yurutme=None, puanlar=None, izle=None, kapi=None):
         self.paper, self.quoter, self.safety = paper, quoter, safety
         self.kapi = kapi              # N20: model filtresi (yalnızca açıkça açıldıysa ve model varsa etkili)
@@ -214,6 +216,9 @@ class Decider:
                     iz.append(dict(adim="kural_golgesi", sonuc="açıldı" if self._kural_golgesi(event_id, wallet, token, reason) else "açılmadı"))
             else:
                 r = self._buy(event_id, wallet, token, size, iz, ek=ek) if side == "buy" else self._sell(event_id, wallet, token, iz, neden, kaynak_oran)
+                if self.gercek is not None and r and r.get("decision") == "KOPYALANDI" and wallet != "MANUEL":
+                    try: self.gercek.bildir(event_id, token, side, ek=ek)       # N12 gerçek pilot (çift kilitli, arka planda)
+                    except Exception: pass
             return r
         except Exception as e:
             iz.append(dict(adim="hata", sonuc=f"{type(e).__name__}: {str(e)[:120]}"))
