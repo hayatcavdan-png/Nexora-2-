@@ -216,7 +216,7 @@ class H(BaseHTTPRequestHandler):
             if yol == "/uye/bot":                            # 5.27: botu başlat/kapat; kapatma onay ister
                 from nexora import hesap as _hs
                 if d.get("ac") is True:
-                    self._send(200, _hs.bot_ac(u["id"], d.get("baslangic"))); return
+                    self._send(200, _hs.bot_ac(u["id"], d.get("baslangic"), oncelik=(u.get("rol") == "kurucu"))); return
                 r_ = _hs.bot_kapat(u["id"], onay=d.get("onay"))
                 self._send(200, r_); return
             if yol == "/uye/portfoy":                        # eski yol: kullanılmıyor (bakiye artık kendi hesabında)

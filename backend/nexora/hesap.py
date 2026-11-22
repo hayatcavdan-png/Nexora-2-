@@ -27,7 +27,10 @@ def _kayit_db():
     db = sqlite3.connect(os.path.join(DIZIN, "hesaplar.db"), timeout=10)
     db.row_factory = sqlite3.Row
     db.execute("""CREATE TABLE IF NOT EXISTS hesap(uye INTEGER PRIMARY KEY, baslangic REAL NOT NULL,
-        bot INTEGER NOT NULL DEFAULT 0, acilis REAL, guncelleme REAL)""")
+        bot INTEGER NOT NULL DEFAULT 0, acilis REAL, guncelleme REAL, oncelik INTEGER NOT NULL DEFAULT 0)""")
+    cols = [r[1] for r in db.execute("PRAGMA table_info(hesap)")]
+    if "oncelik" not in cols:           # 5.27.4: eski veritabanı için ekleme
+        db.execute("ALTER TABLE hesap ADD COLUMN oncelik INTEGER NOT NULL DEFAULT 0")
     db.commit()
     return db
 
@@ -61,8 +64,9 @@ def durum(uye):
     return {"var": True, "bot": bool(k["bot"]), "baslangic": k["baslangic"], "acilis": k["acilis"]}
 
 
-def bot_ac(uye, baslangic=None, now=None):
-    """Botu başlatır. Yeni hesapta başlangıç değeri zorunlu; mevcut hesapta değer değişmez."""
+def bot_ac(uye, baslangic=None, now=None, oncelik=0):
+    """Botu başlatır. Yeni hesapta başlangıç değeri zorunlu; mevcut hesapta değer değişmez.
+    oncelik=1: yönetici hesabı; sinyalleri diğer üyelerden önce işler."""
     now = now or time.time()
     with _kilit:
         db = _kayit_db()
@@ -75,10 +79,10 @@ def bot_ac(uye, baslangic=None, now=None):
                     raise HesapHatasi("başlangıç değeri gerekli")
                 if not (BASLANGIC_MIN <= b <= BASLANGIC_MAX):
                     raise HesapHatasi(f"başlangıç {BASLANGIC_MIN:g}–{BASLANGIC_MAX:g} USDC arasında olmalı")
-                db.execute("INSERT INTO hesap(uye, baslangic, bot, acilis, guncelleme) VALUES(?,?,1,?,?)",
-                           (uye, b, now, now))
+                db.execute("INSERT INTO hesap(uye, baslangic, bot, acilis, guncelleme, oncelik) VALUES(?,?,1,?,?,?)",
+                           (uye, b, now, now, 1 if oncelik else 0))
             else:
-                db.execute("UPDATE hesap SET bot=1, guncelleme=? WHERE uye=?", (now, uye))
+                db.execute("UPDATE hesap SET bot=1, guncelleme=?, oncelik=? WHERE uye=?", (now, 1 if oncelik else 0, uye))
             db.commit()
         finally:
             db.close()
@@ -119,7 +123,7 @@ def dagit(event_id, wallet, token, side, price, liquidity_usd, signal_age_s):
     """Ortak motora gelen her sinyali, botu açık olan üyelerin kendi defterlerine iletir."""
     db = _kayit_db()
     try:
-        uyeler = [r["uye"] for r in db.execute("SELECT uye FROM hesap WHERE bot=1")]
+        uyeler = [r["uye"] for r in db.execute("SELECT uye FROM hesap WHERE bot=1 ORDER BY oncelik DESC, uye ASC")]
     finally:
         db.close()
     for uye in uyeler:

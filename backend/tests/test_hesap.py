@@ -42,6 +42,14 @@ class HesapTests(unittest.TestCase):
         self.assertEqual(hs.call_count, 1)
         self.assertEqual(hs.call_args[0][0], "e1|u1")
 
+    def test_yonetici_once_islenir(self):
+        self.H.bot_ac(1, baslangic=100)
+        self.H.bot_ac(2, baslangic=100, oncelik=1)      # yönetici
+        sira = []
+        with mock.patch.object(self.H.Paper, "handle_signal", side_effect=lambda ev, *a: sira.append(ev) or {}):
+            self.H.dagit("e1", "w", "tok", "buy", 1.0, 1e6, 0)
+        self.assertEqual(sira, ["e1|u2", "e1|u1"])
+
     def test_kapatma_onay_gerektirir(self):
         self.H.bot_ac(1, baslangic=100)
         with self.assertRaises(self.H.HesapHatasi): self.H.bot_kapat(1, onay=False)
