@@ -141,7 +141,7 @@ class H(BaseHTTPRequestHandler):
     # ---- Rol ayrımı. kurucu: API anahtarı ya da rolü 'kurucu' olan üye oturumu. uye: herhangi bir geçerli üye oturumu.
     # Üye yalnızca UYE_GET listesindeki okumaları ve kendi /uye/* işlemlerini yapabilir; geri kalan her şey kurucuya aittir.
     # Yetki SUNUCUDA denetlenir: uygulama kurcalansa bile üye kurucu işlemi yapamaz.
-    UYE_GET = {"/durum", "/portfoy", "/islemler", "/gecmis", "/radar", "/uye/ben", "/uye/borsa", "/uye/bakiye",
+    UYE_GET = {"/durum", "/portfoy", "/islemler", "/gecmis", "/radar", "/uye/ben", "/uye/borsa", "/uye/bakiye", "/uye/bot",
                "/kopya-ozet", "/asistan"}   # 5.26.0: yeni üye ekranları
     ACIK_POST = {"/uye/kayit", "/uye/giris", "/uye/sifre-unut", "/uye/sifre-sifirla", "/uye/cikis"}
 

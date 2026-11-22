@@ -40,6 +40,7 @@ class RolTests(unittest.TestCase):
         self.assertNotIn("GIZLICUZDAN", json.dumps(self.call("/islemler", oturum=tok)[1]))
         self.assertEqual(self.call("/gecmis", oturum=tok)[1], [])                    # ortak geçmiş üyeye gitmez
         self.assertEqual(self.call("/olaylar", oturum=tok)[0], 403)                  # ortak olaylar üyeye kapalı
+        c, d = self.call("/uye/bot", oturum=tok); self.assertEqual((c, d["var"], d["bot"]), (200, False, False))  # üye bot durumunu okur
         self.assertEqual(self.call("/uye/bot", {"ac": True}, oturum=tok)[0], 400)   # başlangıç değeri zorunlu
         c, d = self.call("/uye/bot", {"ac": True, "baslangic": 150}, oturum=tok)
         self.assertEqual(c, 200); self.assertTrue(d["bot"])
