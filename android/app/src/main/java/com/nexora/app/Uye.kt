@@ -10,6 +10,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
@@ -162,29 +164,45 @@ fun UyeEkrani(url: String, key: String, sp: SharedPreferences, kurucu: Boolean =
         bot?.let { bd ->
             val acik = bd.optBoolean("bot")
             val varMi = bd.optBoolean("var")
-            NeonKart(Modifier.fillMaxWidth(), dolgu = Nx.DolguMor) {
-                Text("BOT · KENDİ SANAL HESABIN", color = Nx.Soluk, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                Spacer(Modifier.height(6.dp))
-                Text(if (acik) "Bot çalışıyor" else if (varMi) "Bot durdu" else "Henüz başlatmadın",
-                     color = Nx.Metin, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                Spacer(Modifier.height(8.dp))
+            val renk = if (acik) Nx.Nane else Nx.Kirmizi
+            NeonKart(Modifier.fillMaxWidth(), kenar = Brush.linearGradient(listOf(renk, renk)), dolgu = Nx.DolguMor) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Nexo(boyut = 76.dp, ifade = if (acik) NexoIfade.SEVINC else NexoIfade.UYKU,
+                         poz = if (acik) NexoPoz.SEVINC else NexoPoz.KAVUS)
+                    Column(Modifier.weight(1f)) {
+                        Text("BOT", color = Nx.Soluk, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text(if (acik) "ÇALIŞIYOR" else if (varMi) "DURDU" else "BAŞLATILMADI",
+                             color = renk, fontSize = 26.sp, fontWeight = FontWeight.ExtraBold)
+                        Text(when {
+                                 acik -> "Yalnızca senin sanal hesabında işlem açar."
+                                 varMi -> "Yeni işlem açılmıyor. Açık pozisyonlar kapanmıştır."
+                                 else -> "Önce başlangıç değerini seç, sonra başlat."
+                             }, color = Nx.Metin, fontSize = 13.sp, lineHeight = 17.sp)
+                    }
+                }
+                Spacer(Modifier.height(14.dp))
                 if (acik) {
-                    Button({ botOnayGoster = true }, enabled = !mesgul, colors = NxGriButon()) { Text("Botu kapat") }
+                    Button({ botOnayGoster = true }, Modifier.fillMaxWidth().height(56.dp), enabled = !mesgul,
+                           colors = ButtonDefaults.buttonColors(containerColor = Nx.Kirmizi, contentColor = Color.Black)) {
+                        Text("BOTU DURDUR", fontSize = 17.sp, fontWeight = FontWeight.ExtraBold)
+                    }
                 } else {
                     var yeni by remember { mutableStateOf("100") }
                     if (!varMi) {
-                        OutlinedTextField(yeni, { yeni = it.filter { c -> c.isDigit() }.take(6) }, label = { Text("Başlangıç değerin (USDC, 10–10000)") },
-                                          singleLine = true, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
-                        Spacer(Modifier.height(6.dp))
-                        Text("Bu değer hesabını ilk açtığında belirlenir. Hesabın sıfırdan başlar; diğer üyelerin hesabını görmezsin.",
-                             color = Nx.Soluk, fontSize = 11.sp, lineHeight = 15.sp)
-                        Spacer(Modifier.height(6.dp))
+                        OutlinedTextField(yeni, { yeni = it.filter { c -> c.isDigit() }.take(6) },
+                                          label = { Text("Başlangıç değerin (USDC)") }, supportingText = { Text("10 – 10.000 arası. Hesabın bu değerle sıfırdan başlar.") },
+                                          singleLine = true, modifier = Modifier.fillMaxWidth(),
+                                          keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+                        Spacer(Modifier.height(10.dp))
                     }
                     Button({
                         val govde = JSONObject().put("ac", true)
                         if (!varMi) govde.put("baslangic", yeni.toDoubleOrNull() ?: 0.0)
                         cagri("/uye/bot", true, govde) { yukle() }
-                    }, enabled = !mesgul && (varMi || yeni.isNotEmpty()), colors = NxGriButon()) { Text("Botu başlat") }
+                    }, Modifier.fillMaxWidth().height(56.dp), enabled = !mesgul && (varMi || yeni.isNotEmpty()),
+                       colors = ButtonDefaults.buttonColors(containerColor = Nx.Nane, contentColor = Color.Black)) {
+                        Text("BOTU BAŞLAT", fontSize = 17.sp, fontWeight = FontWeight.ExtraBold)
+                    }
                 }
             }
             if (botOnayGoster) AlertDialog(
