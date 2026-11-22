@@ -127,6 +127,7 @@ class Veri {
         baslangic = ayarlar.optDouble("start_cash", 100.0)
 
         val p = JSONObject(al("/portfoy"))
+        if (!p.isNull("baslangic")) baslangic = p.optDouble("baslangic", baslangic)   // 5.27: üye kendi başlangıç değerini kullanır
         nakit = p.optDouble("cash"); toplam = p.optDouble("equity"); kz = p.optDouble("pnl")
         val pos = p.getJSONArray("positions")
         pozisyonlar = (0 until pos.length()).map {

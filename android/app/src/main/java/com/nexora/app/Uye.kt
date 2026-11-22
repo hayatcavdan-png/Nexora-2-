@@ -38,6 +38,8 @@ fun UyeEkrani(url: String, key: String, sp: SharedPreferences, kurucu: Boolean =
     var oturum by remember { mutableStateOf(Kasa.oku(sp, "oturum")) }
     var profil by remember { mutableStateOf<JSONObject?>(null) }
     var bakiye by remember { mutableStateOf<JSONObject?>(null) }
+    var bot by remember { mutableStateOf<JSONObject?>(null) }          // 5.27: kendi hesabın ve bot durumu
+    var botOnayGoster by remember { mutableStateOf(false) }
     var mesaj by remember { mutableStateOf("") }
     var mesgul by remember { mutableStateOf(false) }
     var kayitModu by remember { mutableStateOf(false) }
@@ -60,7 +62,7 @@ fun UyeEkrani(url: String, key: String, sp: SharedPreferences, kurucu: Boolean =
         catch (e: Exception) {
             val m = e.message ?: ""
             if (m.contains("401") && oturum.isNotEmpty() && m.contains("oturum")) {            // süre doldu
-                oturum = ""; Oturum.deger = ""; sp.edit().remove("oturum").apply(); profil = null; bakiye = null
+                oturum = ""; Oturum.deger = ""; sp.edit().remove("oturum").apply(); profil = null; bakiye = null; bot = null
                 mesaj = "Oturum süresi doldu, tekrar giriş yapın."
             } else mesaj = if (m.contains("404")) "Sunucu güncel değil: sudo bash /opt/nexora/deploy/guncelle.sh" else m.removePrefix("HTTP ").substringAfter(": ", m)
         }
@@ -69,6 +71,7 @@ fun UyeEkrani(url: String, key: String, sp: SharedPreferences, kurucu: Boolean =
     fun yukle() {
         cagri("/uye/ben") { profil = JSONObject(it) }
         cagri("/uye/bakiye") { bakiye = JSONObject(it) }
+        cagri("/uye/bot") { bot = JSONObject(it) }
         if (kurucu) cagri("/uye/borsa") { borsalar = JSONObject(it).optJSONArray("borsalar") }   // 5.26.0: borsalar üyeye görünmez
     }
     fun girisBitti(r: String) {
@@ -148,39 +151,64 @@ fun UyeEkrani(url: String, key: String, sp: SharedPreferences, kurucu: Boolean =
                     Text(p?.optString("eposta") ?: "…", color = Nx.Metin, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                     Text("Paper hesabı · gerçek işlem kapalı", color = Nx.Soluk, fontSize = 12.sp)
                 }
-                TextButton({ cagri("/uye/cikis", true) { oturum = ""; Oturum.deger = ""; sp.edit().remove("oturum").apply(); profil = null; bakiye = null } }) {
+                TextButton({ cagri("/uye/cikis", true) { oturum = ""; Oturum.deger = ""; sp.edit().remove("oturum").apply(); profil = null; bakiye = null; bot = null } }) {
                     Text("Çıkış", color = Nx.Kirmizi)
                 }
             }
         }
         if (mesaj.isNotEmpty()) Text(mesaj, color = Nx.Kirmizi, fontSize = 13.sp)
 
-        // ---- komisyon sonrası bakiye (sanal)
-        bakiye?.let { b ->
+        // ---- 5.27: kendi sanal hesabın ve botun: her üyenin hesabı ayrı, bot yalnızca sen başlatınca çalışır
+        bot?.let { bd ->
+            val acik = bd.optBoolean("bot")
+            val varMi = bd.optBoolean("var")
+            NeonKart(Modifier.fillMaxWidth(), dolgu = Nx.DolguMor) {
+                Text("BOT · KENDİ SANAL HESABIN", color = Nx.Soluk, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                Spacer(Modifier.height(6.dp))
+                Text(if (acik) "Bot çalışıyor" else if (varMi) "Bot durdu" else "Henüz başlatmadın",
+                     color = Nx.Metin, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(8.dp))
+                if (acik) {
+                    Button({ botOnayGoster = true }, enabled = !mesgul, colors = NxGriButon()) { Text("Botu kapat") }
+                } else {
+                    var yeni by remember { mutableStateOf("100") }
+                    if (!varMi) {
+                        OutlinedTextField(yeni, { yeni = it.filter { c -> c.isDigit() }.take(6) }, label = { Text("Başlangıç değerin (USDC, 10–10000)") },
+                                          singleLine = true, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+                        Spacer(Modifier.height(6.dp))
+                        Text("Bu değer hesabını ilk açtığında belirlenir. Hesabın sıfırdan başlar; diğer üyelerin hesabını görmezsin.",
+                             color = Nx.Soluk, fontSize = 11.sp, lineHeight = 15.sp)
+                        Spacer(Modifier.height(6.dp))
+                    }
+                    Button({
+                        val govde = JSONObject().put("ac", true)
+                        if (!varMi) govde.put("baslangic", yeni.toDoubleOrNull() ?: 0.0)
+                        cagri("/uye/bot", true, govde) { yukle() }
+                    }, enabled = !mesgul && (varMi || yeni.isNotEmpty()), colors = NxGriButon()) { Text("Botu başlat") }
+                }
+            }
+            if (botOnayGoster) AlertDialog(
+                onDismissRequest = { botOnayGoster = false },
+                title = { Text("Botu kapatmak istiyor musun?") },
+                text = { Text("Botu kapatırsan açık pozisyonların son fiyattan kapanır. Kapanan pozisyonlar kâr/zarara yansır ve bot durur. Yeniden başlatana kadar yeni işlem açılmaz.") },
+                confirmButton = { TextButton({ botOnayGoster = false; cagri("/uye/bot", true, JSONObject().put("ac", false).put("onay", true)) { yukle() } }) { Text("Evet, kapat") } },
+                dismissButton = { TextButton({ botOnayGoster = false }) { Text("Vazgeç") } })
+        }
+
+        // ---- komisyon sonrası bakiye (kendi hesabın)
+        bakiye?.takeIf { it.optBoolean("var") }?.let { b ->
+            val k = b.optJSONObject("komisyon")
             NeonKart(Modifier.fillMaxWidth(), dolgu = Nx.DolguMor) {
                 Text("KİŞİSEL SANAL HESABIN · KOMİSYON SONRASI", color = Nx.Soluk, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                 Spacer(Modifier.height(6.dp))
-                Text(para(b.optDouble("net_bakiye")), color = Nx.Metin, fontSize = 30.sp, fontWeight = FontWeight.Bold)
+                Text(para(k?.optDouble("net_bakiye") ?: b.optDouble("equity")), color = Nx.Metin, fontSize = 30.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(8.dp))
                 SatirKV("Başlangıç", para(b.optDouble("baslangic")))
-                SatirKV("Brüt kâr/zarar", paraIsaretli(b.optDouble("brut_kar")))
-                SatirKV("Uygulama komisyonu (%${String.format(Locale.US, "%.0f", b.optDouble("komisyon_pct"))} kâr payı)", "−" + para(b.optDouble("komisyon")))
-                SatirKV("Net kâr/zarar", paraIsaretli(b.optDouble("net_kar")))
-                if (b.has("getiri_pct")) {
-                    SatirKV("Getiri (katılımdan beri)", (if (b.optDouble("getiri_pct") >= 0) "+" else "") + String.format(Locale.US, "%.2f%%", b.optDouble("getiri_pct")))
-                    SatirKV("Zirve · zirveden düşüş", para(b.optDouble("zirve")) + " · %" + String.format(Locale.US, "%.1f", b.optDouble("zirveden_dusus_pct")))
-                    SatirKV("Katılım", gunAy(b.optDouble("katilim_ts")) + " " + saat(b.optDouble("katilim_ts")).take(5))
+                SatirKV("Brüt kâr/zarar", paraIsaretli(b.optDouble("pnl")))
+                if (k != null) {
+                    SatirKV("Uygulama komisyonu (%${String.format(Locale.US, "%.0f", k.optDouble("komisyon_pct"))} kâr payı)", "−" + para(k.optDouble("komisyon")))
+                    SatirKV("Net kâr/zarar", paraIsaretli(k.optDouble("net_kar")))
                 }
-                Spacer(Modifier.height(8.dp))
-                var yeni by remember { mutableStateOf("") }
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(yeni, { yeni = it.filter { c -> c.isDigit() }.take(6) }, label = { Text("Yeni başlangıç (USDC)") }, singleLine = true,
-                                      modifier = Modifier.weight(1f), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
-                    Button({ cagri("/uye/portfoy", true, JSONObject().put("baslangic", yeni.toDouble())) { bakiye = JSONObject(it); yeni = "" } },
-                           enabled = !mesgul && yeni.isNotEmpty(), colors = NxGriButon()) { Text("Sıfırla") }
-                }
-                Text("Hesabın, katıldığın andan itibaren sistemin yüzde getirisini izler. Sıfırlarsan yeni tutarla bugünden başlar (10–100.000).",
-                     color = Nx.Soluk, fontSize = 11.sp, lineHeight = 15.sp)
                 Spacer(Modifier.height(6.dp))
                 Text("Komisyon yalnızca kârdan hesaplanır; zararda 0'dır. Bu bir SANAL gösterimdir: para saklanmaz, tahsilat yapılmaz.",
                      color = Nx.Soluk, fontSize = 11.sp, lineHeight = 15.sp)
@@ -234,7 +262,7 @@ fun UyeEkrani(url: String, key: String, sp: SharedPreferences, kurucu: Boolean =
             GuvenlikKarti(mesgul,
                 parolaDegistir = { eski, yeni -> cagri("/uye/parola", true, JSONObject().put("eski", eski).put("yeni", yeni)) {
                     oturum = JSONObject(it).optString("oturum"); Kasa.yaz(sp, "oturum", oturum); Oturum.deger = oturum; mesaj = "Parola değişti. Diğer tüm cihazlarda oturum kapandı." } },
-                tumOturumlar = { cagri("/uye/oturumlari-kapat", true) { oturum = ""; Oturum.deger = ""; sp.edit().remove("oturum").apply(); profil = null; bakiye = null; mesaj = "Tüm oturumlar kapatıldı. Tekrar giriş yapın." } })
+                tumOturumlar = { cagri("/uye/oturumlari-kapat", true) { oturum = ""; Oturum.deger = ""; sp.edit().remove("oturum").apply(); profil = null; bakiye = null; bot = null; mesaj = "Tüm oturumlar kapatıldı. Tekrar giriş yapın." } })
             if (kurucu) BilgiKutusu("Sistem sunucuları (Helius, Jupiter) sizin adınıza ayrı anahtar gerektirmez. Borsa anahtarınızla şu an yalnızca bakiye okunur; uygulama emir göndermez ve para çekemez.")
         }
     }
