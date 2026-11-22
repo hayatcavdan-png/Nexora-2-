@@ -15,7 +15,7 @@ Kazanan token'lar: takip edilen bir cüzdanın aldığı ve kopyasının (kaynak
 token'lar (etiket ölçümü) ayrıca incelenir (KESIF_KAZANAN=10 token): iyi token'ı erken bulanlar burada aranır.
 Piyasa kazananları (22.11.2026): takip listemizden BAĞIMSIZ olarak Solana'da son günlerde en çok yükselen token'lar
 (GeckoTerminal, anahtarsız) da incelenir (KESIF_PIYASA=25 token): her birinin havuzu açıldıktan sonraki ilk
-KESIF_PIYASA_SAAT=4 saatte alan cüzdanlar (sniperlar ve hızlı al-satçılar hariç, en eskiden başlayarak) aday olur.
+KESIF_PIYASA_SAAT=4 saatte (ilk KESIF_PIYASA_BASLA_SN=600 sn hariç) alan cüzdanlar (sniperlar ve hızlı al-satçılar hariç, en eskiden başlayarak) aday olur.
 Böylece aday havuzu yalnızca bizim takip ettiklerimizin gezdiği token'larla sınırlı kalmaz.
 Çıktılar: kesif_adaylar.csv (tüm erken alıcılar), wallets_kesif.txt (en az KESIF_EN_AZ token'da görünenler)"""
 import csv, datetime, os, sqlite3, sys, time
@@ -38,8 +38,9 @@ KAZANAN = int(os.getenv("KESIF_KAZANAN", "10"))
 KAZANAN_ESIK, KAZANAN_GUN = 20.0, 7
 PIYASA = int(os.getenv("KESIF_PIYASA", "25"))
 PIYASA_SAAT = float(os.getenv("KESIF_PIYASA_SAAT", "4"))
-PIYASA_LIK, PIYASA_HACIM, PIYASA_YUKSELIS = 30_000.0, 100_000.0, 50.0     # en az likidite $, 24s hacim $, yükseliş %
-PIYASA_YAS = (2 * 3600, 7 * 86400)                                       # havuz yaşı: 2 saat - 7 gün
+PIYASA_BASLA = int(os.getenv("KESIF_PIYASA_BASLA_SN", "600"))           # ilk 10 dk atlanır: o an alanların çoğu bot/sniper
+PIYASA_LIK, PIYASA_HACIM, PIYASA_YUKSELIS = 20_000.0, 50_000.0, 30.0     # en az likidite $, 24s hacim $, yükseliş %
+PIYASA_YAS = (2 * 3600, 10 * 86400)                                      # havuz yaşı: 2 saat - 10 gün
 GT_SOL = "https://api.geckoterminal.com/api/v2/networks/solana/"
 TEMEL = {"So11111111111111111111111111111111111111112", "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
          "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB"}                   # SOL, USDC, USDT: kazanan token sayılmaz
@@ -107,8 +108,10 @@ def piyasa_kazananlari(n=PIYASA, s=None, now=None, uyku=time.sleep, timeout=15):
     if n <= 0: return []
     s = s or requests.Session(); now = now if now is not None else time.time()
     adaylar = {}
-    for i, yol in enumerate(("trending_pools?duration=24h", "trending_pools?duration=24h&page=2", "trending_pools?duration=6h",
-                             "pools?sort=h24_volume_usd_desc", "pools?sort=h24_volume_usd_desc&page=2")):
+    for i, yol in enumerate(("trending_pools?duration=24h", "trending_pools?duration=24h&page=2", "trending_pools?duration=24h&page=3",
+                             "trending_pools?duration=6h", "trending_pools?duration=6h&page=2", "trending_pools?duration=1h",
+                             "pools?sort=h24_volume_usd_desc", "pools?sort=h24_volume_usd_desc&page=2",
+                             "pools?sort=h24_volume_usd_desc&page=3", "pools?sort=h24_tx_count_desc")):
         if i: uyku(2.1)                                          # herkese açık hız sınırı (dakikada ~30 istek)
         try: d = s.get(GT_SOL + yol, timeout=timeout).json()
         except (requests.RequestException, ValueError): continue
@@ -202,7 +205,8 @@ def main(client=None, tracker_db=None, out_dir=".", etiket_db=None, piyasa=None)
     for token, kaynak, bt, olusma in alimlar:
         try:
             if token in piy_tok:
-                alicilar, n, elenen = erken_alicilar(client, token, bt, pencere=int(PIYASA_SAAT * 3600), olusma=olusma, sira="asc")
+                alicilar, n, elenen = erken_alicilar(client, token, bt, pencere=int(PIYASA_SAAT * 3600) - PIYASA_BASLA,
+                                                     olusma=olusma, sira="asc")
             else:
                 alicilar, n, elenen = erken_alicilar(client, token, bt, olusma=olusma)
         except (HeliusRPCError, ValueError) as e:

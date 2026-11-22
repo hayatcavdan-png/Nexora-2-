@@ -130,7 +130,7 @@ class PiyasaTests(unittest.TestCase):
         import datetime
         iso = lambda t: datetime.datetime.fromtimestamp(t, datetime.timezone.utc).isoformat().replace("+00:00", "Z")
         s = GT([havuz("IYI", iso(now - 86400), h24=300), havuz("ORTA", iso(now - 3 * 86400), h24=80),
-                havuz("ZAYIF", iso(now - 86400), h24=20),                         # yükseliş az
+                havuz("ZAYIF", iso(now - 86400), h24=20, h6=5),                         # yükseliş az
                 havuz("SIG", iso(now - 86400), lik=5_000),                        # likidite az
                 havuz("YENI", iso(now - 600)),                                    # 2 saatten genç
                 havuz("ESKI", iso(now - 30 * 86400)),                             # 7 günden yaşlı
@@ -154,13 +154,13 @@ class PiyasaTests(unittest.TestCase):
             c.execute("CREATE TABLE tracker_signals(id INTEGER PRIMARY KEY AUTOINCREMENT, side TEXT, token TEXT, wallet TEXT, block_time INTEGER)")
             c.execute("INSERT INTO tracker_signals(side,token,wallet,block_time) VALUES('BUY','TOKA','SRC',10000)"); c.commit(); c.close()
             acilis = 100_000
-            cl = FakeClient({"PIY": [swap_tx("ERKEN", "PIY", acilis + 600), swap_tx("SNIPER", "PIY", acilis + 30)],
+            cl = FakeClient({"PIY": [swap_tx("ERKEN", "PIY", acilis + 900), swap_tx("SNIPER", "PIY", acilis + 30)],
                              "TOKA": [swap_tx("ERKEN", "TOKA", 9000)]})
             with redirect_stdout(io.StringIO()):
                 K.main(client=cl, tracker_db=tdb, out_dir=d, piyasa=lambda: [("PIY", None, acilis + 4 * 3600, acilis)])
             piy = [p for p in cl.calls if p[0] == "PIY"][0][1]
             self.assertEqual(piy["sortOrder"], "asc")
-            self.assertEqual(piy["filters"]["blockTime"], {"gte": acilis, "lt": acilis + 4 * 3600})
+            self.assertEqual(piy["filters"]["blockTime"], {"gte": acilis + K.PIYASA_BASLA, "lt": acilis + 4 * 3600})
             satir = open(os.path.join(d, K.OUT_CSV)).read()
             self.assertIn("ERKEN,2", satir); self.assertNotIn("SNIPER", satir)
         finally:
