@@ -48,10 +48,13 @@ TOPLAM_RISK = 0.40           # pozisyon büyüklüğü x en fazla pozisyon bunu 
 # portföyün TOPLAM_RISK oranını hiçbir durumda aşamaz.
 SEVIYELER = dict(kanitlanmis=(4, 0.035), normal=(2, 0.025), yeni=(1, 0.015))
 SEVIYE_TABAN = 0.025
+# POZISYON_MOD: "token" (eski: pozisyon token başına, satış tüm havuzu kapatır) | "cuzdan" (her cüzdanın kendi payı; satış yalnızca kendi payını kapatır).
+POZISYON_MOD = os.getenv("POZISYON_MOD", "token")
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS state(k TEXT PRIMARY KEY, v TEXT);
 CREATE TABLE IF NOT EXISTS positions(token TEXT PRIMARY KEY, qty REAL, cost REAL, last_price REAL, wallet TEXT);
+CREATE TABLE IF NOT EXISTS pozisyon_bacak(id INTEGER PRIMARY KEY AUTOINCREMENT, token TEXT, wallet TEXT, qty REAL, cost REAL, ts REAL);
 CREATE TABLE IF NOT EXISTS shadow(id INTEGER PRIMARY KEY AUTOINCREMENT, event_id TEXT UNIQUE, wallet TEXT, token TEXT,
   opened_ts REAL, size_usd REAL, qty_raw TEXT, decimals INTEGER, rt_loss_pct REAL, impact_pct REAL, reason TEXT,
   status TEXT, closed_ts REAL, proceeds_usd REAL, pnl_usd REAL, close_event TEXT, note TEXT);
@@ -137,6 +140,11 @@ class Paper:
             self.db.close()
             raise SemaHatasi(f"veritabanı şema sürümü {r[0]}, bu kod {SEMA_SURUMU}: önce kodu güncelleyin (veri korunuyor)")
         self.db.executescript(SCHEMA)
+        if POZISYON_MOD == "cuzdan":                       # geçiş: açık toplam satırları, açan cüzdanın payı olarak kaydedilir (bir kez)
+            if not self.db.execute("SELECT 1 FROM pozisyon_bacak LIMIT 1").fetchone():
+                self.db.execute("""INSERT INTO pozisyon_bacak(token,wallet,qty,cost,ts)
+                    SELECT token, wallet, qty, cost, strftime('%s','now') FROM positions WHERE qty > 0""")
+                self.db.commit()
         cols = {r[1] for r in self.db.execute("PRAGMA table_info(positions)")}
         if "qty_raw" not in cols:            # eski şemadan güvenli geçiş
             self.db.execute("ALTER TABLE positions ADD COLUMN qty_raw TEXT")
@@ -341,16 +349,28 @@ class Paper:
                 self.db.execute("""INSERT INTO positions(token,qty,cost,last_price,wallet) VALUES(?,?,?,?,?) ON CONFLICT(token) DO UPDATE SET
                   qty=qty+excluded.qty, cost=cost+excluded.cost, last_price=excluded.last_price""",
                   (token, qty, size, price, wallet))
+                if POZISYON_MOD == "cuzdan":
+                    self.db.execute("INSERT INTO pozisyon_bacak(token,wallet,qty,cost,ts) VALUES(?,?,?,?,?)", (token, wallet, qty, size, time.time()))
                 return self._log(event_id, wallet, token, side, qty, fill, ucret, 0, "KOPYALANDI", "ok")
 
             pos = self.db.execute("SELECT * FROM positions WHERE token=?", (token,)).fetchone()
             if not pos: return rej("sahip olunmayan pozisyon satılamaz")
+            if POZISYON_MOD == "cuzdan":
+                pay = self.db.execute("SELECT COALESCE(SUM(qty),0) q, COALESCE(SUM(cost),0) c FROM pozisyon_bacak WHERE token=? AND wallet=?",
+                                      (token, wallet)).fetchone()
+                if not pay["q"] or pay["q"] <= 0: return rej("bu cüzdanın açık payı yok")
+                pos = dict(qty=pay["q"], cost=pay["c"])
             slip = self.kayma + pos["qty"] * price / liquidity_usd
             fill = price * (1 - slip); ucret = CFG["net_fee_usd"] + pos["qty"] * fill * self.ucret_orani
             proceeds = pos["qty"] * fill - ucret
             pnl = proceeds - pos["cost"]
             self._set("cash", self.cash() + proceeds)
-            self.db.execute("DELETE FROM positions WHERE token=?", (token,))
+            if POZISYON_MOD == "cuzdan":
+                self.db.execute("DELETE FROM pozisyon_bacak WHERE token=? AND wallet=?", (token, wallet))
+                self.db.execute("UPDATE positions SET qty=qty-?, cost=cost-? WHERE token=?", (pos["qty"], pos["cost"], token))
+                self.db.execute("DELETE FROM positions WHERE token=? AND qty<=1e-9", (token,))
+            else:
+                self.db.execute("DELETE FROM positions WHERE token=?", (token,))
             return self._log(event_id, wallet, token, side, pos["qty"], fill, ucret, pnl, "KOPYALANDI", "ok")
 
     # --- Gerçek teklif (Jupiter) ile çalışan yol -------------------------------------------
