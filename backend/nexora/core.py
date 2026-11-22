@@ -119,8 +119,10 @@ class SemaHatasi(RuntimeError):
     pass
 
 class Paper:
-    def __init__(self, path=":memory:", kayma=None, ucret_orani=0.0, ekosistem="solana"):
+    def __init__(self, path=":memory:", kayma=None, ucret_orani=0.0, ekosistem="solana", start_cash=None, dagit=True):
         self.path = path
+        self.start_cash = float(start_cash) if start_cash is not None else CFG["start_cash"]   # 5.27: üye hesabı kendi başlangıcıyla
+        self.dagit = dagit                  # False: üye hesabı; sinyal dağıtıcısını tetiklemez (sonsuz döngü olmasın)
         self.ekosistem = ekosistem          # N23: bu portföyün işlemleri hangi ekosisteme ait (eski kayıtlar 'solana')
         # Borsa (platform 2): gerçek alış/satış fiyatı kullanıldığı için kayma küçük, ücret yüzdelik (ör. %0.1 = 0.001)
         self.kayma = CFG["base_slippage"] if kayma is None else kayma
@@ -151,8 +153,8 @@ class Paper:
                 self.db.execute(f"ALTER TABLE {tablo} ADD COLUMN ekosistem TEXT DEFAULT 'solana'")
         self._set("sema_surumu", SEMA_SURUMU)
         if self._get("cash") is None:
-            self._set("cash", CFG["start_cash"]); self._set("kill", "0")
-            self._set("day", time.strftime("%Y-%m-%d")); self._set("day_start", CFG["start_cash"])
+            self._set("cash", self.start_cash); self._set("kill", "0")
+            self._set("day", time.strftime("%Y-%m-%d")); self._set("day_start", self.start_cash)
         self.db.commit()
 
     def _get(self, k):
@@ -315,7 +317,17 @@ class Paper:
         return dict(decision=decision, reason=reason, qty=qty, price=price, fee=fee, pnl=pnl)
 
     def handle_signal(self, event_id, wallet, token, side, price, liquidity_usd, signal_age_s):
-        """Idempotent: aynı event_id ikinci kez işlenmez."""
+        """Idempotent: aynı event_id ikinci kez işlenmez. Ana (ortak) motorda sonuç, kayıtlı üye hesaplarına da dağıtılır (5.27)."""
+        r = self._handle_signal(event_id, wallet, token, side, price, liquidity_usd, signal_age_s)
+        if self.dagit:
+            try:
+                from nexora import hesap        # geç içe aktarma: döngüsel bağımlılık olmasın
+                hesap.dagit(event_id, wallet, token, side, price, liquidity_usd, signal_age_s)
+            except Exception as e:              # üye hesabındaki hata ana motoru durdurmaz
+                print(f"[nexora] üye hesap dağıtımı hata: {type(e).__name__}", flush=True)
+        return r
+
+    def _handle_signal(self, event_id, wallet, token, side, price, liquidity_usd, signal_age_s):
         with self.lock:
             if self.db.execute("SELECT 1 FROM trades WHERE event_id=?", (event_id,)).fetchone():
                 return dict(decision="ATLANDI", reason="tekrarlanan olay")
@@ -651,7 +663,7 @@ class Paper:
             r["durum"] = (d["durum"] if d else None) or D.ACIK
             r["opened_ts"], r["min_pct"], r["max_pct"] = (d["opened_ts"], d["min_pct"], d["max_pct"]) if d else (None, None, None)
         eq = self.equity()
-        return dict(cash=self.cash(), equity=eq, pnl=eq - CFG["start_cash"], positions=rows, killed=self.killed())
+        return dict(cash=self.cash(), equity=eq, pnl=eq - self.start_cash, positions=rows, killed=self.killed())
 
     def trades(self, limit=50, kopya=0):
         """Son `limit` kayıt; kopya>0 ise ayrıca son `kopya` KOPYALANDI kaydı da (reddedilenler kopyaları dışarıda bırakmasın)."""
