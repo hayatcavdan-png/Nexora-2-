@@ -4,7 +4,7 @@
                                python yedek.py --geri DOSYA -> yedeği bu klasöre açar (takip ve sunucu DURMUŞ olmalı)"""
 import glob, os, sqlite3, sys, tarfile, tempfile, time
 
-DBLER = ["nexora_paper.db", "nexora_tracker.db", "nexora_etiket.db", "nexora_dna.db", "nexora_borsa.db", "nexora_strateji_momentum.db", "nexora_strateji_trend.db", "nexora_strateji_dip.db", "nexora_bnb.db", "nexora_base.db"]
+DBLER = ["nexora_uyelik.db", "nexora_paper.db", "nexora_tracker.db", "nexora_etiket.db", "nexora_dna.db", "nexora_borsa.db", "nexora_strateji_momentum.db", "nexora_strateji_trend.db", "nexora_strateji_dip.db", "nexora_bnb.db", "nexora_base.db"]
 DOSYALAR = ["wallets.txt", "kara_liste.txt", "cuzdan_analiz.csv", "cuzdan_tarama.csv", "takip_kaybi.json", "wallets_onerilen.txt"]
 SAKLA = int(os.getenv("YEDEK_SAKLA", "14"))
 
@@ -25,6 +25,19 @@ def yedekle(kok=".", hedef="yedekler", sakla=SAKLA, simdi=None):
             finally:
                 dst.close(); src.close()
             tar.add(kopya, arcname=db)
+        # 5.27.6: üye hesap defterleri (her üyenin ayrı paper veritabanı) ve hesap kayıt defteri
+        hesap_dizin = os.getenv("NEXORA_HESAP_DIR", "nexora_hesap")
+        for kaynak in sorted(glob.glob(os.path.join(kok, hesap_dizin, "*.db"))):
+            ad = os.path.join(hesap_dizin, os.path.basename(kaynak))
+            kopya = os.path.join(gecici, ad)
+            os.makedirs(os.path.dirname(kopya), exist_ok=True)
+            src = sqlite3.connect(f"file:{kaynak}?mode=ro", uri=True, timeout=10)
+            dst = sqlite3.connect(kopya)
+            try:
+                src.backup(dst)
+            finally:
+                dst.close(); src.close()
+            tar.add(kopya, arcname=ad)
         for f in DOSYALAR:
             if os.path.exists(os.path.join(kok, f)): tar.add(os.path.join(kok, f), arcname=f)
     eski = sorted(glob.glob(os.path.join(kok, hedef, "nexora_*.tar.gz")))

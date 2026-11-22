@@ -496,6 +496,12 @@ class Paper:
 
     def mark_price(self, token, price):
         """Açık pozisyonu güncel teklif fiyatıyla değerler (gerçekleşmemiş K/Z için) ve zarar kesme ölçümünü günceller."""
+        if self.dagit:                       # 5.27.6: üye hesaplarının açık pozisyonları da güncel fiyatla değerlensin
+            try:
+                from nexora import hesap
+                hesap.fiyat_isle(token, price)
+            except Exception as e:
+                print(f"[nexora] üye fiyat güncelleme hata: {type(e).__name__}", flush=True)
         with self.lock:
             self.db.execute("UPDATE positions SET last_price=? WHERE token=?", (price, token))
             self._set(f"mark_ts:{token}", time.time())

@@ -62,6 +62,25 @@ class HesapTests(unittest.TestCase):
             self.H.dagit("e1", "w", "tok", "buy", 1.0, 1e6, 0)
         hs.assert_not_called()
 
+    def test_piyasa_fiyati_uye_pozisyonunu_degerler(self):
+        self.H.bot_ac(1, baslangic=100)
+        p = self.H._hesap(1)
+        p.db.execute("INSERT INTO positions(token, qty, cost, last_price, wallet) VALUES('tok', 10, 5.0, 0.5, NULL)")
+        p.db.commit()
+        self.H.fiyat_isle("tok", 0.8)
+        self.assertAlmostEqual(p.db.execute("SELECT last_price FROM positions WHERE token='tok'").fetchone()[0], 0.8)
+
+    def test_gecikmeli_fiyat_sinyal_basina_tek_sefer(self):
+        self.H.bot_ac(1, baslangic=100); self.H.bot_ac(2, baslangic=100)
+        self.H.bot_kapat(2, onay=True)
+        self.H.bot_ac(2, baslangic=100)
+        with mock.patch.object(self.H, "canli_fiyat", return_value=2.0) as cf, \
+             mock.patch.object(self.H, "_zamanla", side_effect=lambda sn, fn, *a: fn(*a)), \
+             mock.patch.object(self.H.Paper, "handle_signal") as hs:
+            self.H.dagit("e1", "w", "tok", "buy", 1.0, 1e6, 0)
+        self.assertEqual(cf.call_count, 1)
+        self.assertEqual(hs.call_count, 2)
+
     def test_uye_gecikmesi_5_saniye(self):
         self.assertEqual(self.H.GECIKME_SN, 5.0)
 

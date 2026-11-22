@@ -103,7 +103,7 @@ def bot_kapat(uye, onay, fiyat=None, now=None):
         p = _hesap(uye)
         for pos in [dict(r) for r in p.db.execute("SELECT * FROM positions")]:
             token = pos["token"]
-            px = fiyat(token) if fiyat else None
+            px = (fiyat(token) if fiyat else None) or canli_fiyat(token)
             if not px:
                 px = pos["last_price"] or (pos["cost"] / pos["qty"] if pos["qty"] else 0.0)
             p.record_sell(f"kapat:{uye}:{token}:{int(now * 1000)}", "bot-kapat", token,
@@ -142,17 +142,19 @@ def canli_fiyat(token):
         return None
 
 
-def _gecikmeli(uye, event_id, wallet, token, side, liquidity_usd, signal_age_s, sinyal_ts):
-    """Üyenin işlemi: sinyalden GECIKME_SN sonra, o andaki piyasa fiyatıyla."""
+def _gecikmeli(uyeler, event_id, wallet, token, side, liquidity_usd, signal_age_s, sinyal_ts):
+    """Gecikmeli üyeler: sinyalden GECIKME_SN sonra, o andaki piyasa fiyatıyla. Fiyat sinyal başına
+    tek sefer alınır (hız sınırı için), tüm üyeler aynı fiyatı görür."""
     fiyat = canli_fiyat(token)
     if fiyat is None or fiyat <= 0:
-        print(f"[nexora] hesap {uye}: fiyat alınamadı, işlem atlandı ({token[:6]})", flush=True)
+        print(f"[nexora] {len(uyeler)} üye için fiyat alınamadı, işlem atlandı ({token[:6]})", flush=True)
         return
-    try:
-        _hesap(uye).handle_signal(f"{event_id}|u{uye}", wallet, token, side, fiyat, liquidity_usd,
-                                  signal_age_s + (time.time() - sinyal_ts))
-    except Exception as e:
-        print(f"[nexora] hesap {uye} gecikmeli sinyal hata: {type(e).__name__}", flush=True)
+    for uye in uyeler:
+        try:
+            _hesap(uye).handle_signal(f"{event_id}|u{uye}", wallet, token, side, fiyat, liquidity_usd,
+                                      signal_age_s + (time.time() - sinyal_ts))
+        except Exception as e:
+            print(f"[nexora] hesap {uye} gecikmeli sinyal hata: {type(e).__name__}", flush=True)
 
 
 def dagit(event_id, wallet, token, side, price, liquidity_usd, signal_age_s):
@@ -165,14 +167,33 @@ def dagit(event_id, wallet, token, side, price, liquidity_usd, signal_age_s):
     finally:
         db.close()
     sinyal_ts = time.time()
+    gecikmeliler = []
     for uye, oncelik in uyeler:
         try:
             if oncelik:
                 _hesap(uye).handle_signal(f"{event_id}|u{uye}", wallet, token, side, price, liquidity_usd, signal_age_s)
             else:
-                _zamanla(GECIKME_SN, _gecikmeli, uye, event_id, wallet, token, side, liquidity_usd, signal_age_s, sinyal_ts)
+                gecikmeliler.append(uye)
         except Exception as e:      # bir üyenin hatası diğerlerini durdurmaz
             print(f"[nexora] hesap {uye} sinyal hata: {type(e).__name__}", flush=True)
+    if gecikmeliler:
+        _zamanla(GECIKME_SN, _gecikmeli, gecikmeliler, event_id, wallet, token, side, liquidity_usd, signal_age_s, sinyal_ts)
+
+
+def fiyat_isle(token, price):
+    """Piyasa fiyatı geldiğinde üyelerin o tokendaki açık pozisyonlarını değerler (açık hesaplar için)."""
+    db = _kayit_db()
+    try:
+        uyeler = [r["uye"] for r in db.execute("SELECT uye FROM hesap")]
+    finally:
+        db.close()
+    for uye in uyeler:
+        try:
+            p = _hesap(uye)
+            if p.db.execute("SELECT 1 FROM positions WHERE token=?", (token,)).fetchone():
+                p.mark_price(token, price)
+        except Exception as e:
+            print(f"[nexora] hesap {uye} değerleme hata: {type(e).__name__}", flush=True)
 
 
 def portfoy(uye):
