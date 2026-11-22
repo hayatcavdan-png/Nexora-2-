@@ -43,10 +43,11 @@ def kopya_ozet(paper_path, tracker_path, gun=30, now=None):
     now = now or time.time()
     c = panel.cuzdanlar(paper_path, tracker_path)
     biz = _bizim(paper_path, gun, now)
-    liste, deneniyor = [], 0
+    liste, deneniyor = [], []
     for r in c.get("cuzdanlar", []):
         if not r.get("takipte"):
-            if r.get("karar") == "kopyalanabilir": deneniyor += 1
+            if r.get("karar") == "kopyalanabilir":
+                deneniyor.append(dict(ad=takma_ad(r["wallet"]), trader_kazanma=r.get("kazanma_orani"), etiketler=_etiketler(r)))
             continue
         b = biz.get(r["wallet"], dict(kapanan=0, kazanan=0, kz=0.0))
         liste.append(dict(
@@ -55,4 +56,4 @@ def kopya_ozet(paper_path, tracker_path, gun=30, now=None):
             bizim_kazanma=round(100.0 * b["kazanan"] / b["kapanan"], 1) if b["kapanan"] else None,
             trader_kazanma=r.get("kazanma_orani"), acik=r.get("paper_acik") or 0, etiketler=_etiketler(r)))
     liste.sort(key=lambda x: (-x["kz"], -x["kapanan"]))
-    return dict(gun=gun, kopyalanan=liste, deneniyor=deneniyor)
+    return dict(gun=gun, kopyalanan=liste, deneniyor=len(deneniyor), deneniyor_liste=deneniyor)

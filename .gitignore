@@ -54,6 +54,7 @@ backend/saglik_durum.json
 backend/yz_yorum_*.json
 backend/asistan_ozet.json
 backend/asistan_sayac.json
+backend/sembol_onbellek.json
 backend/yz_model_rapor.txt
 backend/gercek_ayar.json
 backend/nexora_gercek.db*

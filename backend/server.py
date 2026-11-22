@@ -16,6 +16,21 @@ from nexora.uyelik import Uyelik, UyelikHatasi
 _servis = {}
 _servis_kilit = threading.Lock()
 
+def _toplu_bilgi(mints):
+    from nexora.token_bilgi import toplu
+    return toplu(servis("bilgi"), mints)
+
+
+def _sembollu_portfoy():
+    from nexora import sembol
+    p = paper.portfolio(); sembol.ekle(p["positions"], _toplu_bilgi); return p
+
+
+def _sembollu_islemler():                                   # 5.26.1: son 50 kayıt + son 100 kopya; token sembolleriyle
+    from nexora import sembol
+    return sembol.ekle(paper.trades(50, kopya=100), _toplu_bilgi)
+
+
 def servis(ad):
     """Ağa çıkan bileşenler yalnızca ilk kullanımda kurulur (anahtar yoksa ilgili uç nokta hata döner, sunucu çalışır)."""
     with _servis_kilit:
@@ -217,8 +232,8 @@ class H(BaseHTTPRequestHandler):
             if parts.path == "/durum":
                 self._send(200, dict(mod="PAPER", gercek_islem="KAPALI", acil_durdurma=paper.killed(), takip_nabiz=paper.son_nabiz(),
                                      rol="uye")); return
-            if parts.path == "/portfoy": self._send(200, self._cuzdansiz(paper.portfolio())); return
-            if parts.path == "/islemler": self._send(200, self._cuzdansiz(paper.trades())); return
+            if parts.path == "/portfoy": self._send(200, self._cuzdansiz(_sembollu_portfoy())); return
+            if parts.path == "/islemler": self._send(200, self._cuzdansiz(_sembollu_islemler())); return
         if parts.path == "/yedek/son": self._yedek_gonder(); return
         if parts.path == "/borsa":                          # Platform 2 (borsa) paper portföyü
             from nexora import borsa_liste
@@ -333,8 +348,8 @@ class H(BaseHTTPRequestHandler):
         if self.path == "/durum":
             self._send(200, dict(mod="PAPER", gercek_islem="KAPALI", acil_durdurma=paper.killed(), ayarlar=paper.ayarlar()["gecerli"],
                                  takip_nabiz=paper.son_nabiz(), model_filtre=model_kapisi.ModelKapisi().durum(), yz=_yz_ozet()))
-        elif self.path == "/portfoy": self._send(200, paper.portfolio())
-        elif self.path == "/islemler": self._send(200, paper.trades())
+        elif self.path == "/portfoy": self._send(200, _sembollu_portfoy())
+        elif self.path == "/islemler": self._send(200, _sembollu_islemler())
         elif self.path == "/takip": self._send(200, takip_ozeti())
         elif self.path == "/gecmis": self._send(200, panel.gecmis(os.getenv("NEXORA_DB", "nexora_paper.db")))
         elif self.path == "/cuzdanlar":

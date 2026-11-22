@@ -134,8 +134,8 @@ fun YoneticiSeridi(panelde: Boolean, panel: () -> Unit, donus: () -> Unit) {
     }
 }
 
-private fun sembol(v: Veri, token: String): String =
-    v.radar.firstOrNull { it.token == token }?.sembol?.takeIf { it.isNotBlank() } ?: kisa(token)
+private fun sembol(v: Veri, token: String, bilinen: String = ""): String =
+    bilinen.ifBlank { v.radar.firstOrNull { it.token == token }?.sembol?.takeIf { it.isNotBlank() } ?: kisa(token) }
 
 private val TOKEN_RENK = listOf(Color(0xFFFB923C), Color(0xFF38BDF8), Color(0xFFF472B6), Color(0xFF39FF88), Color(0xFFA78BFA), Color(0xFFFBBF24))
 private fun tokenRenk(t: String) = TOKEN_RENK[(t.hashCode() and 0x7fffffff) % TOKEN_RENK.size]
@@ -159,7 +159,7 @@ private fun nedenMetni(r: String): String {
 
 private fun onceMetni(ts: Double): String {
     val sn = (System.currentTimeMillis() / 1000.0 - ts).toInt().coerceAtLeast(0)
-    return when { sn < 60 -> "az önce"; sn < 3600 -> "${sn / 60} dk önce"; sn < 86400 -> "${sn / 3600} saat önce"; else -> "${sn / 86400} gün önce" }
+    return when { sn < 60 -> "az önce"; sn < 3600 -> "${sn / 60} dk önce"; sn < 86400 -> "${sn / 3600} sa önce"; else -> "${sn / 86400} gün önce" }
 }
 
 @Composable
@@ -243,7 +243,7 @@ fun LazyListScope.uyeAnaSayfa(v: Veri, gizle: Boolean, gizleDegis: () -> Unit, a
                     if (v.acilDurdurma) Text("  durduruldu", color = Nx.Kirmizi, fontSize = 12.sp)
                     else { NabizNokta(Nx.Nane, 7.dp); Text("çalışıyor", color = Nx.Nane, fontSize = 12.sp) }
                 }
-                Text(nexoMetni ?: kural, color = Color(0xFFDDD9F0), fontSize = 13.sp, lineHeight = 18.sp, maxLines = 4, overflow = TextOverflow.Ellipsis)
+                Text(nexoMetni ?: kural, color = Color(0xFFDDD9F0), fontSize = 13.sp, lineHeight = 18.sp, maxLines = 5, overflow = TextOverflow.Ellipsis)
                 AiYazi("Bana bir şey sor →", 12.sp, FontWeight.SemiBold)
             }
         }
@@ -271,7 +271,7 @@ fun LazyListScope.uyeAnaSayfa(v: Veri, gizle: Boolean, gizleDegis: () -> Unit, a
 
 @Composable
 private fun HareketSatiri(v: Veri, i: Islem) {
-    val ad = sembol(v, i.token); val sat = i.yon == "sell"
+    val ad = sembol(v, i.token, i.sembol); val sat = i.yon == "sell"
     Row(Modifier.fillMaxWidth().belir().clip(RoundedCornerShape(18.dp)).background(Nx.Yuzey).padding(horizontal = 14.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         TokenRozet(ad, 40.dp)
@@ -309,12 +309,36 @@ fun KopyaCuzdanlarEkrani(url: String, key: String) {
         }
         if (hata.isNotEmpty()) Text(hata, color = Nx.Kirmizi, fontSize = 13.sp)
         if (veri == null && hata.isEmpty()) Row(Modifier.fillMaxWidth().padding(24.dp), horizontalArrangement = Arrangement.Center) { YaziyorNoktalari() }
-        if (sekme == 1) BilgiKutusu("Deneniyor: karnesi iyi çıkan yeni trader'lar önce gölgede (sanal olarak bile para koymadan) izlenir. " +
-                                     "Sonuçları iyiyse kopyalananlara eklenir; kötüyse elenir.")
+        if (sekme == 1) {
+            BilgiKutusu("Deneniyor: karnesi iyi çıkan yeni trader'lar önce gölgede (sanal olarak bile para koymadan) izlenir. " +
+                        "Sonuçları iyiyse kopyalananlara eklenir; kötüyse elenir.")
+            val dl = veri?.optJSONArray("deneniyor_liste")
+            if (dl != null) for (i in 0 until dl.length()) DeneniyorSatiri(dl.getJSONObject(i), i)
+        }
         else if (liste != null) {
             if (n == 0) BilgiKutusu("Şu an kopyalanan trader yok.")
             for (i in 0 until n) TraderKarti(liste.getJSONObject(i), i, veri?.optInt("gun") ?: 30)
             Text("Trader adresleri gizlidir; her trader'a kalıcı bir takma ad verilir.", color = Nx.Soluk, fontSize = 11.sp)
+        }
+    }
+}
+
+@Composable
+private fun DeneniyorSatiri(x: JSONObject, sira: Int) {
+    val ad = x.optString("ad")
+    Row(Modifier.fillMaxWidth().belir().clip(RoundedCornerShape(18.dp)).background(Nx.Yuzey).padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Box(Modifier.size(40.dp).clip(RoundedCornerShape(14.dp)).background(Nx.Yuzey2).border(1.dp, TOKEN_RENK[sira % TOKEN_RENK.size], RoundedCornerShape(14.dp)),
+            contentAlignment = Alignment.Center) { Text(ad.takeLast(2), color = TOKEN_RENK[sira % TOKEN_RENK.size], fontWeight = FontWeight.Black, fontSize = 14.sp) }
+        Column(Modifier.weight(1f)) {
+            Text(ad, color = Nx.Metin, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+            val et = x.optJSONArray("etiketler")
+            Text(if (et != null && et.length() > 0) (0 until et.length()).joinToString(" · ") { et.getString(it) } else "Gölgede izleniyor",
+                 color = Nx.Soluk, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+        if (!x.isNull("trader_kazanma")) Column(horizontalAlignment = Alignment.End) {
+            Text("%" + x.optDouble("trader_kazanma").toInt(), color = Nx.Gok, fontWeight = FontWeight.Bold)
+            Text("kendi isabeti", color = Nx.Soluk, fontSize = 11.sp)
         }
     }
 }
@@ -403,7 +427,7 @@ private fun gunEtiketi(ts: Double): String {
 
 @Composable
 private fun AcikIslemKarti(v: Veri, p: Pozisyon) {
-    val ad = sembol(v, p.token)
+    val ad = sembol(v, p.token, p.sembol)
     val pct = if (p.maliyet > 0) (p.deger / p.maliyet - 1) * 100 else 0.0
     val akis by rememberInfiniteTransition(label = "akis").animateFloat(0f, 1f, infiniteRepeatable(tween(1000, easing = LinearEasing)), label = "a")
     val simdi = System.currentTimeMillis() / 1000.0
@@ -414,7 +438,7 @@ private fun AcikIslemKarti(v: Veri, p: Pozisyon) {
             TokenRozet(ad)
             Column(Modifier.weight(1f)) {
                 Text("$ad · açık", color = Nx.Metin, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
-                Text(p.acilis?.let { "Bir trader aldı, biz de aldık · " + onceMetni(it) } ?: "Açık", color = Nx.Soluk, fontSize = 12.sp, maxLines = 1)
+                Text(p.acilis?.let { "Trader aldı, biz de · " + onceMetni(it) } ?: "Açık", color = Nx.Soluk, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             Text((if (pct >= 0) "+%" else "−%") + String.format(java.util.Locale("tr"), "%.1f", kotlin.math.abs(pct)), color = kzRenk(pct),
                  fontWeight = FontWeight.Bold, fontFamily = Orbitron, fontSize = 15.sp)

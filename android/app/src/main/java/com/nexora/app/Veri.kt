@@ -33,9 +33,10 @@ fun JSONObject.str(k: String): String = if (isNull(k)) "" else optString(k, "")
 fun JSONObject.dbl(k: String): Double? = if (!has(k) || isNull(k)) null else optDouble(k).takeIf { !it.isNaN() }
 
 data class Pozisyon(val token: String, val cuzdan: String, val maliyet: Double, val deger: Double, val durum: String = "ACIK",
-                    val acilis: Double? = null, val minPct: Double? = null, val maxPct: Double? = null, val eko: String = "solana")
+                    val acilis: Double? = null, val minPct: Double? = null, val maxPct: Double? = null, val eko: String = "solana",
+                    val sembol: String = "")
 data class Islem(val ts: Double, val yon: String, val token: String, val cuzdan: String, val karar: String,
-                 val neden: String, val kz: Double, val eko: String = "solana")
+                 val neden: String, val kz: Double, val eko: String = "solana", val sembol: String = "")
 data class Sinyal(val ts: Double, val yon: String, val token: String, val cuzdan: String,
                   val gecikme: Double, val kaynak: String, val karar: String, val neden: String)
 data class TakipCuzdan(val adres: String, val durum: String, val hata: String)
@@ -132,13 +133,13 @@ class Veri {
             val x = pos.getJSONObject(it)
             Pozisyon(x.str("token"), x.str("wallet"), x.optDouble("cost", 0.0), x.optDouble("qty", 0.0) * x.optDouble("last_price", 0.0),
                      x.str("durum").ifEmpty { "ACIK" }, x.dbl("opened_ts"), x.dbl("min_pct"), x.dbl("max_pct"),
-                     x.str("ekosistem").ifEmpty { "solana" })
+                     x.str("ekosistem").ifEmpty { "solana" }, x.str("sembol"))
         }
         val t = JSONArray(al("/islemler"))
         islemler = (0 until t.length()).map {
             val x = t.getJSONObject(it)
             Islem(x.optDouble("ts", 0.0), x.str("side"), x.str("token"), x.str("wallet"), x.str("decision"), x.str("reason"), x.optDouble("pnl", 0.0),
-                  x.str("ekosistem").ifEmpty { "solana" })
+                  x.str("ekosistem").ifEmpty { "solana" }, x.str("sembol"))
         }
 
         try {

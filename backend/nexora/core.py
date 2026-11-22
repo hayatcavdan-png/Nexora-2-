@@ -653,5 +653,10 @@ class Paper:
         eq = self.equity()
         return dict(cash=self.cash(), equity=eq, pnl=eq - CFG["start_cash"], positions=rows, killed=self.killed())
 
-    def trades(self, limit=50):
-        return [dict(r) for r in self.db.execute("SELECT * FROM trades ORDER BY id DESC LIMIT ?", (limit,))]
+    def trades(self, limit=50, kopya=0):
+        """Son `limit` kayıt; kopya>0 ise ayrıca son `kopya` KOPYALANDI kaydı da (reddedilenler kopyaları dışarıda bırakmasın)."""
+        rows = {r["id"]: dict(r) for r in self.db.execute("SELECT * FROM trades ORDER BY id DESC LIMIT ?", (limit,))}
+        if kopya:
+            rows.update({r["id"]: dict(r) for r in self.db.execute(
+                "SELECT * FROM trades WHERE decision='KOPYALANDI' ORDER BY id DESC LIMIT ?", (kopya,))})
+        return [rows[k] for k in sorted(rows, reverse=True)]
