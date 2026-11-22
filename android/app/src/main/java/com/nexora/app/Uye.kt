@@ -50,6 +50,8 @@ fun UyeEkrani(url: String, key: String, sp: SharedPreferences, kurucu: Boolean =
     var kod by remember { mutableStateOf("") }
     var ikiAdimIste by remember { mutableStateOf(false) }            // N35: sunucu 'iki adımlı doğrulama kodu gerekli' dedi
     var totpKod by remember { mutableStateOf("") }
+    var kayitOnay by remember { mutableStateOf(false) }             // 5.26.2: e-posta onay kodu adımı (sunucu onay_gerekli dedi)
+    var kayitKod by remember { mutableStateOf("") }
     LaunchedEffect(mesaj) { if (mesaj.contains("iki adımlı doğrulama kodu gerekli")) { ikiAdimIste = true; mesaj = "Doğrulama uygulamandaki 6 haneli kodu gir." } }
 
     fun cagri(yol: String, post: Boolean = false, govde: JSONObject = JSONObject(), basari: (String) -> Unit) = scope.launch {
@@ -82,8 +84,8 @@ fun UyeEkrani(url: String, key: String, sp: SharedPreferences, kurucu: Boolean =
                           if (kayitModu) NexoIfade.YILDIZ else NexoIfade.GULUS, Modifier.fillMaxWidth(), poz = NexoPoz.SELAM)
             NeonKart(Modifier.fillMaxWidth(), dolgu = Nx.DolguMor) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Hap("Giriş", !kayitModu, Modifier.weight(1f)) { kayitModu = false; sifirla = false; mesaj = "" }
-                    Hap("Kayıt ol", kayitModu, Modifier.weight(1f)) { kayitModu = true; sifirla = false; mesaj = "" }
+                    Hap("Giriş", !kayitModu, Modifier.weight(1f)) { kayitModu = false; sifirla = false; kayitOnay = false; mesaj = "" }
+                    Hap("Kayıt ol", kayitModu, Modifier.weight(1f)) { kayitModu = true; sifirla = false; kayitOnay = false; mesaj = "" }
                 }
                 Spacer(Modifier.height(10.dp))
                 OutlinedTextField(eposta, { eposta = it.trim() }, label = { Text("E-posta") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
@@ -96,21 +98,31 @@ fun UyeEkrani(url: String, key: String, sp: SharedPreferences, kurucu: Boolean =
                 if (ikiAdimIste && !kayitModu && !sifirla) OutlinedTextField(totpKod, { totpKod = it.filter { c -> c.isDigit() }.take(6) },
                                   label = { Text("Doğrulama kodu (6 hane)") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
                                   keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
-                if (kayitModu) OutlinedTextField(davet, { davet = it.trim().uppercase(Locale.ROOT) }, label = { Text("Davet kodu (isteğe bağlı)") },
+                if (kayitModu && kayitOnay) OutlinedTextField(kayitKod, { kayitKod = it.filter { c -> c.isDigit() }.take(6) },
+                                  label = { Text("E-postana gelen 6 haneli kod") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
+                                  keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+                if (kayitModu && !kayitOnay) OutlinedTextField(davet, { davet = it.trim().uppercase(Locale.ROOT) }, label = { Text("Davet kodu (isteğe bağlı)") },
                                   singleLine = true, modifier = Modifier.fillMaxWidth())
                 Spacer(Modifier.height(10.dp))
                 Button({
                     if (sifirla) cagri("/uye/sifre-sifirla", true, JSONObject().put("eposta", eposta).put("kod", kod).put("yeni", parola)) {
                         sifirla = false; kod = ""; girisBitti(it)
+                    } else if (kayitModu && kayitOnay) {
+                        cagri("/uye/kayit", true, JSONObject().put("eposta", eposta).put("kod", kayitKod)) { kayitOnay = false; kayitKod = ""; girisBitti(it) }
                     } else {
                         val g = JSONObject().put("eposta", eposta).put("parola", parola)
                         if (kayitModu) g.put("davet", davet)
                         if (ikiAdimIste && !kayitModu) g.put("kod", totpKod)
-                        cagri(if (kayitModu) "/uye/kayit" else "/uye/giris", true, g) { ikiAdimIste = false; totpKod = ""; girisBitti(it) }
+                        cagri(if (kayitModu) "/uye/kayit" else "/uye/giris", true, g) {
+                            if (kayitModu && JSONObject(it).optBoolean("onay_gerekli")) {
+                                kayitOnay = true; kayitKod = ""; mesaj = "Kodu e-postana gönderdik. 30 dakika içinde gir."
+                            } else { ikiAdimIste = false; totpKod = ""; girisBitti(it) }
+                        }
                     }
                 }, Modifier.fillMaxWidth(),
-                    enabled = !mesgul && eposta.isNotEmpty() && parola.isNotEmpty() && (!sifirla || kod.length >= 8), colors = NxButonRenk()) {
-                    Text(if (sifirla) "Şifreyi sıfırla" else if (kayitModu) "Hesap oluştur" else "Giriş yap", fontWeight = FontWeight.Bold)
+                    enabled = !mesgul && eposta.isNotEmpty() && (kayitModu && kayitOnay && kayitKod.length == 6 ||
+                        !(kayitModu && kayitOnay) && parola.isNotEmpty() && (!sifirla || kod.length >= 8)), colors = NxButonRenk()) {
+                    Text(if (sifirla) "Şifreyi sıfırla" else if (kayitModu && kayitOnay) "Hesabı onayla" else if (kayitModu) "Hesap oluştur" else "Giriş yap", fontWeight = FontWeight.Bold)
                 }
                 if (!kayitModu) {
                     TextButton({
