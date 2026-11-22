@@ -41,6 +41,8 @@ def puan(m, ek=None):
     if dd is not None and dd < MAKS_DUSUS_A: ham -= 15
     if ek.get("tek_token_pay", 0) >= TEK_TOKEN_C: ham -= 15
     if ek.get("bot_suphe"): ham -= 25
+    yarilar = ek.get("yarilar")                                     # 5.27.7: zaman tutarlılığı
+    if yarilar and (yarilar[0] < 0 or yarilar[2] < 0): ham -= 10
     return round(max(0.0, min(100.0, ham)), 1)
 
 
@@ -59,6 +61,11 @@ def sinif(m, ek=None):
     if n >= KANIT_N and ort >= A_ORT and med > 0 and poz >= A_POZITIF:
         if dd is not None and dd < MAKS_DUSUS_A:
             return "B", [f"ortalama iyi ama maks düşüş %{dd:.0f}"]
+        yarilar = ek.get("yarilar")                                 # (ort1, n1, ort2, n2): kronolojik iki yarı
+        if yarilar is None:
+            return "B", ["zaman tutarlılığı ölçülmedi (A için iki yarı gerekli)"]
+        if not (yarilar[0] > 0 and yarilar[2] > 0):
+            return "B", [f"zaman içinde tutarsız: yarılar %{yarilar[0]:+.2f} / %{yarilar[2]:+.2f}"]
         return "A", [f"{n} ölçüm, ortalama %{ort:+.2f}, medyan %{med:+.2f}, kazanan %{poz * 100:.0f}"]
     if n < KANIT_N: neden.append(f"yetersiz ölçüm ({n}/{KANIT_N})")
     if ort < A_ORT: neden.append(f"ortalama %{ort:+.2f} (A için ≥{A_ORT})")

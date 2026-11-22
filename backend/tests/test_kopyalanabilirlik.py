@@ -9,7 +9,7 @@ def m(n, ort, medyan=None, pozitif=0.6):
 
 class SinifTests(unittest.TestCase):
     def test_a_kanitli_pozitif(self):
-        s, _ = K.sinif(m(20, 4.0))
+        s, _ = K.sinif(m(20, 4.0), {"yarilar": (5.0, 10, 3.0, 10)})
         self.assertEqual(s, "A")
 
     def test_az_veri_b(self):
@@ -50,7 +50,7 @@ class PuanTests(unittest.TestCase):
 class RaporTests(unittest.TestCase):
     def test_rapor_sirali_ve_sayim(self):
         olc = {"W1": m(30, 6.0), "W2": m(30, -3.0), "W3": m(4, 2.0)}
-        r = K.rapor(olc, {"W1": {"tek_token_pay": 0.0}})
+        r = K.rapor(olc, {"W1": {"tek_token_pay": 0.0, "yarilar": (5.0, 15, 3.0, 15)}})
         self.assertEqual(list(r)[0], "W1")
         self.assertEqual(K.sayim(r), {"A": 1, "B": 1, "C": 1})
 
@@ -60,3 +60,16 @@ class RaporTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ZamanTutarliligiTests(unittest.TestCase):
+    M = dict(n=20, ort=4.0, medyan=2.0, pozitif=0.7)
+
+    def test_yarilar_yoksa_a_olmaz(self):
+        self.assertEqual(K.sinif(self.M)[0], "B")
+
+    def test_bir_yari_zararda_a_olmaz(self):
+        self.assertEqual(K.sinif(self.M, {"yarilar": (6.0, 10, -1.0, 10)})[0], "B")
+
+    def test_iki_yari_kârda_a_olabilir(self):
+        self.assertEqual(K.sinif(self.M, {"yarilar": (5.0, 10, 3.0, 10)})[0], "A")
