@@ -37,7 +37,9 @@ class HesapTests(unittest.TestCase):
         self.H.bot_ac(1, baslangic=100)
         self.H.bot_ac(2, baslangic=100)
         self.H.bot_kapat(2, onay=True)
-        with mock.patch.object(self.H.Paper, "handle_signal", return_value={"decision": "x"}) as hs:
+        with mock.patch.object(self.H.Paper, "handle_signal", return_value={"decision": "x"}) as hs, \
+             mock.patch.object(self.H, "_zamanla", side_effect=lambda sn, fn, *a: fn(*a)), \
+             mock.patch.object(self.H, "canli_fiyat", return_value=1.0):
             self.H.dagit("e1", "w", "tok", "buy", 1.0, 1e6, 0)
         self.assertEqual(hs.call_count, 1)
         self.assertEqual(hs.call_args[0][0], "e1|u1")
@@ -46,9 +48,22 @@ class HesapTests(unittest.TestCase):
         self.H.bot_ac(1, baslangic=100)
         self.H.bot_ac(2, baslangic=100, oncelik=1)      # yönetici
         sira = []
-        with mock.patch.object(self.H.Paper, "handle_signal", side_effect=lambda ev, *a: sira.append(ev) or {}):
+        with mock.patch.object(self.H.Paper, "handle_signal", side_effect=lambda ev, *a: sira.append((ev, a[3])) or {}), \
+             mock.patch.object(self.H, "_zamanla", side_effect=lambda sn, fn, *a: fn(*a)), \
+             mock.patch.object(self.H, "canli_fiyat", return_value=2.5):
             self.H.dagit("e1", "w", "tok", "buy", 1.0, 1e6, 0)
-        self.assertEqual(sira, ["e1|u2", "e1|u1"])
+        self.assertEqual(sira, [("e1|u2", 1.0), ("e1|u1", 2.5)])   # yönetici sinyal fiyatı, üye anlık fiyat
+
+    def test_uye_fiyat_alinamazsa_islem_yapilmaz(self):
+        self.H.bot_ac(1, baslangic=100)
+        with mock.patch.object(self.H.Paper, "handle_signal") as hs, \
+             mock.patch.object(self.H, "_zamanla", side_effect=lambda sn, fn, *a: fn(*a)), \
+             mock.patch.object(self.H, "canli_fiyat", return_value=None):
+            self.H.dagit("e1", "w", "tok", "buy", 1.0, 1e6, 0)
+        hs.assert_not_called()
+
+    def test_uye_gecikmesi_5_saniye(self):
+        self.assertEqual(self.H.GECIKME_SN, 5.0)
 
     def test_kapatma_onay_gerektirir(self):
         self.H.bot_ac(1, baslangic=100)

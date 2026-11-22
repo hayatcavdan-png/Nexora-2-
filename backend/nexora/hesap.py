@@ -119,16 +119,58 @@ def bot_kapat(uye, onay, fiyat=None, now=None):
     return {"kapatilan": kapatilan, "durum": durum(uye)}
 
 
+GECIKME_SN = float(os.getenv("NEXORA_UYE_GECIKME_SN", "5"))   # 5.27.4: yönetici dışındaki üyeler bu kadar sonra işler
+
+
+def _zamanla(sn, fn, *args):
+    """Verilen saniye sonra fn(*args) çalıştırır (ayrı iş parçacığında)."""
+    t = threading.Timer(sn, fn, args=args)
+    t.daemon = True
+    t.start()
+
+
+def canli_fiyat(token):
+    """Token'ın o anki USD fiyatı (1 token -> USDC, Jupiter). Alınamazsa None: eski fiyat kullanılmaz."""
+    try:
+        from nexora.token_bilgi import TokenBilgi
+        from nexora.market import JupiterQuoter
+        from nexora.constants import USDC_MINT
+        d = int(TokenBilgi().ham(token).get("decimals"))
+        q = JupiterQuoter().quote(token, USDC_MINT, 10 ** d)
+        return q["out_amount"] / 10 ** 6
+    except Exception:
+        return None
+
+
+def _gecikmeli(uye, event_id, wallet, token, side, liquidity_usd, signal_age_s, sinyal_ts):
+    """Üyenin işlemi: sinyalden GECIKME_SN sonra, o andaki piyasa fiyatıyla."""
+    fiyat = canli_fiyat(token)
+    if fiyat is None or fiyat <= 0:
+        print(f"[nexora] hesap {uye}: fiyat alınamadı, işlem atlandı ({token[:6]})", flush=True)
+        return
+    try:
+        _hesap(uye).handle_signal(f"{event_id}|u{uye}", wallet, token, side, fiyat, liquidity_usd,
+                                  signal_age_s + (time.time() - sinyal_ts))
+    except Exception as e:
+        print(f"[nexora] hesap {uye} gecikmeli sinyal hata: {type(e).__name__}", flush=True)
+
+
 def dagit(event_id, wallet, token, side, price, liquidity_usd, signal_age_s):
-    """Ortak motora gelen her sinyali, botu açık olan üyelerin kendi defterlerine iletir."""
+    """Ortak motora gelen her sinyali botu açık üyelere iletir.
+    Yönetici (oncelik=1) sinyali hemen, sinyal fiyatıyla işler. Diğer üyeler GECIKME_SN sonra,
+    o andaki piyasa fiyatıyla işler."""
     db = _kayit_db()
     try:
-        uyeler = [r["uye"] for r in db.execute("SELECT uye FROM hesap WHERE bot=1 ORDER BY oncelik DESC, uye ASC")]
+        uyeler = [(r["uye"], r["oncelik"]) for r in db.execute("SELECT uye, oncelik FROM hesap WHERE bot=1 ORDER BY oncelik DESC, uye ASC")]
     finally:
         db.close()
-    for uye in uyeler:
+    sinyal_ts = time.time()
+    for uye, oncelik in uyeler:
         try:
-            _hesap(uye).handle_signal(f"{event_id}|u{uye}", wallet, token, side, price, liquidity_usd, signal_age_s)
+            if oncelik:
+                _hesap(uye).handle_signal(f"{event_id}|u{uye}", wallet, token, side, price, liquidity_usd, signal_age_s)
+            else:
+                _zamanla(GECIKME_SN, _gecikmeli, uye, event_id, wallet, token, side, liquidity_usd, signal_age_s, sinyal_ts)
         except Exception as e:      # bir üyenin hatası diğerlerini durdurmaz
             print(f"[nexora] hesap {uye} sinyal hata: {type(e).__name__}", flush=True)
 

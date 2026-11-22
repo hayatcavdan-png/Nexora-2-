@@ -55,6 +55,22 @@ class TokenBilgi:
         self.session = session or requests.Session()
         self.timeout, self.throttle = timeout, throttle
 
+    def ham(self, mint):
+        """Jupiter'in ham token kaydı (ondalık gibi alanlar dahil)."""
+        if self.throttle: self.throttle()
+        url, headers = (URL_KEY, {"x-api-key": self.api_key}) if self.api_key else (URL_LITE, {})
+        try:
+            r = self.session.get(url, params={"query": mint}, headers=headers, timeout=self.timeout)
+        except requests.RequestException:
+            raise BilgiHatasi("bağlantı hatası") from None
+        if r.status_code != 200: raise BilgiHatasi(f"HTTP {r.status_code}")
+        try: d = r.json()
+        except ValueError: raise BilgiHatasi("yanıt okunamadı") from None
+        if not isinstance(d, list): raise BilgiHatasi("yanıt geçersiz")
+        item = next((x for x in d if isinstance(x, dict) and x.get("id") == mint), None)
+        if item is None: raise BilgiHatasi("token bulunamadı")
+        return item
+
     def fetch(self, mint, now=None):
         if self.throttle: self.throttle()
         url, headers = (URL_KEY, {"x-api-key": self.api_key}) if self.api_key else (URL_LITE, {})
