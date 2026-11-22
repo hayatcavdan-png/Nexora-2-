@@ -54,6 +54,7 @@ POZISYON_MOD = os.getenv("POZISYON_MOD", "token")
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS state(k TEXT PRIMARY KEY, v TEXT);
 CREATE TABLE IF NOT EXISTS positions(token TEXT PRIMARY KEY, qty REAL, cost REAL, last_price REAL, wallet TEXT);
+CREATE TABLE IF NOT EXISTS sinyal_ham(event_id TEXT PRIMARY KEY, ts REAL, wallet TEXT, token TEXT, side TEXT, price REAL, liquidity_usd REAL, signal_age_s REAL);
 CREATE TABLE IF NOT EXISTS pozisyon_bacak(id INTEGER PRIMARY KEY AUTOINCREMENT, token TEXT, wallet TEXT, qty REAL, cost REAL, ts REAL);
 CREATE TABLE IF NOT EXISTS shadow(id INTEGER PRIMARY KEY AUTOINCREMENT, event_id TEXT UNIQUE, wallet TEXT, token TEXT,
   opened_ts REAL, size_usd REAL, qty_raw TEXT, decimals INTEGER, rt_loss_pct REAL, impact_pct REAL, reason TEXT,
@@ -327,6 +328,12 @@ class Paper:
         with self.lock:
             if self.db.execute("SELECT 1 FROM trades WHERE event_id=?", (event_id,)).fetchone():
                 return dict(decision="ATLANDI", reason="tekrarlanan olay")
+            try:                                  # ham sinyal kaydı (tekrar oynatma için); hata sinyal işlemesini durdurmaz
+                self.db.execute("INSERT OR IGNORE INTO sinyal_ham(event_id,ts,wallet,token,side,price,liquidity_usd,signal_age_s) VALUES(?,?,?,?,?,?,?,?)",
+                                (event_id, time.time(), wallet, token, side, price, liquidity_usd, signal_age_s))
+                self.db.commit()
+            except sqlite3.Error:
+                pass
             self._roll_day()
             rej = lambda why: self._log(event_id, wallet, token, side, 0, price, 0, 0, "REDDEDİLDİ", why)
             if side not in ("buy", "sell") or price <= 0: return rej("geçersiz sinyal")
