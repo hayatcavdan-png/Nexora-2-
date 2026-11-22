@@ -16,4 +16,4 @@ while [ $# -gt 0 ] && [[ "$1" == *=* ]]; do
   [[ "$DEGER" =~ ^[0-9]{1,6}$ ]] || { echo "$AD sayı olmalı"; exit 1; }
   ENV+=("$AD=$DEGER"); shift
 done
-exec sudo -u nexora env "${ENV[@]}" bash -c 'set -a; . /etc/nexora.env; set +a; cd /opt/nexora/backend && exec python3 -u "$@"' _ "$ARAC" "$@"
+exec sudo -u nexora env "${ENV[@]}" bash -c 'set -a; . /etc/nexora.env; set +a; cd /opt/nexora/backend && exec nice -n 10 python3 -u "$@"' _ "$ARAC" "$@"
