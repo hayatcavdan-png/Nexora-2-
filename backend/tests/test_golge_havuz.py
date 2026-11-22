@@ -38,3 +38,20 @@ class GolgeTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TerfiKomutuTests(unittest.TestCase):
+    def test_terfi_kopyalamaya_alir(self):
+        import tempfile, havuz
+        from unittest import mock
+        from nexora import golge, kadro
+        d = tempfile.mkdtemp(); eski = os.getcwd(); os.chdir(d)
+        try:
+            open("wallets.txt", "w").write("A\n")
+            with mock.patch.object(golge, "karne", return_value=dict(terfi=["G1", "G2"], satirlar=[("G1", dict(n=25, ort=21.0)), ("G2", dict(n=20, ort=5.0))])), \
+                 mock.patch.object(golge, "doldur", return_value={}), mock.patch.object(kadro, "alim_yapanlar", return_value=None):
+                m = havuz.terfi()
+            self.assertIn("2/2", m); self.assertEqual([l.strip() for l in open("wallets.txt") if not l.startswith("#")], ["A", "G1", "G2"])
+            self.assertEqual(kadro.YENI_GUNLUK, 5)
+        finally:
+            os.chdir(eski)

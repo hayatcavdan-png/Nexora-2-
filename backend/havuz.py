@@ -3,6 +3,7 @@
   python3 havuz.py                  # rapor (Helius kredisi HARCAMAZ): tarama durumu, analiz kararları, takipte olanlar
   python3 havuz.py analiz 60        # analiz edilmemiş aday cüzdanlardan 60'ını analiz et (~20 kredi/cüzdan)
   python3 havuz.py ekle             # analizden 'kopyalanabilir' çıkıp takipte olmayanları kadroya ekle (liste sınırına kadar)
+  python3 havuz.py terfi            # gölge havuzun terfi adaylarını KOPYALAMAYA al (kullanıcı onayıyla; 22.11 onaylandı)
   python3 havuz.py golge            # gölge havuzu doldur (kâr etmiş ama kopyalanamayanlar: yalnızca izlenir, KOPYALANMAZ) ve karnesi
 
 Kadro 'herkes' modunda eklenenler doğrudan kopyalanır; takip servisi liste değişince kendini yeniden başlatır."""
@@ -87,6 +88,27 @@ def ekle(d=None):
            ("" if len(oz["eklenen"]) == len(sira) else f" (liste sınırı {kadro.LISTE_SINIRI}: {len(sira) - len(oz['eklenen'])} eklenemedi)")
 
 
+def terfi():
+    """Gölge havuzun ileriye dönük ölçümde iyi çıkan (kadro terfi kuralı) cüzdanlarını kopyalama listesine ekler.
+    Risk sınırları değişmez. Gölge listeden düşmeleri golge.doldur() ile olur; takip servisi listeyi kendiliğinden yeniden okur."""
+    from nexora import golge, kadro
+    k = golge.karne(os.getenv("ETIKET_DB", "nexora_etiket.db"))
+    if not k["terfi"]: return "Terfi adayı yok."
+    eski = kadro.YENI_GUNLUK; kadro.YENI_GUNLUK = len(k["terfi"])
+    try:
+        oz = kadro.uygula(k["terfi"])
+    finally:
+        kadro.YENI_GUNLUK = eski
+    golge.doldur()
+    olc = dict(k["satirlar"])
+    L = [f"Kopyalamaya alınan: {len(oz['eklenen'])}/{len(k['terfi'])} (takip listesi {oz['kopyalanan']} cüzdan)"]
+    for w in oz["eklenen"]:
+        m = olc.get(w, {}); L.append(f"  {w}  n={m.get('n')} ort %{m.get('ort', 0):+.1f}")
+    atlanan = [w for w in k["terfi"] if w not in oz["eklenen"]]
+    if atlanan: L.append(f"Eklenemeyen {len(atlanan)} (zaten listede, kara listede ya da liste sınırı {kadro.LISTE_SINIRI})")
+    return "\n".join(L)
+
+
 def golge_rapor():
     from nexora import golge
     r = golge.doldur()
@@ -104,5 +126,6 @@ if __name__ == "__main__":
     komut = sys.argv[1] if len(sys.argv) > 1 else "rapor"
     if komut == "analiz": print(analiz_et(int(sys.argv[2]) if len(sys.argv) > 2 else 20))
     elif komut == "ekle": print(ekle())
+    elif komut == "terfi": print(terfi())
     elif komut == "golge": print(golge_rapor())
     else: print(rapor())
