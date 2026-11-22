@@ -13,9 +13,15 @@ Hızlı al-satçılar (aynı token'ı KESIF_MIN_TUTMA_SN içinde satanlar; çoğ
 Sniperlar (token oluştuktan sonraki KESIF_SNIPER_SN içinde alanlar) da aday sayılmaz: o hızla girilemez.
 Kazanan token'lar: takip edilen bir cüzdanın aldığı ve kopyasının (kaynak satınca çıkış) en az %KAZANAN_ESIK kazandırdığı
 token'lar (etiket ölçümü) ayrıca incelenir (KESIF_KAZANAN=10 token): iyi token'ı erken bulanlar burada aranır.
+Piyasa kazananları (22.11.2026): takip listemizden BAĞIMSIZ olarak Solana'da son günlerde en çok yükselen token'lar
+(GeckoTerminal, anahtarsız) da incelenir (KESIF_PIYASA=25 token): her birinin havuzu açıldıktan sonraki ilk
+KESIF_PIYASA_SAAT=4 saatte alan cüzdanlar (sniperlar ve hızlı al-satçılar hariç, en eskiden başlayarak) aday olur.
+Böylece aday havuzu yalnızca bizim takip ettiklerimizin gezdiği token'larla sınırlı kalmaz.
 Çıktılar: kesif_adaylar.csv (tüm erken alıcılar), wallets_kesif.txt (en az KESIF_EN_AZ token'da görünenler)"""
-import csv, os, sqlite3, sys
+import csv, datetime, os, sqlite3, sys, time
 from collections import defaultdict
+
+import requests
 
 from nexora.helius_client import HeliusClient, HeliusRPCError
 from nexora.swap_decoder import decode_swap
@@ -30,6 +36,13 @@ MIN_TUTMA = int(os.getenv("KESIF_MIN_TUTMA_SN", "60"))
 SNIPER_SN = int(os.getenv("KESIF_SNIPER_SN", "120"))
 KAZANAN = int(os.getenv("KESIF_KAZANAN", "10"))
 KAZANAN_ESIK, KAZANAN_GUN = 20.0, 7
+PIYASA = int(os.getenv("KESIF_PIYASA", "25"))
+PIYASA_SAAT = float(os.getenv("KESIF_PIYASA_SAAT", "4"))
+PIYASA_LIK, PIYASA_HACIM, PIYASA_YUKSELIS = 30_000.0, 100_000.0, 50.0     # en az likidite $, 24s hacim $, yükseliş %
+PIYASA_YAS = (2 * 3600, 7 * 86400)                                       # havuz yaşı: 2 saat - 7 gün
+GT_SOL = "https://api.geckoterminal.com/api/v2/networks/solana/"
+TEMEL = {"So11111111111111111111111111111111111111112", "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+         "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB"}                   # SOL, USDC, USDT: kazanan token sayılmaz
 OUT_CSV, OUT_TXT = "kesif_adaylar.csv", "wallets_kesif.txt"
 
 
@@ -78,6 +91,42 @@ def kazanan_alimlar(etiket_db, n, now=None, esik=KAZANAN_ESIK, gun=KAZANAN_GUN):
     return out
 
 
+def _iso(v):
+    try: return datetime.datetime.fromisoformat(str(v).replace("Z", "+00:00")).timestamp()
+    except (ValueError, TypeError): return 0.0
+
+
+def _f(v):
+    try: return float(v or 0)
+    except (TypeError, ValueError): return 0.0
+
+
+def piyasa_kazananlari(n=PIYASA, s=None, now=None, uyku=time.sleep, timeout=15):
+    """Solana'da son günlerde en çok yükselen token'lar (GeckoTerminal yükselen + en hacimli havuzlar).
+    Dönüş: [(token, None, pencere_sonu, havuz_açılışı)] en çok yükselen önce, token başına bir."""
+    if n <= 0: return []
+    s = s or requests.Session(); now = now if now is not None else time.time()
+    adaylar = {}
+    for i, yol in enumerate(("trending_pools?duration=24h", "trending_pools?duration=24h&page=2", "trending_pools?duration=6h",
+                             "pools?sort=h24_volume_usd_desc", "pools?sort=h24_volume_usd_desc&page=2")):
+        if i: uyku(2.1)                                          # herkese açık hız sınırı (dakikada ~30 istek)
+        try: d = s.get(GT_SOL + yol, timeout=timeout).json()
+        except (requests.RequestException, ValueError): continue
+        for p in (d.get("data") or []) if isinstance(d, dict) else []:
+            a = p.get("attributes") or {}
+            tid = ((((p.get("relationships") or {}).get("base_token") or {}).get("data") or {}).get("id") or "")
+            tok = tid.split("_", 1)[-1]
+            acilis = _iso(a.get("pool_created_at"))
+            pc = a.get("price_change_percentage") or {}
+            yuk = max(_f(pc.get("h24")), _f(pc.get("h6")))
+            if (not tok or tok in TEMEL or not acilis or not (PIYASA_YAS[0] <= now - acilis <= PIYASA_YAS[1])
+                    or _f(a.get("reserve_in_usd")) < PIYASA_LIK or _f((a.get("volume_usd") or {}).get("h24")) < PIYASA_HACIM
+                    or yuk < PIYASA_YUKSELIS): continue
+            if tok not in adaylar or yuk > adaylar[tok][0]: adaylar[tok] = (yuk, acilis)
+    sirali = sorted(adaylar.items(), key=lambda x: -x[1][0])[:n]
+    return [(tok, None, int(acilis + PIYASA_SAAT * 3600), acilis) for tok, (_, acilis) in sirali]
+
+
 def odeyici(tx):
     keys = ((tx.get("transaction") or {}).get("message") or {}).get("accountKeys") or []
     if not keys: return None
@@ -86,10 +135,10 @@ def odeyici(tx):
 
 
 def erken_alicilar(client, token, bt, pencere=PENCERE, limit=LIMIT, sayfa=SAYFA, min_tutma=MIN_TUTMA, olusma=None,
-                   sniper_sn=SNIPER_SN):
+                   sniper_sn=SNIPER_SN, sira="desc"):
     """Token'ı [bt-pencere, bt) aralığında alan cüzdanlar, hızlı al-satçılar ve (oluşma zamanı biliniyorsa) sniperlar hariç.
     Dönüş: (alıcılar, işlem sayısı, elenen hızlı al-satçı sayısı). Helius zaman filtresini desteklemezse istemci tarafında süzülür."""
-    opts = {"transactionDetails": "full", "limit": limit, "sortOrder": "desc", "commitment": "confirmed",
+    opts = {"transactionDetails": "full", "limit": limit, "sortOrder": sira, "commitment": "confirmed",
             "encoding": "jsonParsed", "maxSupportedTransactionVersion": 1,
             "filters": {"status": "succeeded", "blockTime": {"gte": bt - pencere, "lt": bt}}}
     txs = []
@@ -126,15 +175,23 @@ def erken_alicilar(client, token, bt, pencere=PENCERE, limit=LIMIT, sayfa=SAYFA,
     return set(alis) - hizli, len(txs), len(hizli)
 
 
-def main(client=None, tracker_db=None, out_dir=".", etiket_db=None):
+def main(client=None, tracker_db=None, out_dir=".", etiket_db=None, piyasa=None):
     if client is None and not os.getenv("HELIUS_API_KEY") and not os.getenv("SOLANA_RPC_URL"):
         sys.exit("HELIUS_API_KEY tanımlı değil")
     son = [(t, w, bt, None) for t, w, bt in kaynak_alimlar(tracker_db or os.getenv("TRACKER_DB", "nexora_tracker.db"), TOKEN_SAYI)]
     kaz = kazanan_alimlar(etiket_db or os.getenv("ETIKET_DB", "nexora_etiket.db"), KAZANAN)
     kaz_tok = {x[0] for x in kaz}
     alimlar = kaz + [x for x in son if x[0] not in kaz_tok]
+    try: piy = (piyasa or piyasa_kazananlari)()
+    except Exception as e:
+        piy = []; print(f"Piyasa kazananları alınamadı ({type(e).__name__}); yalnızca takip kaynaklı keşif.", flush=True)
+    piy = [x for x in piy if x[0] not in {a[0] for a in alimlar}]
+    piy_tok = {x[0] for x in piy}
+    alimlar += piy
     if not alimlar: sys.exit("Takip veritabanında henüz kaynak alımı yok: takip bir süre çalışmalı.")
     if kaz: print(f"{len(kaz)} kazanan token (kopyası en az %{KAZANAN_ESIK:.0f} kazandıran) incelenecek.", flush=True)
+    if piy: print(f"{len(piy)} piyasa kazananı (son günlerde en az %{PIYASA_YUKSELIS:.0f} yükselen) incelenecek: "
+                  f"havuz açıldıktan sonraki ilk {PIYASA_SAAT:g} saatin alıcıları.", flush=True)
     print(f"{len(alimlar)} token incelenecek, token başına en fazla {LIMIT} işlem "
           f"x {SAYFA} sayfa (tahmini en fazla {len(alimlar) * SAYFA * ((LIMIT + 99) // 100) * 10} Helius kredisi).", flush=True)
     client = client or HeliusClient(max_retries=2)
@@ -144,11 +201,14 @@ def main(client=None, tracker_db=None, out_dir=".", etiket_db=None):
     gorulme = defaultdict(set)
     for token, kaynak, bt, olusma in alimlar:
         try:
-            alicilar, n, elenen = erken_alicilar(client, token, bt, olusma=olusma)
+            if token in piy_tok:
+                alicilar, n, elenen = erken_alicilar(client, token, bt, pencere=int(PIYASA_SAAT * 3600), olusma=olusma, sira="asc")
+            else:
+                alicilar, n, elenen = erken_alicilar(client, token, bt, olusma=olusma)
         except (HeliusRPCError, ValueError) as e:
             print(f"  {token[:4]}…{token[-4:]}: atlandı ({e})", flush=True); continue
         alicilar -= {kaynak}
-        print(f"  {token[:4]}…{token[-4:]}: {n} işlem, {len(alicilar)} erken alıcı"
+        print(f"  {'[piyasa] ' if token in piy_tok else ''}{token[:4]}…{token[-4:]}: {n} işlem, {len(alicilar)} erken alıcı"
               + (f" ({elenen} hızlı al-satçı/sniper elendi)" if elenen else ""), flush=True)
         for w in alicilar: gorulme[w].add(token)
     satir = sorted(((w, len(t), ";".join(sorted(t))) for w, t in gorulme.items()), key=lambda x: -x[1])

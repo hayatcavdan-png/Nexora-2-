@@ -69,7 +69,7 @@ class KesifTests(unittest.TestCase):
         egri = K.egri_ustunde; K.egri_ustunde = lambda a: a != "TEK"     # test adları gerçek anahtar değil; TEK eğri dışı sayılır
         try:
             with redirect_stdout(io.StringIO()):
-                aday = K.main(client=cl, tracker_db=self.tdb, out_dir=self.d)
+                aday = K.main(client=cl, tracker_db=self.tdb, out_dir=self.d, piyasa=lambda: [])
         finally:
             K.egri_ustunde = egri
         self.assertEqual(aday, ["ERKEN"])                                 # iki token'da erken; KNOWN bilinen, GEC sonra aldı
@@ -106,6 +106,65 @@ class HizliElemeTests(unittest.TestCase):
         self.assertEqual(cl.calls[1][1]["paginationToken"], "p2")
         cl = FakeClient({"T": {"p1": [swap_tx("A", "T", 900)], "sonraki_p1": "p2", "p2": [swap_tx("B", "T", 800)]}})
         self.assertEqual(K.erken_alicilar(cl, "T", 1000, pencere=3600, sayfa=1)[0], {"A"})
+
+
+class GT:
+    """Sahte GeckoTerminal oturumu."""
+    def __init__(self, havuzlar): self.havuzlar, self.istek = havuzlar, []
+    def get(self, url, timeout=None):
+        self.istek.append(url); h = self.havuzlar
+        class R:
+            def json(self_): return {"data": h if "page=2" not in url else []}
+        return R()
+
+
+def havuz(tok, acilis_iso, lik=50_000, hacim=200_000, h24=120.0, h6=10.0):
+    return {"attributes": {"pool_created_at": acilis_iso, "reserve_in_usd": str(lik), "volume_usd": {"h24": str(hacim)},
+                           "price_change_percentage": {"h24": str(h24), "h6": str(h6)}},
+            "relationships": {"base_token": {"data": {"id": "solana_" + tok}}}}
+
+
+class PiyasaTests(unittest.TestCase):
+    def test_suzme_ve_siralama(self):
+        now = 1_800_000_000.0
+        import datetime
+        iso = lambda t: datetime.datetime.fromtimestamp(t, datetime.timezone.utc).isoformat().replace("+00:00", "Z")
+        s = GT([havuz("IYI", iso(now - 86400), h24=300), havuz("ORTA", iso(now - 3 * 86400), h24=80),
+                havuz("ZAYIF", iso(now - 86400), h24=20),                         # yükseliş az
+                havuz("SIG", iso(now - 86400), lik=5_000),                        # likidite az
+                havuz("YENI", iso(now - 600)),                                    # 2 saatten genç
+                havuz("ESKI", iso(now - 30 * 86400)),                             # 7 günden yaşlı
+                havuz(K.USDC if hasattr(K, "USDC") else "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v", iso(now - 86400))])
+        r = K.piyasa_kazananlari(10, s=s, now=now, uyku=lambda x: None)
+        self.assertEqual([x[0] for x in r], ["IYI", "ORTA"])
+        tok, kaynak, son, acilis = r[0]
+        self.assertIsNone(kaynak); self.assertEqual(son - acilis, int(K.PIYASA_SAAT * 3600))
+        self.assertEqual(K.piyasa_kazananlari(1, s=s, now=now, uyku=lambda x: None)[0][0], "IYI")
+        self.assertEqual(K.piyasa_kazananlari(0, s=s, now=now), [])
+
+    def test_ag_hatasi_bos(self):
+        class Bozuk:
+            def get(self, *a, **k): raise K.requests.ConnectionError("yok")
+        self.assertEqual(K.piyasa_kazananlari(5, s=Bozuk(), uyku=lambda x: None), [])
+
+    def test_main_piyasa_tokeni_eskiden_yeniye_taranir(self):
+        d = tempfile.mkdtemp(); eski = os.getcwd(); os.chdir(d)
+        try:
+            tdb = os.path.join(d, "t.db"); c = sqlite3.connect(tdb)
+            c.execute("CREATE TABLE tracker_signals(id INTEGER PRIMARY KEY AUTOINCREMENT, side TEXT, token TEXT, wallet TEXT, block_time INTEGER)")
+            c.execute("INSERT INTO tracker_signals(side,token,wallet,block_time) VALUES('BUY','TOKA','SRC',10000)"); c.commit(); c.close()
+            acilis = 100_000
+            cl = FakeClient({"PIY": [swap_tx("ERKEN", "PIY", acilis + 600), swap_tx("SNIPER", "PIY", acilis + 30)],
+                             "TOKA": [swap_tx("ERKEN", "TOKA", 9000)]})
+            with redirect_stdout(io.StringIO()):
+                K.main(client=cl, tracker_db=tdb, out_dir=d, piyasa=lambda: [("PIY", None, acilis + 4 * 3600, acilis)])
+            piy = [p for p in cl.calls if p[0] == "PIY"][0][1]
+            self.assertEqual(piy["sortOrder"], "asc")
+            self.assertEqual(piy["filters"]["blockTime"], {"gte": acilis, "lt": acilis + 4 * 3600})
+            satir = open(os.path.join(d, K.OUT_CSV)).read()
+            self.assertIn("ERKEN,2", satir); self.assertNotIn("SNIPER", satir)
+        finally:
+            os.chdir(eski)
 
 
 if __name__ == "__main__":
