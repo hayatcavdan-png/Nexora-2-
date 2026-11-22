@@ -325,6 +325,11 @@ class H(BaseHTTPRequestHandler):
                 from nexora import hesap as _hs
                 self._send(200, _hs.bakiye(u["id"], KOMISYON_PCT))
             return
+        if parts.path == "/uye/bot":                        # 5.27.3: kurucu ve üye hesabının kendi bot durumu
+            from nexora import hesap as _hs
+            u = self._uye()
+            if u: self._send(200, _hs.durum(u["id"]))
+            return
         if parts.path == "/radar":
             from nexora.token_bilgi import toplu
             self._send(200, kesif_api.radar(os.getenv("TRACKER_DB", "nexora_tracker.db"), lambda ms: toplu(servis("bilgi"), ms)))
