@@ -141,7 +141,7 @@ class H(BaseHTTPRequestHandler):
     # ---- Rol ayrımı. kurucu: API anahtarı ya da rolü 'kurucu' olan üye oturumu. uye: herhangi bir geçerli üye oturumu.
     # Üye yalnızca UYE_GET listesindeki okumaları ve kendi /uye/* işlemlerini yapabilir; geri kalan her şey kurucuya aittir.
     # Yetki SUNUCUDA denetlenir: uygulama kurcalansa bile üye kurucu işlemi yapamaz.
-    UYE_GET = {"/durum", "/portfoy", "/islemler", "/gecmis", "/olaylar", "/radar", "/uye/ben", "/uye/borsa", "/uye/bakiye",
+    UYE_GET = {"/durum", "/portfoy", "/islemler", "/gecmis", "/radar", "/uye/ben", "/uye/borsa", "/uye/bakiye",
                "/kopya-ozet", "/asistan"}   # 5.26.0: yeni üye ekranları
     ACIK_POST = {"/uye/kayit", "/uye/giris", "/uye/sifre-unut", "/uye/sifre-sifirla", "/uye/cikis"}
 
@@ -258,6 +258,7 @@ class H(BaseHTTPRequestHandler):
             if parts.path == "/portfoy": self._send(200, self._cuzdansiz(_hs.portfoy(u_["id"]))); return
             if parts.path == "/islemler": self._send(200, self._cuzdansiz(_hs.islemler(u_["id"]))); return
             if parts.path == "/uye/bot": self._send(200, _hs.durum(u_["id"])); return
+            if parts.path == "/gecmis": self._send(200, []); return      # 5.27: ortak motor geçmişi üyeye gösterilmez; hesap sıfırdan başlar
             if parts.path == "/uye/bakiye":
                 self._send(200, _hs.bakiye(u_["id"], KOMISYON_PCT)); return
             if parts.path == "/asistan":
