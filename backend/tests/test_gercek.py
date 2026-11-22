@@ -38,6 +38,7 @@ class GercekTests(unittest.TestCase):
         self.ayar = os.path.join(self.d, "ayar.json"); self.paper = Paper(); self.h = Hazir(); self.s = Oturum()
         self.p = G.GercekPilot(self.paper, anahtar_yolu=self.anahtar, db_yol=os.path.join(self.d, "g.db"), ayar_yolu=self.ayar,
                                session=self.s, api_key="", hazirlayici=self.h)
+        self.p.kira_bekle = 0
         os.environ["GERCEK_ISLEM"] = "1"
 
     def tearDown(self): os.environ.pop("GERCEK_ISLEM", None)
@@ -90,6 +91,27 @@ class GercekTests(unittest.TestCase):
         out = self.p.bakim(now=10 ** 10)                                    # paper'da pozisyon yok -> gerçek satılır
         self.assertEqual(out[0][1]["durum"], "tamam"); self.assertEqual(self.p.ozet()["acik_poz"], [])
         self.p.bildir("e9", "T9", "buy", ek=True); self.assertTrue(self.p.q.empty())   # güçlendirme kopyalanmaz
+
+    def test_kira_iadesi_bos_hesabi_kapatir(self):
+        from nexora.ed25519 import b58
+        hesap, prog, bh = b58(bytes([7]) * 32), b58(bytes([6]) * 32), b58(bytes([5]) * 32)
+        self.assertEqual(G.b58_coz(hesap), bytes([7]) * 32); self.assertEqual(G.b58_coz("1111"), bytes(4))
+        t = base64.b64decode(G.kapat_islemi(ADRES, hesap, prog, bh, TOHUM))
+        mesaj = t[65:]
+        self.assertEqual(t[0], 1); self.assertEqual(t[1:65], imzala(TOHUM, mesaj))
+        self.assertEqual(mesaj[:4], bytes([1, 0, 1, 3])); self.assertEqual(mesaj[4:36], ACIK); self.assertEqual(mesaj[-7:], bytes([2, 3, 1, 0, 0, 1, 9]))
+        cagri = []
+        def rpc(y, p):
+            cagri.append(y)
+            if y == "getTokenAccountsByOwner":
+                return dict(value=[dict(pubkey=hesap, account=dict(owner=prog, data=dict(parsed=dict(info=dict(tokenAmount=dict(amount="0")))))),
+                                   dict(pubkey=hesap, account=dict(owner=prog, data=dict(parsed=dict(info=dict(tokenAmount=dict(amount="12"))))))])
+            if y == "getLatestBlockhash": return dict(value=dict(blockhash=bh))
+            return "SIG"
+        self.p._rpc = rpc
+        self.assertEqual(self.p.hesap_kapat(TOK), 1)                         # bakiyesi olan hesaba dokunulmaz
+        self.assertEqual(cagri.count("sendTransaction"), 1)
+        self.assertEqual(self.p.hesap_kapat(G.USDC_MINT), 0)                  # USDC hesabı asla kapatılmaz
 
     def test_ayar_sinirlari(self):
         with self.assertRaises(G.GercekHata): G.ayar_yaz(dict(G.VARSAYILAN, islem_usd=1000.0), self.ayar)

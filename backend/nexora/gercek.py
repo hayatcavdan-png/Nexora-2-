@@ -37,6 +37,26 @@ class GercekHata(RuntimeError):
     pass
 
 
+_ALF = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
+
+
+def b58_coz(s):
+    n = 0
+    for ch in s: n = n * 58 + _ALF.index(ch)
+    b = n.to_bytes((n.bit_length() + 7) // 8, "big") if n else b""
+    return bytes(len(s) - len(s.lstrip("1"))) + b
+
+
+def kapat_islemi(sahip, hesap, program, blockhash, tohum):
+    """Boş token hesabını kapatan (kira SOL'ü sahibine geri döner) imzalı, eski biçim (legacy) işlem.
+    SPL Token ve Token-2022'de CloseAccount = talimat 9; hesaplar: [kapatılacak (y), varış (y), sahip (imzacı)]."""
+    hesaplar = [b58_coz(sahip), b58_coz(hesap), b58_coz(program)]
+    if any(len(h) != 32 for h in hesaplar): raise GercekHata("adres çözülemedi")
+    talimat = bytes([2, 3, 1, 0, 0, 1, 9])                   # program 2. hesap; 3 hesap: 1, 0, 0; veri: [9]
+    mesaj = bytes([1, 0, 1, 3]) + b"".join(hesaplar) + b58_coz(blockhash) + bytes([1]) + talimat
+    return base64.b64encode(bytes([1]) + imzala(tohum, mesaj) + mesaj).decode()
+
+
 def ayar_oku(yol=AYAR):
     d = dict(VARSAYILAN)
     try: d.update(json.load(open(yol)))
@@ -82,6 +102,7 @@ class GercekPilot:
         self.db = sqlite3.connect(db_yol, timeout=30, check_same_thread=False); self.db.row_factory = sqlite3.Row
         self.db.executescript(SEMA); self.db.commit()
         self.kilit = threading.Lock(); self.q = queue.Queue(); self._is = None
+        self.kira_iade, self.kira_bekle = True, 3.0
 
     # ---- durum
     def ayar(self): return ayar_oku(self.ayar_yolu)
@@ -192,7 +213,10 @@ class GercekPilot:
                          imza=d.get("signature"), durum="tamam" if ok else "basarisiz", kod=d.get("code"),
                          hata=None if ok else str(d.get("error"))[:200], sure_ms=int((time.time() - t0) * 1000), kz=kz)
             if ok: self.db.execute("DELETE FROM gercek_poz WHERE token=?", (token,)); self.db.commit()
-            return dict(durum="tamam" if ok else "basarisiz", kod=d.get("code"), kz=kz)
+        if ok and self.kira_iade:
+            time.sleep(self.kira_bekle)                           # satış onaylanınca hesap boşalmış olur
+            self.hesap_kapat(token)
+        return dict(durum="tamam" if ok else "basarisiz", kod=d.get("code"), kz=kz)
 
     def bakim(self, now=None):
         """Uzlaştırma: paper'da açık pozisyonu kalmayan gerçek pozisyonları satar (başarısız satışlar 2 dk arayla yeniden)."""
@@ -203,6 +227,33 @@ class GercekPilot:
             if p["son_deneme"] and now - p["son_deneme"] < 120: continue
             out.append((p["token"], self.sat(f"uzlastirma:{p['token']}:{int(now)}", p["token"])))
         return out
+
+    # ---- kira iadesi: satıştan sonra boş kalan token hesabı kapatılır (her yeni token hesabı ~0,002 SOL kira bağlar;
+    #      5$'lık işlemde bu, kapatılmazsa işlem başına yüzdelerce maliyet demek)
+    def _rpc(self, yontem, params):
+        from nexora import settings
+        r = self.s.post(settings.SOLANA_RPC_URL, json=dict(jsonrpc="2.0", id=1, method=yontem, params=params), timeout=20)
+        d = r.json()
+        if not isinstance(d, dict) or d.get("error"): raise GercekHata(f"RPC {yontem}: {str((d or {}).get('error'))[:80]}")
+        return d.get("result")
+
+    def hesap_kapat(self, token):
+        """Pilotun bu mint için BOŞ (bakiye 0) token hesaplarını kapatır. Dönüş: kapatılan hesap sayısı. USDC'ye dokunmaz."""
+        if token == USDC_MINT: return 0
+        n = 0
+        try:
+            v = (self._rpc("getTokenAccountsByOwner", [self.adres, {"mint": token}, {"encoding": "jsonParsed"}]) or {}).get("value") or []
+            for h in v:
+                hesap, prog = h.get("pubkey"), (h.get("account") or {}).get("owner")
+                miktar = ((((h.get("account") or {}).get("data") or {}).get("parsed") or {}).get("info") or {}).get("tokenAmount", {}).get("amount")
+                if not hesap or not prog or str(miktar) != "0": continue
+                bh = ((self._rpc("getLatestBlockhash", [{"commitment": "finalized"}]) or {}).get("value") or {}).get("blockhash")
+                if not bh: continue
+                self._rpc("sendTransaction", [kapat_islemi(self.adres, hesap, prog, bh, self.tohum), {"encoding": "base64"}])
+                n += 1
+        except Exception as e:                                   # kira iadesi başarısızsa işlem sonucu etkilenmez
+            print(f"  GERÇEK hesap kapatma yapılamadı {token[:6]}…: {str(e)[:80]}", flush=True)
+        return n
 
     # ---- karar motorundan bildirim (ağ işini takip döngüsünü bekletmeden arka planda yapar)
     def bildir(self, event_id, token, yon, ek=False):
