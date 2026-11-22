@@ -8,6 +8,8 @@ class RolTests(unittest.TestCase):
         os.environ.update(NEXORA_API_KEY="k", NEXORA_DB=os.path.join(d, "p.db"), UYELIK_DB=os.path.join(d, "u.db"))
         sys.modules.pop("server", None)
         import server
+        import nexora.hesap as _hs
+        _hs.DIZIN = os.path.join(d, "hesap"); _hs._acik.clear()          # 5.27: üye hesap defterleri geçici dizinde
         from http.server import ThreadingHTTPServer
         cls.server = server
         server.paper.record_buy("e1", "GIZLICUZDAN111", "TOK", 2.5, 1_000_000, 6)
@@ -33,8 +35,16 @@ class RolTests(unittest.TestCase):
         c, d = self.call("/uye/kayit", {"eposta": "uye@x.co", "parola": "parola-123"})
         self.assertEqual(c, 200); tok = d["oturum"]
         c, d = self.call("/portfoy", oturum=tok)
-        self.assertEqual(c, 200); self.assertEqual(d["positions"][0]["wallet"], "gizli")   # cüzdan adresi üyeye gitmez
+        self.assertEqual(c, 200); self.assertFalse(d["var"]); self.assertEqual(d["positions"], [])   # 5.27: ortak hesap görünmez
+        self.assertNotIn("GIZLICUZDAN", json.dumps(self.call("/portfoy", oturum=tok)[1]))
         self.assertNotIn("GIZLICUZDAN", json.dumps(self.call("/islemler", oturum=tok)[1]))
+        self.assertEqual(self.call("/uye/bot", {"ac": True}, oturum=tok)[0], 400)   # başlangıç değeri zorunlu
+        c, d = self.call("/uye/bot", {"ac": True, "baslangic": 150}, oturum=tok)
+        self.assertEqual(c, 200); self.assertTrue(d["bot"])
+        c, d = self.call("/portfoy", oturum=tok)
+        self.assertEqual((d["var"], d["cash"], d["positions"]), (True, 150.0, []))  # kendi sıfır noktasından
+        c, d = self.call("/uye/bot", {"ac": False}, oturum=tok)
+        self.assertEqual(c, 400)                                                    # kapatma onay ister
         c, d = self.call("/durum", oturum=tok); self.assertEqual((c, d["rol"]), (200, "uye")); self.assertNotIn("ayarlar", d)
         self.assertEqual(self.call("/uye/ben", oturum=tok)[1]["rol"], "uye")
         for yol in ("/takip", "/cuzdanlar", "/ayarlar", "/rapor", "/karar-izi", "/yedek/son", "/saglik", "/teshis"):

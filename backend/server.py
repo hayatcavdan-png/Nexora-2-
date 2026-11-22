@@ -12,6 +12,7 @@ _gizle.kur()
 import glob, yedek, threading, time as _time
 from nexora import kesif_api
 from nexora.uyelik import Uyelik, UyelikHatasi
+from nexora.hesap import HesapHatasi
 
 _servis = {}
 _servis_kilit = threading.Lock()
@@ -212,9 +213,14 @@ class H(BaseHTTPRequestHandler):
             if yol == "/uye/2fa/kapat": uyelik.iki_adim_kapat(u["id"], d.get("parola"), d.get("kod")); self._send(200, {"ok": True}); return
             if yol == "/uye/oturumlari-kapat":               # N35: tüm oturumları kapat (kayıp cihaz için)
                 uyelik.tum_oturumlari_kapat(u["id"]); self._send(200, {"ok": True}); return
-            if yol == "/uye/portfoy":
-                uyelik.portfoy_baslat(u["id"], d.get("baslangic"), paper.equity())
-                self._send(200, uyelik.uye_bakiye(u["id"], paper.equity(), KOMISYON_PCT)); return
+            if yol == "/uye/bot":                            # 5.27: botu başlat/kapat; kapatma onay ister
+                from nexora import hesap as _hs
+                if d.get("ac") is True:
+                    self._send(200, _hs.bot_ac(u["id"], d.get("baslangic"))); return
+                r_ = _hs.bot_kapat(u["id"], onay=d.get("onay"))
+                self._send(200, r_); return
+            if yol == "/uye/portfoy":                        # eski yol: kullanılmıyor (bakiye artık kendi hesabında)
+                self._send(410, {"hata": "bu uç kaldırıldı; /uye/bot kullanın"}); return
             if yol == "/uye/borsa":                          # N29: borsa API anahtarı bağla/kaldır (yalnızca okuma)
                 if d.get("sil"): self._send(200, dict(borsalar=uyelik.borsa_sil(u["id"], d.get("borsa")))); return
                 from nexora import borsa_hesap
@@ -225,6 +231,7 @@ class H(BaseHTTPRequestHandler):
                 else: uyelik.baglanti_kaydet(u["id"], d.get("tur"), d.get("adres"))
                 self._send(200, uyelik.profil(u))
         except UyelikHatasi as e: self._send(400, {"hata": str(e)})
+        except HesapHatasi as e: self._send(400, {"hata": str(e)})         # 5.27: bot/hesap hatası
         except PermissionError as e: self._send(429, {"hata": str(e)})
         except ValueError: self._send(500, {"hata": "sunucu kasası okunamadı"})        # ayrıntı (anahtar vb.) yanıta yazılmaz
 
@@ -245,8 +252,18 @@ class H(BaseHTTPRequestHandler):
             if parts.path == "/durum":
                 self._send(200, dict(mod="PAPER", gercek_islem="KAPALI", acil_durdurma=paper.killed(), takip_nabiz=paper.son_nabiz(),
                                      rol="uye")); return
-            if parts.path == "/portfoy": self._send(200, self._cuzdansiz(_sembollu_portfoy())); return
-            if parts.path == "/islemler": self._send(200, self._cuzdansiz(_sembollu_islemler())); return
+            # 5.27: üye ekranları yalnızca kendi ayrı paper hesabını görür; ortak motor verisi üyeye gösterilmez
+            from nexora import hesap as _hs
+            u_ = uyelik.uye((self.headers.get("X-Oturum") or "").strip())
+            if parts.path == "/portfoy": self._send(200, self._cuzdansiz(_hs.portfoy(u_["id"]))); return
+            if parts.path == "/islemler": self._send(200, self._cuzdansiz(_hs.islemler(u_["id"]))); return
+            if parts.path == "/uye/bot": self._send(200, _hs.durum(u_["id"])); return
+            if parts.path == "/uye/bakiye":
+                self._send(200, _hs.bakiye(u_["id"], KOMISYON_PCT)); return
+            if parts.path == "/asistan":
+                d_ = _hs.portfoy(u_["id"])
+                self._send(200, dict(ozet=dict(hesap_var=d_["var"], bot=d_["bot"], bakiye=d_["equity"], kar_zarar=d_["pnl"],
+                                               acik_pozisyon=len(d_["positions"])), kisisel=True)); return
         if parts.path == "/yedek/son": self._yedek_gonder(); return
         if parts.path == "/borsa":                          # Platform 2 (borsa) paper portföyü
             from nexora import borsa_liste
@@ -302,9 +319,10 @@ class H(BaseHTTPRequestHandler):
                 self._send(200, dict(borsalar=uyelik.borsalar(u["id"])))
             return
         if parts.path == "/uye/bakiye":
-            if self._uye():
-                u = uyelik.uye((self.headers.get("X-Oturum") or "").strip())
-                self._send(200, uyelik.uye_bakiye(u["id"], paper.equity(), KOMISYON_PCT))
+            u = self._uye()
+            if u:
+                from nexora import hesap as _hs
+                self._send(200, _hs.bakiye(u["id"], KOMISYON_PCT))
             return
         if parts.path == "/radar":
             from nexora.token_bilgi import toplu

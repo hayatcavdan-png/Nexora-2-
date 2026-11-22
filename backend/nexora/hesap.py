@@ -130,13 +130,27 @@ def dagit(event_id, wallet, token, side, price, liquidity_usd, signal_age_s):
 
 
 def portfoy(uye):
-    """Üyenin kendi paper özeti (cüzdan adresi içermez)."""
+    """Üyenin kendi paper özeti (cüzdan adresi içermez). Hesap yoksa var=False döner."""
+    if not durum(uye)["var"]:
+        return {"var": False, "bot": False, "cash": 0.0, "equity": 0.0, "pnl": 0.0, "positions": [], "baslangic": None}
     p = _hesap(uye)
     d = p.portfolio()
     d["baslangic"] = p.start_cash
     d["bot"] = durum(uye)["bot"]
+    d["var"] = True
     return d
 
 
 def islemler(uye, limit=50):
+    if not durum(uye)["var"]:
+        return []
     return [{k: v for k, v in t.items() if k != "wallet"} for t in _hesap(uye).trades(limit)]
+
+
+def bakiye(uye, pct):
+    """Üyenin kendi hesabına göre bakiye ve kâr payı (ortak motordan bağımsız)."""
+    from nexora.uyelik import komisyon_hesapla
+    d = portfoy(uye)
+    brut = d["pnl"] if d["var"] else 0.0
+    return {"var": d["var"], "bot": d["bot"], "baslangic": d["baslangic"], "equity": d["equity"],
+            "pnl": round(brut, 4), "komisyon": komisyon_hesapla(d["baslangic"] or 0.0, brut, pct) if d["var"] else None}
