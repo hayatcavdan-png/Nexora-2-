@@ -8,6 +8,7 @@ import json, os, re, sys, urllib.request
 
 URL = os.getenv("YZ_URL", "https://generativelanguage.googleapis.com/v1beta/interactions")
 MODEL = os.getenv("YZ_MODEL", "gemini-3.1-flash-lite")
+API_REVISYON = "2026-05-20"                                # Interactions API zorunlu başlığı (belge, 2026)
 IZINLI = {0.0, 1.0, 2.0, 3.0, 5.0, 10.0, 100.0}          # cümle yapısında geçebilecek küçük sabitler
 SAYI = re.compile(r"-?\d+(?:[.,]\d+)?")
 
@@ -24,8 +25,9 @@ def istem(veri):
 
 
 def metin_cek(yanit):
-    """Interactions yanıtındaki son metin bloğu (steps[].content[].text). Düşünme adımları metin taşımaz."""
+    """Interactions yanıtında type=='model_output' adımlarının son metin bloğu (düşünme adımı atlanır)."""
     metinler = [c["text"] for adim in yanit.get("steps", []) if isinstance(adim, dict)
+                and adim.get("type") == "model_output"
                 for c in adim.get("content", []) if isinstance(c, dict) and c.get("text")]
     return metinler[-1] if metinler else None
 
@@ -52,7 +54,7 @@ def gemini_cagir(metin, api_key, post=None):
     if post is not None:
         return post(govde)
     req = urllib.request.Request(URL, data=govde, method="POST", headers={
-        "x-goog-api-key": api_key, "Content-Type": "application/json"})
+        "x-goog-api-key": api_key, "Content-Type": "application/json", "Api-Revision": API_REVISYON})
     with urllib.request.urlopen(req, timeout=60) as r:
         return json.loads(r.read().decode("utf-8"))
 
