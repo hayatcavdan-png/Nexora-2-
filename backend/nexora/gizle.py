@@ -3,7 +3,7 @@ Günlüğe ya da veritabanına yazılan her metinde API anahtarı, URL içindeki
 anahtarlarının değerleri [GİZLİ] ile değiştirilir. Savunma katmanıdır: istemciler zaten anahtarsız hata üretir."""
 import io, os, re
 
-ANAHTAR_ORTAM = ("HELIUS_API_KEY", "JUPITER_API_KEY", "NEXORA_API_KEY", "XAI_API_KEY", "GROK_API_KEY")
+ANAHTAR_ORTAM = ("HELIUS_API_KEY", "JUPITER_API_KEY", "NEXORA_API_KEY", "XAI_API_KEY", "GROK_API_KEY", "GEMINI_API_KEY")
 DESENLER = (
     re.compile(r"(?i)(api[-_]?key=)([^&\s\"']+)"),
     re.compile(r"(?i)\b(api[ _-]?key|secret|password|private[ _-]?key|x-api-key)(\s*[:=]\s*)(?!\[GİZLİ\])([^\s,;&\"']+)"),
