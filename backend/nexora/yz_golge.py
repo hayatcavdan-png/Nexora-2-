@@ -82,3 +82,9 @@ def rapor(etiket_db, ufuk="kaynak"):
     return {"n": len(satir), "gemini_al_n": len(al), "gemini_al_ort": ort(al),
             "gemini_atla_n": len(atla), "gemini_atla_ort": ort(atla), "hepsi_ort": ort([g for *_, g in satir]),
             "yeterli": len(satir) >= 100}
+
+
+if __name__ == "__main__":                       # zamanlayıcı: python3 -m nexora.yz_golge
+    import json
+    sonuc = calistir(os.getenv("ETIKET_DB", "nexora_etiket.db"))
+    print(json.dumps(sonuc, ensure_ascii=False))

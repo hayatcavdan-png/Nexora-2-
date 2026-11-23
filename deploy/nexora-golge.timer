@@ -1,0 +1,9 @@
+[Unit]
+Description=NEXORA Gemini gölge kararı, saat başı (her çalıştırmada en fazla 50 sinyal)
+
+[Timer]
+OnCalendar=*-*-* *:17:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target
