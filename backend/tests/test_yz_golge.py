@@ -66,8 +66,11 @@ class GolgeTest(unittest.TestCase):
         p = _db(["a"])
         def boom(govde): raise OSError("ağ")
         r = yz_golge.calistir(p, post=boom)
-        self.assertEqual(r["hata"], 1)
-        self.assertEqual(sqlite3.connect(p).execute("SELECT hata FROM golge_llm").fetchone()[0], "OSError")
+        self.assertEqual(r["durum"], "hata"); self.assertIn("OSError", r["hata_ilk"])
+        # başarısız çağrı kaydedilmez: sonraki çalıştırmada yeniden denenir
+        self.assertIsNone(sqlite3.connect(p).execute("SELECT name FROM sqlite_master WHERE name='golge_llm'").fetchone()[0] and
+                          None)
+        self.assertEqual(sqlite3.connect(p).execute("SELECT COUNT(*) FROM golge_llm").fetchone()[0], 0)
 
     def test_rapor_karsilastirir(self):
         os.environ["YZ_GOLGE"] = "1"; os.environ["GEMINI_API_KEY"] = "t"

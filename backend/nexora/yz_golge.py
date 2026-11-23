@@ -46,21 +46,26 @@ def calistir(etiket_db, limit=CALISTIR_UST, post=None, now=None):
         db.row_factory = sqlite3.Row
         sec = db.execute(f"""SELECT o.* FROM etiket_olay o LEFT JOIN golge_llm g ON g.event_id=o.event_id
                              WHERE g.event_id IS NULL ORDER BY o.ts LIMIT ?""", (int(limit),)).fetchall()
-        islenen = hata = 0
+        islenen = 0
+        hata_ilk = None
         for r in sec:
             olay = dict(r)
             try:
                 yanit = yz_xai.gemini_cagir(istem(olay), anahtar, post=post)
                 ham = yz_xai.metin_cek(yanit)
-                oneri, hata_m, model = oneri_cozumle(ham), None, yanit.get("model", yz_xai.MODEL)
+                model = yanit.get("model", yz_xai.MODEL)
             except Exception as ex:
-                ham, oneri, hata_m, model = None, "belirsiz", type(ex).__name__, yz_xai.MODEL
-                hata += 1
+                # Başarısız çağrı kaydedilmez: sonraki çalıştırmada yeniden denenir.
+                # Ardışık hata gelirse döngü durur (kota/anahtar sorununda boşuna çağrı yapılmaz).
+                hata_ilk = f"{type(ex).__name__}: {str(ex)[:200]}"
+                break
             db.execute("INSERT OR IGNORE INTO golge_llm VALUES(?,?,?,?,?,?)",
-                       (olay["event_id"], now, model, oneri, (ham or "")[:200], hata_m))
+                       (olay["event_id"], now, model, oneri_cozumle(ham), (ham or "")[:200], None))
             islenen += 1
         db.commit()
-        return {"durum": "ok", "islenen": islenen, "hata": hata, "model": yz_xai.MODEL}
+        if hata_ilk:
+            return {"durum": "hata", "islenen": islenen, "hata_ilk": hata_ilk, "model": yz_xai.MODEL}
+        return {"durum": "ok", "islenen": islenen, "model": yz_xai.MODEL}
     finally:
         db.close()
 
