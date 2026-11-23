@@ -1,5 +1,6 @@
 """Token sembolleri (5.26.1): uygulama 'FLOAT' gibi okunur adlar göstersin diye. Jupiter'den toplu alınır ve
 sembol_onbellek.json'da kalıcı tutulur (sembol değişmez). Bulunamayanlar 1 saatte bir yeniden denenir."""
+from .dosya import json_oku, metin_oku, bayt_oku
 import json, os, threading, time
 
 DOSYA = "sembol_onbellek.json"
@@ -11,7 +12,7 @@ _DENENDI = {}
 def _yukle():
     global _BELLEK
     if _BELLEK is None:
-        try: _BELLEK = json.load(open(DOSYA))
+        try: _BELLEK = json_oku(DOSYA)
         except (OSError, ValueError): _BELLEK = {}
     return _BELLEK
 

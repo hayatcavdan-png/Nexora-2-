@@ -6,6 +6,7 @@ Anahtar (ANTHROPIC_API_KEY) yoksa ya da çağrı başarısızsa kural tabanlı �
 Maliyet koruması: günün özeti herkes için ortak ve 30 dk önbellekte; soru hakkı üye başına günde SORU_GUNLUK
 (varsayılan 10), herkes için toplam günde SORU_TOPLAM (varsayılan 300).
 """
+from .dosya import json_oku, metin_oku, bayt_oku
 import json, os, time
 
 from nexora import yz_yorum
@@ -80,7 +81,7 @@ def kural_ozet(v):
 
 
 def _oku(yol):
-    try: return json.load(open(yol))
+    try: return json_oku(yol)
     except (OSError, ValueError): return {}
 
 

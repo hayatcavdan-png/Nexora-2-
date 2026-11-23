@@ -11,6 +11,7 @@ SINIRLAR (alım öncesi, hepsi zorunlu): acil durdurma kapalı; açık gerçek p
 <= butce_usd; bugünkü gerçekleşen zarar < gunluk_zarar_usd; toplam gerçekleşen zarar < durdurma_usd (aşılırsa pilot KENDİNİ kapatır).
 Güçlendirme (ek alım) kopyalanmaz. Paper'da karşılığı kalmayan gerçek pozisyon bakım turunda satılır (uzlaştırma).
 Anahtar: pilot_cuzdan.py'nin ürettiği dosya (PILOT_ANAHTAR, izin 600); anahtar asla loglanmaz, hata metnine konmaz."""
+from .dosya import json_oku, metin_oku, bayt_oku
 import base64, json, os, queue, sqlite3, threading, time
 
 import requests
@@ -59,7 +60,7 @@ def kapat_islemi(sahip, hesap, program, blockhash, tohum):
 
 def ayar_oku(yol=AYAR):
     d = dict(VARSAYILAN)
-    try: d.update(json.load(open(yol)))
+    try: d.update(json_oku(yol))
     except (OSError, ValueError): pass
     return d
 
@@ -75,7 +76,7 @@ def ayar_yaz(d, yol=AYAR):
 def anahtar_yukle(yol):
     """Pilot anahtar dosyası (Solana CLI biçimi, 64 bayt). Dönüş: (tohum, adres). İçerik hata metnine konmaz."""
     try:
-        b = bytes(json.load(open(yol)))
+        b = bytes(json_oku(yol))
     except (OSError, ValueError, TypeError):
         raise GercekHata("pilot anahtar dosyası okunamadı") from None
     if len(b) != 64 or acik_anahtar(b[:32]) != b[32:]: raise GercekHata("pilot anahtar dosyası bozuk")

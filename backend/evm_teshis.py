@@ -3,6 +3,7 @@
   python3 evm_teshis.py bnb 0xabc... 0xdef...  # belirli cüzdanlar
 Her işlem bir sınıfa ayrılır; iki token değişen işlemlerde en sık görülen token'lar yazılır (karşı varlık listesine
 eklenmesi gereken bir ödeme token'ı var mı?). İşlem gönderilmez, anahtar kullanılmaz."""
+from nexora.dosya import json_oku, metin_oku, bayt_oku
 import json, os, sys
 from collections import Counter, defaultdict
 import requests
@@ -39,7 +40,7 @@ def main(argv, rpc=None, s=None):
     c = ZINCIRLER[z]; rpc = rpc or EvmRpc(os.getenv(c["rpc_env"]) or c["rpc"]); s = s or requests.Session()
     cuzdanlar = [a.lower() for a in argv[1:]]
     if not cuzdanlar:
-        try: kayit = json.load(open(f"evm_analiz_{z}.json"))
+        try: kayit = json_oku(f"evm_analiz_{z}.json")
         except (OSError, ValueError): sys.exit(f"evm_analiz_{z}.json yok: önce evm_kesif.py {z} çalıştırın ya da cüzdan verin")
         kayit = sorted((m for m in kayit if m.get("cozulemeyen")), key=lambda m: -m["cozulemeyen"])
         cuzdanlar = [m["wallet"] for m in kayit[:4]]

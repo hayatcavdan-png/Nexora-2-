@@ -11,6 +11,7 @@ Kurallar (son PENCERE_GUN gün):
   izleme -> çıkar     : en az CIKAR_N ölçüm, ortalama <= CIKAR_ORT % (listeye yer açılır; kara listeye EKLENMEZ)
   izleme -> çıkar     : en az SESSIZ_GUN gündür listede ve son SESSIZ_GUN günde hiç alım yapmadı (sessiz aday)
 Kara listedeki adreslere dokunulmaz. Dosyalar atomik yazılır; takip servisi dosya değişince kendini yeniden başlatır."""
+from .dosya import json_oku, metin_oku, bayt_oku
 import os, sqlite3, time
 from statistics import median
 
@@ -132,7 +133,7 @@ def uygula(adaylar=(), etiket_db=None, now=None, liste_yolu="wallets.txt", izle_
     etiket_db = etiket_db or os.getenv("ETIKET_DB", "nexora_etiket.db")
     olc = olcum(etiket_db, now)
     liste, izle = _oku(liste_yolu), _oku(izle_yolu)
-    try: kayit = json.load(open(kayit_yolu))
+    try: kayit = json_oku(kayit_yolu)
     except (OSError, ValueError): kayit = {}
     for w in liste: kayit.setdefault(w, now)
     aktif = alim_yapanlar(tracker_db or os.getenv("TRACKER_DB", "nexora_tracker.db"), now)
@@ -160,7 +161,7 @@ def uygula(adaylar=(), etiket_db=None, now=None, liste_yolu="wallets.txt", izle_
 
 if __name__ == "__main__":                       # elle:  python3 -m nexora.kadro   (son keşif önerilerini de izlemeye alır)
     import json
-    try: aday = [c["wallet"] for c in json.load(open("kesif_son.json")).get("kopyalanabilir", [])]
+    try: aday = [c["wallet"] for c in json_oku("kesif_son.json").get("kopyalanabilir", [])]
     except (OSError, ValueError, KeyError, TypeError): aday = []
     oz = uygula(aday)
     k = lambda w: w[:4] + "…" + w[-4:]

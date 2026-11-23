@@ -1,6 +1,7 @@
 """Strateji teşhisi (salt okunur): neden kâr yok? Cüzdan seçimi mi, giriş mi, çıkış mı, kurallar mı?
 Paper defterine, takip ve etiket veritabanlarına yalnızca okuma için bağlanır; hiçbir şey yazmaz, ağ isteği yapmaz.
 Sunucu /teshis (yalnızca kurucu) ve günlük özet bildirimi bunu kullanır. Elle:  python3 strateji_teshis.py [gün=3]"""
+from .dosya import json_oku, metin_oku, bayt_oku
 import json, os, sqlite3, sys, time
 from collections import defaultdict
 from statistics import median
@@ -233,7 +234,7 @@ def rapor(now=None, GUN=3.0):
     w, izle = _liste("wallets.txt"), _liste("izle_listesi.txt")
     sinyal = _q(t, "SELECT wallet, COUNT(*) n FROM tracker_signals WHERE side='BUY' AND ts>=? GROUP BY wallet", (bas,))
     aktif = {x["wallet"] for x in sinyal}
-    try: ks = json.load(open("kesif_son.json"))
+    try: ks = json_oku("kesif_son.json")
     except (OSError, ValueError): ks = {}
     onerilen = [x["wallet"] for x in ks.get("kopyalanabilir", [])]
     L.append(f"[7] Takip {len(w)} cüzdan (izle {len(izle)}), son {GUN:g} günde alım yapan {len(aktif & set(w))}; "

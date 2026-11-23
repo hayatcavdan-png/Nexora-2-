@@ -1,4 +1,5 @@
 """Uygulama paneli için salt okunur veri (N14). Ağ isteği yapmaz; yerel dosya ve veritabanlarını okur."""
+from .dosya import json_oku, metin_oku, bayt_oku
 import csv, json, os, sqlite3, time
 
 from nexora.core import CFG
@@ -88,7 +89,7 @@ def cuzdanlar(paper_path, tracker_path, analiz_csv="cuzdan_analiz.csv", tarama_c
     kayip = {}
     if os.path.exists(kayip_json):
         try:
-            for w in json.load(open(kayip_json, encoding="utf-8")).get("cuzdanlar", []): kayip[w["cuzdan"]] = w
+            for w in json_oku(kayip_json, encoding="utf-8").get("cuzdanlar", []): kayip[w["cuzdan"]] = w
         except (ValueError, KeyError, OSError):
             kayip = {}
 
@@ -131,7 +132,7 @@ def cuzdanlar(paper_path, tracker_path, analiz_csv="cuzdan_analiz.csv", tarama_c
 
 def asamalar(path="asamalar.json"):
     if not os.path.exists(path): return dict(rows=[], guncelleme=None)
-    d = json.load(open(path, encoding="utf-8"))
+    d = json_oku(path, encoding="utf-8")
     meta = (d.get("meta") or [{}])[0].get("value")
     return dict(rows=d.get("rows", []), guncelleme=meta)
 

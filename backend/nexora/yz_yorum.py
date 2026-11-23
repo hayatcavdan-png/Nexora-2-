@@ -5,6 +5,7 @@ açık zincir adresleri); API anahtarı, cüzdan anahtarı, üye bilgisi GİTMEZ
 Etkinleştirme: /etc/nexora.env içine ANTHROPIC_API_KEY=... (isteğe bağlı YZ_YORUM_MODEL). Anahtar yoksa kural tabanlı
 kısa yorum döner. Maliyet koruması: sonuç 1 saat önbellekte tutulur, yeniden üretme en erken 5 dakikada bir,
 konu başına günde en fazla YZ_YORUM_GUNLUK (varsayılan 30) çağrı."""
+from .dosya import json_oku, metin_oku, bayt_oku
 import json, os, time
 
 import requests
@@ -33,7 +34,7 @@ def _yol(konu, dizin="."): return os.path.join(dizin, f"yz_yorum_{konu}.json")
 
 
 def _oku(yol):
-    try: return json.load(open(yol))
+    try: return json_oku(yol)
     except (OSError, ValueError): return {}
 
 

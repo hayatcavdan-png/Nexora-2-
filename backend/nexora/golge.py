@@ -7,6 +7,7 @@ cüzdanların her alımı etiketlenir:
   2) Teyit: gölge cüzdanın aynı token'ı alması kopyalanan sinyali 'teyit' eder (önce yalnızca ölçülür; deney masası [10b]).
   3) Terfi adayı: ileriye dönük ölçümde iyi çıkan gölge cüzdan raporlanır (kopyalamaya geçirme kullanıcı onayıyla).
 Kopyalama listesine (wallets.txt) dokunmaz. Takip servisi golge_listesi.txt'i okur ve bu cüzdanları 'yalnızca izlenen' sayar."""
+from .dosya import json_oku, metin_oku, bayt_oku
 import csv, os, time
 
 from nexora import kadro as K
@@ -48,7 +49,7 @@ def adaylar(analiz_csv="cuzdan_analiz.csv", haric=()):
 
 def _kayit(yol):
     import json
-    try: return json.load(open(yol))
+    try: return json_oku(yol)
     except (OSError, ValueError): return {}
 
 

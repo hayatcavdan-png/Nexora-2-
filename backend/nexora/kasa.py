@@ -9,6 +9,7 @@ Yalnızca Python standart kütüphanesi (sunucuya paket kurulmaz):
   - Biçim: "v1:" + base64(nonce | şifreli | etiket). Kayıt bağlamı (ör. üye kimliği + alan adı) etikete katılır:
     bir üyenin şifreli değeri başka üyenin satırına kopyalanırsa çözülmez.
 Ana anahtar kaybolursa şifreli değerler geri alınamaz (kullanıcılar anahtarlarını yeniden bağlar); bu bilinçli bir tercihtir."""
+from .dosya import json_oku, metin_oku, bayt_oku
 import base64, hashlib, hmac, os, secrets
 
 ON = "v1:"
@@ -42,7 +43,7 @@ class Kasa:
     @staticmethod
     def _yukle_ya_da_olustur(yol):
         if os.path.exists(yol):
-            ham = open(yol, "rb").read().strip()
+            ham = bayt_oku(yol).strip()
             try:
                 ana = bytes.fromhex(ham.decode())
             except ValueError:

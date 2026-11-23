@@ -4,6 +4,7 @@ durum():       servisler (systemd), kurulu sürüm, son keşif / yapay zekâ / t
 olaylar():     servis durumu değişince bildirim (90 sn'den uzun süren kesinti; yeniden başlatma alarm üretmez).
 tutarlilik():  bir başlangıç anından (varsayılan: 20.11 çıkış düzeltmesi) beri canlı paper defteri ile aynı dönemin
                deney masası yeniden oynatması (aynı kural: 8x%5, al-sat <= %3, kaynak çıkışı) yan yana."""
+from .dosya import json_oku, metin_oku, bayt_oku
 import json, os, sqlite3, subprocess, time
 
 BIRIMLER = ("nexora-sunucu", "nexora-takip", "nexora-piyasa", "nexora-bnb", "nexora-base", "nexora-hl")
@@ -66,7 +67,7 @@ def _son_ts(db, sql):
 
 def zamanlar():
     k = {}
-    try: k = json.load(open("kesif_son.json"))
+    try: k = json_oku("kesif_son.json")
     except (OSError, ValueError): pass
     yz = None
     try: yz = os.path.getmtime("yz_model.json")
@@ -98,7 +99,7 @@ def durum(paper=None, calistir=_calistir, now=None):
 def olaylar(son, now=None, calistir=_calistir, yol=DURUM_DOSYA):
     """Servis durumu geçişleri. Kesinti KESINTI_SN'den uzun sürerse 'durdu', sonra düzelirse 'yeniden çalışıyor'."""
     now = now or time.time()
-    try: kayit = json.load(open(yol))
+    try: kayit = json_oku(yol)
     except (OSError, ValueError): kayit = {}
     ilk = not kayit; out = []
     for s in servisler(calistir):

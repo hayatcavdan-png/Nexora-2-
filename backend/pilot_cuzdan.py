@@ -4,6 +4,7 @@
 Anahtar dosyası Solana CLI biçimindedir (64 baytlık JSON dizi), izni 600, yolu PILOT_ANAHTAR (varsayılan /var/lib/nexora/pilot.json).
 Açık adres ayrıca pilot_adres.txt'e yazılır (simülasyon araçları anahtar dosyasını hiç okumaz).
 Bu cüzdana para göndermek ve ilk gerçek emir ayrı kararlardır (N12)."""
+from nexora.dosya import json_oku, metin_oku, bayt_oku
 import json, os, sys
 
 from nexora.ed25519 import acik_anahtar, b58
@@ -29,9 +30,9 @@ def olustur(anahtar=ANAHTAR, adres_yolu=ADRES, rastgele=os.urandom):
 
 def adres(anahtar=ANAHTAR, adres_yolu=ADRES):
     if os.path.exists(adres_yolu):
-        return open(adres_yolu).read().strip()
+        return metin_oku(adres_yolu).strip()
     if not os.path.exists(anahtar): raise SystemExit("Pilot cüzdan yok. Oluşturmak için: python pilot_cuzdan.py olustur")
-    b = bytes(json.load(open(anahtar)))
+    b = bytes(json_oku(anahtar))
     if len(b) != 64 or acik_anahtar(b[:32]) != b[32:]: raise SystemExit("anahtar dosyası bozuk")
     a = b58(b[32:])
     with open(adres_yolu, "w") as f: f.write(a + "\n")

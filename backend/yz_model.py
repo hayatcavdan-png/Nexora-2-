@@ -3,6 +3,7 @@
                                 python yz_model.py yeni   # şimdi yeniden sına (sunucuda birkaç dakika sürer)
 En az 500 etiketli örnek gerekir (YZ_ZORLA=1 yalnızca deneme içindir; sonucu karar için kullanılmaz).
 Kabul edilirse model yz_model.json'a yazılır (N19 gölge kararı bunu kullanır). İşlem kuralını DEĞİŞTİRMEZ."""
+from nexora.dosya import json_oku, metin_oku, bayt_oku
 import os, sys, time
 
 RAPOR = "yz_model_rapor.txt"
@@ -53,7 +54,7 @@ def calistir(db, ufuk="kaynak", zorla=False, yol="yz_model.json"):
 
 if __name__ == "__main__":
     if "yeni" not in sys.argv[1:] and os.path.exists(RAPOR) and os.getenv("YZ_ZORLA") != "1":
-        print(open(RAPOR).read().rstrip()); print("\n(Gece sınamasının kayıtlı raporu. Şimdi yeniden sınamak için: yz_model.py yeni — birkaç dakika sürer)")
+        print(metin_oku(RAPOR).rstrip()); print("\n(Gece sınamasının kayıtlı raporu. Şimdi yeniden sınamak için: yz_model.py yeni — birkaç dakika sürer)")
     else:
         print("Sınanıyor, sunucuda birkaç dakika sürebilir…", flush=True)
         print(calistir(os.getenv("ETIKET_DB", "nexora_etiket.db"), os.getenv("YZ_UFUK", "kaynak"), os.getenv("YZ_ZORLA") == "1"))

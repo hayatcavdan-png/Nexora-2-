@@ -1,5 +1,6 @@
 """Bağımlılıksız NEXORA sunucusu (yalnızca Python stdlib).
 Çalıştır: NEXORA_API_KEY=gizli123 python server.py"""
+from nexora.dosya import json_oku, metin_oku, bayt_oku
 import os, json, sqlite3, time
 from urllib.parse import urlsplit, parse_qs
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -126,7 +127,7 @@ class H(BaseHTTPRequestHandler):
         dosyalar = sorted(glob.glob(os.path.join("yedekler", "nexora_*.tar.gz")))
         if not dosyalar: self._send(404, {"hata": "yedek yok"}); return
         yol = dosyalar[-1]
-        b = open(yol, "rb").read()
+        b = bayt_oku(yol)
         self.send_response(200); self.send_header("Content-Type", "application/gzip")
         self.send_header("X-Yedek-Ad", os.path.basename(yol)); self.send_header("Content-Length", str(len(b)))
         self.end_headers(); self.wfile.write(b)
@@ -286,7 +287,7 @@ class H(BaseHTTPRequestHandler):
                 yol = f"nexora_strateji_{st.ad}.db"
                 if os.path.exists(yol): out.append(piyasa.ozet(Paper(yol), st))
                 else: out.append(dict(ad=st.ad, aciklama=st.aciklama, bos=True))
-            try: durum = json.load(open("piyasa_durum.json"))
+            try: durum = json_oku("piyasa_durum.json")
             except (OSError, ValueError): durum = None
             self._send(200, dict(stratejiler=out, durum=durum)); return
         if parts.path == "/bildirim":                      # N32: borsada listesiz token sinyalleri (yalnızca bildirim)
