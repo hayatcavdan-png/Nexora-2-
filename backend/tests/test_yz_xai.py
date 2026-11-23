@@ -13,8 +13,8 @@ class TestYzXai(unittest.TestCase):
         else: os.environ["YZ_XAI"] = self._old
 
     def _yanit(self, metin):
-        return {"model": "grok-4.3", "output": [{"type": "reasoning", "summary": []},
-                {"type": "message", "role": "assistant", "content": [{"type": "output_text", "text": metin}]}]}
+        return {"model": "gemini-3.1-flash-lite", "steps": [{"type": "thought", "summary": []},
+                {"type": "model_output", "content": [{"type": "text", "text": metin}]}]}
 
     def test_kapali_iken_cagrilmaz(self):
         os.environ["YZ_XAI"] = "0"
@@ -25,11 +25,12 @@ class TestYzXai(unittest.TestCase):
     def test_istem_yalniz_veri_icerir(self):
         p = yz_xai.istem(VERI)
         self.assertIn("50.92", p)
-        self.assertNotIn("XAI_API_KEY", p)
+        self.assertNotIn("GEMINI_API_KEY", p)
         self.assertIn("uydurma", p)
 
-    def test_metin_cek_reasoning_atlar(self):
+    def test_metin_cek_son_metni_alir(self):
         self.assertEqual(yz_xai.metin_cek(self._yanit("merhaba")), "merhaba")
+        self.assertIsNone(yz_xai.metin_cek({"steps": [{"type": "thought", "summary": []}]}))
 
     def test_dogrulama_uydurma_sayiyi_yakalar(self):
         ok, bil = yz_xai.dogrula("Kâr %50.92, ama 77.7 hedefi var", VERI)
@@ -40,10 +41,10 @@ class TestYzXai(unittest.TestCase):
         self.assertTrue(ok, bil)
 
     def test_acik_rapor_dogrulama_ile_doner(self):
-        os.environ["YZ_XAI"] = "1"; os.environ["XAI_API_KEY"] = "test"
+        os.environ["YZ_XAI"] = "1"; os.environ["GEMINI_API_KEY"] = "test"
         s = yz_xai.rapor(VERI, post=lambda g: self._yanit("Canlı pozitif (50.92), deney negatif (-13.46)."))
-        self.assertTrue(s["dogru"]); self.assertEqual(s["model"], "grok-4.3")
-        os.environ.pop("XAI_API_KEY", None)
+        self.assertTrue(s["dogru"]); self.assertEqual(s["model"], "gemini-3.1-flash-lite")
+        os.environ.pop("GEMINI_API_KEY", None)
 
 
 if __name__ == "__main__":

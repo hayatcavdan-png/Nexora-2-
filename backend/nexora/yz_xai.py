@@ -1,12 +1,13 @@
-"""xAI (Grok) günlük rapor pilotu. SALT OKUNUR: yalnızca toplulaştırılmış sayılardan kısa bir yorum üretir.
+"""Gemini günlük rapor pilotu. SALT OKUNUR: yalnızca toplulaştırılmış sayılardan kısa bir yorum üretir.
 
 Hiçbir karar, eşik ya da işlem bu modülden etkilenmez. Varsayılan KAPALI (YZ_XAI=1 ile açılır).
 Model çıktısındaki her sayı girdi verisinde yoksa rapor 'doğrulanamadı' olarak işaretlenir.
-API: POST https://api.x.ai/v1/responses, Authorization: Bearer <XAI_API_KEY> (docs.x.ai)."""
+API: POST https://generativelanguage.googleapis.com/v1beta/interactions, başlık x-goog-api-key: GEMINI_API_KEY.
+Model: gemini-3.1-flash-lite (kararlı; 2.5 Flash-Lite yeni hesaplara sınırlı)."""
 import json, os, re, sys, urllib.request
 
-URL = os.getenv("XAI_URL", "https://api.x.ai/v1/responses")
-MODEL = os.getenv("XAI_MODEL", "grok-4.3")
+URL = os.getenv("YZ_URL", "https://generativelanguage.googleapis.com/v1beta/interactions")
+MODEL = os.getenv("YZ_MODEL", "gemini-3.1-flash-lite")
 IZINLI = {0.0, 1.0, 2.0, 3.0, 5.0, 10.0, 100.0}          # cümle yapısında geçebilecek küçük sabitler
 SAYI = re.compile(r"-?\d+(?:[.,]\d+)?")
 
@@ -23,13 +24,10 @@ def istem(veri):
 
 
 def metin_cek(yanit):
-    """Responses API yanıtından son asistan metnini al (type=message, content type=output_text)."""
-    for oge in yanit.get("output", []):
-        if oge.get("type") != "message": continue
-        for part in oge.get("content", []):
-            if part.get("type") == "output_text" and part.get("text"):
-                return part["text"]
-    return None
+    """Interactions yanıtındaki son metin bloğu (steps[].content[].text). Düşünme adımları metin taşımaz."""
+    metinler = [c["text"] for adim in yanit.get("steps", []) if isinstance(adim, dict)
+                for c in adim.get("content", []) if isinstance(c, dict) and c.get("text")]
+    return metinler[-1] if metinler else None
 
 
 def sayilar(metin):
@@ -53,15 +51,15 @@ def cagir(veri, api_key, post=None):
     if post is not None:
         return post(govde)
     req = urllib.request.Request(URL, data=govde, method="POST", headers={
-        "Authorization": f"Bearer {api_key}", "Content-Type": "application/json"})
+        "x-goog-api-key": api_key, "Content-Type": "application/json"})
     with urllib.request.urlopen(req, timeout=60) as r:
         return json.loads(r.read().decode("utf-8"))
 
 
 def rapor(veri, post=None):
-    """Kapalıysa ya da anahtar yoksa None. Açıksa {'metin','dogru','bilinmeyen','model','kullanim'}."""
+    """Kapalıysa ya da GEMINI_API_KEY yoksa None. Açıksa {'metin','dogru','bilinmeyen','model','kullanim'}."""
     if not acik(): return None
-    anahtar = os.getenv("XAI_API_KEY", "")
+    anahtar = os.getenv("GEMINI_API_KEY", "")
     if not anahtar and post is None: return None
     yanit = cagir(veri, anahtar, post=post)
     metin = metin_cek(yanit)
@@ -71,10 +69,10 @@ def rapor(veri, post=None):
             "kullanim": yanit.get("usage")}
 
 
-if __name__ == "__main__":                       # elle: YZ_XAI=1 XAI_API_KEY=... python3 -m nexora.yz_xai ozet.json
+if __name__ == "__main__":                       # elle: YZ_XAI=1 GEMINI_API_KEY=... python3 -m nexora.yz_xai ozet.json
     with open(sys.argv[1], encoding="utf-8") as f: veri = json.load(f)
     sonuc = rapor(veri)
     if sonuc is None:
-        print("Kapalı (YZ_XAI=1 ve XAI_API_KEY gerekli)."); sys.exit(0)
+        print("Kapalı (YZ_XAI=1 ve GEMINI_API_KEY gerekli)."); sys.exit(0)
     print(sonuc["metin"] or "(boş)")
     print(f"\n[model={sonuc['model']} doğrulama={'geçti' if sonuc['dogru'] else 'BAŞARISIZ: ' + str(sonuc['bilinmeyen'])}]")
