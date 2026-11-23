@@ -46,6 +46,31 @@ def olcum(etiket_db, now=None, gun=PENCERE_GUN):
                     pozitif=round(sum(1 for x in v if x > 0) / len(v), 2)) for w, v in g.items()}
 
 
+def yarilar_olcum(etiket_db, now=None, gun=PENCERE_GUN):
+    """{cüzdan: {"yarilar": (ort1, n1, ort2, n2)}}: 'kaynak' getirileri zaman sırasıyla ikiye bölünür.
+    Kopyalanabilirlik sınıfı A için zaman tutarlılığı ölçüsü (5.27.7). En az 2 ölçümü olanlar dönülür."""
+    now = now if now is not None else time.time()
+    if not etiket_db or not os.path.exists(etiket_db): return {}
+    c = sqlite3.connect(f"file:{etiket_db}?mode=ro", uri=True, timeout=10)
+    try:
+        rows = c.execute("""SELECT o.wallet, s.getiri_pct FROM etiket_olay o JOIN etiket_sonuc s ON s.event_id=o.event_id
+                            WHERE s.ufuk='kaynak' AND s.getiri_pct IS NOT NULL AND o.ts >= ?
+                            ORDER BY o.wallet, o.ts, o.event_id""", (now - gun * 86400,)).fetchall()
+    except sqlite3.OperationalError:
+        rows = []
+    finally:
+        c.close()
+    g = {}
+    for w, v in rows: g.setdefault(w, []).append(float(v))
+    out = {}
+    for w, v in g.items():
+        if len(v) < 2: continue
+        h = len(v) // 2
+        a, b = v[:h], v[h:]
+        out[w] = {"yarilar": (round(sum(a) / len(a), 2), len(a), round(sum(b) / len(b), 2), len(b))}
+    return out
+
+
 def karar(liste, izle, olc, adaylar=(), kara=(), sessiz=(), mod=None):
     """Saf karar. liste: wallets.txt (kopyalanan + izlenen), izle: izle_listesi.txt. Dönüş: yeni listeler ve değişiklikler."""
     mod = mod or MOD

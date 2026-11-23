@@ -93,8 +93,9 @@ def sayim(r):
 
 if __name__ == "__main__":                           # elle: python3 -m nexora.kopyalanabilirlik
     from nexora import kadro
-    olc = kadro.olcum(os.getenv("ETIKET_DB", "nexora_etiket.db"))
-    r = rapor(olc)
+    etiket = os.getenv("ETIKET_DB", "nexora_etiket.db")
+    olc = kadro.olcum(etiket)
+    r = rapor(olc, kadro.yarilar_olcum(etiket))
     s = sayim(r)
     print(f"Kopyalanabilirlik: A={s['A']}  B={s['B']}  C={s['C']}  (toplam {len(r)}; ek veri yok, yalnızca net getiri)")
     for w, v in r.items():
