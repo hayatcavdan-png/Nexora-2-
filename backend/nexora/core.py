@@ -13,7 +13,7 @@ BASKA_SATICI = "satan cüzdan pozisyonu açan değil"
 CFG = dict(
     start_cash=100.0,        # USDC (sanal)
     max_pos_pct=0.05,        # pozisyon başına %5
-    daily_loss_pct=0.03,     # günlük %3 zarar eşiği
+    daily_loss_pct=0.05,     # günlük %5 zarar eşiği (23.11.2026 sahip onayı; eskiden %3)
     max_positions=8,         # kullanıcı talebiyle 5 -> 8 (16.11.2026); toplam risk: 8 x %5 = en fazla %40.
                              # 17.11.2026: üst sınır 16'ya çıktı (16 x %2.5, kayıtlı ayar); TOPLAM_RISK her bileşimde korunur
     max_signal_age_s=10,
