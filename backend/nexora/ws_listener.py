@@ -50,7 +50,7 @@ class WSListener:
                 try:
                     self.on_signature(w, sig)
                 except Exception as e:            # tek işlem hatası dinleyiciyi durdurmaz
-                    self.log(f"İşlem hatası {sig[:8]}…: {type(e).__name__}")
+                    self.log(f"İşlem hatası {sig[:8]}…: {type(e).__name__}: {str(e)[:160]}")
         finally:
             self.connected = False
             ws.close()
