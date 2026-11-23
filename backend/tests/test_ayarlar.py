@@ -18,10 +18,15 @@ class AyarTests(unittest.TestCase):
         self.assertEqual(len(self.p.ayarlar()["gecmis"]), 2)
 
     def test_cannot_loosen_beyond_rules(self):
-        for bad in [{"max_pos_pct": 0.06}, {"daily_loss_pct": 0.05}, {"max_positions": 17}, {"max_positions_per_wallet": 3},
+        for bad in [{"max_pos_pct": 0.06}, {"daily_loss_pct": 0.051}, {"max_positions": 17}, {"max_positions_per_wallet": 3},
                     {"max_roundtrip_loss_pct": 7}, {"max_signal_age_s": 30}, {"max_positions": 0},
                     {"start_cash": 1000}, {"max_positions": 2.5}, {"max_positions": "3"}, {"max_positions": True}, {}]:
             with self.assertRaises(ValueError, msg=str(bad)): self.p.ayar_degistir(bad)
+
+    def test_gunluk_zarar_ust_sinir_yuzde_bes(self):
+        # 23.11.2026: günlük zarar üst sınırı sahip onayıyla %5'e çekildi (eski sınır %3). Bilinçli değişiklik.
+        self.p.ayar_degistir({"daily_loss_pct": 0.05})
+        self.assertEqual(self.p.limit("daily_loss_pct"), 0.05)
 
     def test_toplam_risk_korunur(self):
         with self.assertRaises(ValueError) as e: self.p.ayar_degistir({"max_positions": 16})     # 16 x %5 = %80

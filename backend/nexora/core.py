@@ -32,7 +32,7 @@ CFG = dict(
 # limitleridir; uygulamadan yalnızca SIKILAŞTIRILABİLİR, gevşetilemez. Doğrulama sunucu tarafındadır.
 AYARLANABILIR = dict(
     max_pos_pct=(0.005, 0.05, float),
-    daily_loss_pct=(0.005, 0.03, float),
+    daily_loss_pct=(0.005, 0.05, float),      # 23.11.2026: sahip onayıyla %3 -> %5 (bilinçli gevşetme)
     max_positions=(1, 16, int),
     max_positions_per_wallet=(1, 2, int),
     max_signal_age_s=(3, 10, int),
