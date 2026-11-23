@@ -45,6 +45,7 @@ def getiri(cikis_usdc, giris=ETIKET_USD):
 class Etiketci:
     def __init__(self, db_path, quoter, bilgi=None, cuzdanlar=None, clock=time.time, sleep=time.sleep, model=None):
         self.db = sqlite3.connect(db_path, check_same_thread=False, timeout=10)
+        self.db.execute("PRAGMA journal_mode=WAL")   # okuyucu yazıcıyı bloke etmesin (kalıcı ayar)
         self.db.row_factory = sqlite3.Row
         self.db.executescript(SEMA)
         try: self.db.execute("ALTER TABLE etiket_olay ADD COLUMN teyit INTEGER")   # 18.11: aynı token'ı 15 dk içinde alan cüzdan sayısı

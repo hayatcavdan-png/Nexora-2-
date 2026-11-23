@@ -133,6 +133,7 @@ class Paper:
         self.ucret_orani = ucret_orani
         self.seviye = {}                    # cüzdan -> seviye adı (takip servisi kadro ölçümünden doldurur); boşsa seviye yok
         self.db = sqlite3.connect(path, check_same_thread=False, timeout=10)
+        self.db.execute("PRAGMA journal_mode=WAL")   # okuyucu yazıcıyı bloke etmesin (kalıcı ayar)
         self.db.row_factory = sqlite3.Row
         self.lock = threading.Lock()
         try:
