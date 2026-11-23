@@ -123,7 +123,7 @@ def main():
         for w in tr.bot_wallets(): tr.clear_bot_flag(w)
     for w in tr.bot_wallets():
         print(f"  {short(w)}: yüksek frekans (bot) işaretli, izlenmiyor. "
-              f"wallets.txt'ten çıkarın ya da CLEAR_BOT=1 ile yeniden deneyin.", flush=True)
+              f"wallets.txt ya da golge_listesi.txt'ten çıkarın ya da CLEAR_BOT=1 ile yeniden deneyin.", flush=True)
     paper.nabiz()
     tr.poll_all()                                     # başlangıç noktası / kaçanları tamamla
 
