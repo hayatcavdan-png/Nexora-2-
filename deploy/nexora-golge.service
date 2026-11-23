@@ -1,0 +1,10 @@
+[Unit]
+Description=NEXORA Gemini gölge kararı (salt okunur kayıt; YZ_GOLGE=1 olmadan hiçbir şey yapmaz)
+
+[Service]
+Type=oneshot
+User=nexora
+WorkingDirectory=/opt/nexora/backend
+EnvironmentFile=/etc/nexora.env
+ExecStart=/usr/bin/python3 -u -m nexora.yz_golge
+TimeoutStartSec=900
