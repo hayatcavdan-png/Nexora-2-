@@ -20,6 +20,7 @@ CFG = dict(
     min_liquidity_usd=50_000,
     base_slippage=0.005,     # %0.5
     net_fee_usd=0.01,        # ağ + priority fee tahmini
+    stop_loss_pct=0.12,      # pozisyon başına zarar kesme: teklife göre net zarar bu oranı aşarsa kaynaktan bağımsız satılır
     max_price_impact_pct=3.0,     # Jupiter teklifinde izin verilen en yüksek fiyat etkisi
     max_roundtrip_loss_pct=6.0,   # al-hemen-sat teklif kaybı (spread+etki+ücret) üst sınırı
     fee_reserve_usd=1.0,          # SOL işlem ücretleri için her zaman ayrılan nakit (alımda kullanılmaz)

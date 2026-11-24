@@ -2,12 +2,20 @@
 Sıra: kurallar (ağsız) -> token güvenliği -> alış teklifi -> geri satış teklifi -> kayıt.
 Geçmiş/ideal fiyat kullanılmaz; doldurma, sinyal anındaki gerçek teklife göre yapılır."""
 import os
+import time
 from nexora.constants import USDC_MINT
 from nexora.core import CFG
 from nexora.market import QuoteError
 from nexora import durum as D
 
 USDC_DECIMALS = 6
+
+
+def zarar_kesme_asildi(cost, proceeds_usd, fee_usd, esik=None):
+    """Teklife göre satılırsa net zarar (satış ücreti dahil) maliyetin esik oranını aşıyor mu?"""
+    if not cost or cost <= 0: return False
+    esik = CFG["stop_loss_pct"] if esik is None else esik
+    return (proceeds_usd - fee_usd - cost) / cost <= -esik
 
 def kaynak_bakiyesi(client, wallet, mint):
     """Kaynak cüzdanın bu token'daki toplam ham bakiyesi (tüm token hesapları; salt okunur RPC). Bilinmiyorsa None."""
@@ -339,6 +347,13 @@ class Decider:
             except QuoteError:
                 failed += 1; self.paper.teklif_sonucu(pos["token"], False); continue
             self.paper.teklif_sonucu(pos["token"], True)
-            self.paper.mark_price(pos["token"], q["out_amount"] / 10 ** USDC_DECIMALS / pos["qty"])
+            proceeds = q["out_amount"] / 10 ** USDC_DECIMALS
+            self.paper.mark_price(pos["token"], proceeds / pos["qty"])
             done += 1
+            if zarar_kesme_asildi(pos["cost"], proceeds, CFG["net_fee_usd"]):      # kaynak satmasa da zarar kesilir
+                try:
+                    self._sell(f"zarar:{pos['token']}:{int(time.time())}", pos.get("wallet") or "zarar_kesme",
+                               pos["token"], neden=f"zarar kesme %{CFG['stop_loss_pct'] * 100:.0f}")
+                except Exception as ex:
+                    print(f"[nexora] zarar kesme satışı hata: {type(ex).__name__}", flush=True)
         return done, failed
