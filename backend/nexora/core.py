@@ -7,6 +7,7 @@ except ImportError:          # Windows: süreçler arası kilit yok (yalnızca t
     fcntl = None
 
 from nexora import durum as D
+from nexora.kilitli_db import KilitliBaglanti as _KilitliBaglanti
 
 BASKA_SATICI = "satan cüzdan pozisyonu açan değil"
 
@@ -123,6 +124,7 @@ def kararlilik_hesapla(bas, son, kesintiler, now):
 class SemaHatasi(RuntimeError):
     pass
 
+
 class Paper:
     def __init__(self, path=":memory:", kayma=None, ucret_orani=0.0, ekosistem="solana", start_cash=None, dagit=True):
         self.path = path
@@ -133,10 +135,10 @@ class Paper:
         self.kayma = CFG["base_slippage"] if kayma is None else kayma
         self.ucret_orani = ucret_orani
         self.seviye = {}                    # cüzdan -> seviye adı (takip servisi kadro ölçümünden doldurur); boşsa seviye yok
-        self.db = sqlite3.connect(path, check_same_thread=False, timeout=10)
+        self.lock = threading.RLock()       # yeniden girilebilir: kilitli metotlar içinden kilitli bağlantı çağrılır
+        self.db = _KilitliBaglanti(sqlite3.connect(path, check_same_thread=False, timeout=10), self.lock)
         self.db.execute("PRAGMA journal_mode=WAL")   # okuyucu yazıcıyı bloke etmesin (kalıcı ayar)
         self.db.row_factory = sqlite3.Row
-        self.lock = threading.Lock()
         try:
             r = self.db.execute("SELECT v FROM state WHERE k='sema_surumu'").fetchone()
         except sqlite3.OperationalError:

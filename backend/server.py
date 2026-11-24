@@ -122,7 +122,10 @@ class H(BaseHTTPRequestHandler):
         if k is not None and code == 200:
             with _ONB_KILIT: _ONB[k] = (time.time(), b)
         self.send_response(code); self.send_header("Content-Type", "application/json")
-        self.send_header("Content-Length", str(len(b))); self.end_headers(); self.wfile.write(b)
+        try:
+            self.send_header("Content-Length", str(len(b))); self.end_headers(); self.wfile.write(b)
+        except (BrokenPipeError, ConnectionResetError):
+            pass    # telefon yanıtı beklemeden ayrıldı (ekran değişti / ağ koptu): sunucu hatası değil, kayda yazılmaz
     def _yedek_gonder(self):
         dosyalar = sorted(glob.glob(os.path.join("yedekler", "nexora_*.tar.gz")))
         if not dosyalar: self._send(404, {"hata": "yedek yok"}); return

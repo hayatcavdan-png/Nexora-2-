@@ -7,9 +7,10 @@ Kapsam (bilinçli olarak dar):
   yalnızca şifreli (kasa.py) saklanır ve şimdilik yalnızca bakiye OKUMAK için kullanılır. Emir gönderme yok (N31).
 - Parola: scrypt + kişiye özel tuz. Oturum anahtarı rastgele; veritabanında yalnızca SHA-256 özeti tutulur.
 """
-import base64, hashlib, hmac, json, os, re, secrets, sqlite3, struct, time
+import base64, hashlib, hmac, json, os, re, secrets, sqlite3, struct, threading, time
 
 from nexora.ed25519 import _ALFABE
+from nexora.kilitli_db import KilitliBaglanti
 
 OTURUM_SN = 30 * 86400
 PORTFOY_MIN, PORTFOY_MAX, PORTFOY_VARSAYILAN = 10.0, 100_000.0, 100.0
@@ -93,7 +94,8 @@ def komisyon_hesapla(baslangic, brut_kar, pct):
 
 class Uyelik:
     def __init__(self, yol=":memory:"):
-        self.db = sqlite3.connect(yol, check_same_thread=False, timeout=10)
+        self.lock = threading.RLock()       # 24.11: her istekte oturum denetimi; eşzamanlı istekler bağlantıyı çakıştırmasın
+        self.db = KilitliBaglanti(sqlite3.connect(yol, check_same_thread=False, timeout=10), self.lock)
         self.db.row_factory = sqlite3.Row
         self.db.executescript("""
         CREATE TABLE IF NOT EXISTS uye(id INTEGER PRIMARY KEY, eposta TEXT UNIQUE NOT NULL, tuz BLOB NOT NULL, ozet BLOB NOT NULL,
