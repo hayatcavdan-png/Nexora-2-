@@ -13,7 +13,7 @@ import json, math, os, re, sys, time
 
 import requests
 
-from nexora import btc_gosterge as G, yz_xai
+from nexora import btc_duygu as D, btc_gosterge as G, btc_haber, yz_xai
 from nexora.constants import USDC_MINT
 
 BTC_MINT = os.getenv("BTC_MINT", "cbbtcf3aa214zXHbiAZQwf4122FBYbraNdFqgw4iMij")   # Coinbase Wrapped BTC (Solana)
@@ -38,7 +38,10 @@ SEMA = """CREATE TABLE IF NOT EXISTS btc_tahmin(id INTEGER PRIMARY KEY AUTOINCRE
   gerekce TEXT, kural_yon TEXT, ozellik TEXT, karar TEXT, karar_neden TEXT, hedef_ts REAL, sonuc_fiyat REAL, sonuc_pct REAL,
   isabet INTEGER, kural_isabet INTEGER, model TEXT, hata TEXT);"""
 GOC = ("ALTER TABLE btc_tahmin ADD COLUMN topluluk_yon TEXT", "ALTER TABLE btc_tahmin ADD COLUMN topluluk_skor REAL",
-       "ALTER TABLE btc_tahmin ADD COLUMN topluluk_isabet INTEGER")
+       "ALTER TABLE btc_tahmin ADD COLUMN topluluk_isabet INTEGER", "ALTER TABLE btc_tahmin ADD COLUMN haber_yon TEXT",
+       "ALTER TABLE btc_tahmin ADD COLUMN haber_isabet INTEGER", "ALTER TABLE btc_tahmin ADD COLUMN uzman_yon TEXT",
+       "ALTER TABLE btc_tahmin ADD COLUMN uzman_isabet INTEGER", "ALTER TABLE btc_tahmin ADD COLUMN duygu TEXT")
+SINYAL_YON = {1: "YUKARI", -1: "ASAGI", 0: "BELIRSIZ"}
 
 
 def sema_kur(db):
@@ -126,11 +129,14 @@ def agirlik_yukle(yol=None):
         return None
 
 
-def topluluk_hesap(oz, sinama):
-    """(sinyaller, skor, yön). Sınama yoksa ya da sınama kanıt bulamadıysa skor 0: göstergeler kanıtsız oy kullanmaz
-    (YZ yine de gösterge değerlerini ve karneyi görür)."""
-    sinyal = G.sinyaller(oz)
-    agirlik = (sinama or {}).get("agirlik") if (sinama or {}).get("kanit") else None
+def topluluk_hesap(oz, sinama, ek_sinyal=None):
+    """(sinyaller, skor, yön). Teknik ve duygu kuralları ayrı sınanır; yalnızca KANIT bulunan grubun ağırlıkları oy
+    kullanır. Sınama yoksa ya da kanıt yoksa skor 0 (YZ yine de değerleri ve karneyi görür)."""
+    sinyal = dict(G.sinyaller(oz), **(ek_sinyal or {}))
+    sinama = sinama or {}
+    agirlik = dict(sinama.get("agirlik") or {}) if sinama.get("kanit") else {}
+    duygu = sinama.get("duygu") or {}
+    if duygu.get("kanit"): agirlik.update(duygu.get("agirlik") or {})
     skor = round(G.topluluk(sinyal, agirlik), 3)
     return sinyal, skor, G.yon(skor, TOPLULUK_ESIK)
 
@@ -149,11 +155,16 @@ def sinama_ozeti(sinama):
     return dict(kanit=sinama.get("kanit"), ufuk_saat=sinama.get("ufuk_saat"),
                 kurallar={k: dict(isabet_al=v["sinama"]["isabet_al"], baz=v["sinama"]["baz_yukari"], z=v["sinama"]["z"],
                                   n=v["sinama"]["n_al"]) for k, v in (sinama.get("kurallar") or {}).items()},
-                agirlik=sinama.get("agirlik"))
+                agirlik=sinama.get("agirlik"),
+                duygu=None if not sinama.get("duygu") or sinama["duygu"].get("yetersiz") else dict(
+                    kanit=sinama["duygu"].get("kanit"),
+                    kurallar={k: dict(isabet_al=v["sinama"]["isabet_al"], baz=v["sinama"]["baz_yukari"], z=v["sinama"]["z"],
+                                      n=v["sinama"]["n_al"]) for k, v in (sinama["duygu"].get("kurallar") or {}).items()}))
 
 
-def istem(oz, sinyal=None, skor=None, sinama=None):
+def istem(oz, sinyal=None, skor=None, sinama=None, duygu=None):
     ek = {}
+    if duygu: ek["piyasa_duygusu"] = {k: v for k, v in duygu.items() if k != "kaynaklar"}
     if sinyal is not None: ek["gosterge_sinyalleri"] = sinyal
     if skor is not None: ek["topluluk_skoru"] = skor
     karne = sinama_ozeti(sinama)
@@ -170,6 +181,13 @@ def istem(oz, sinyal=None, skor=None, sinama=None):
             "(pozitif üst = kırılım); supertrend (10,3) yönü; obv_egim son 12 saatte hacim ağırlıklı alıcı(+)/satıcı(-) baskısı; "
             "vwap_sapma/vwap_egim 24 saatlik hacim ağırlıklı ortalamaya göre konum ve eğim; mfi14 Para Akışı Endeksi; "
             "trend4s_* 4 saatlik mumlarda EMA21'e göre trend; trend1g_* günlük mumlarda EMA7'ye göre trend.\n"
+            "piyasa_duygusu (varsa): fonlama_pct Binance vadeli fonlama oranı (yüksek = kalabalık long); ls_oran/ls_yuzdelik "
+            "tüm hesapların long/short oranı ve son 7 gündeki yüzdeliği (aşırı uçlar genelde tersine döner); buyuk_oran ve "
+            "buyuk_degisim_4s_pct Binance'teki en büyük trader'ların pozisyon long/short oranı ve 4 saatlik değişimi; "
+            "oi_degisim_4s_pct açık pozisyon değişimi; taker_4s agresif alış/satış hacim oranı; korku_acgozluluk 0-100 "
+            "(sosyal medya dahil endeks; 25 altı aşırı korku, 75 üstü aşırı açgözlülük); uzman_hl Hyperliquid'de sürekli kârlı "
+            "seçilmiş trader'ların şu anki BTC pozisyonları (net_oran +1 hepsi long, -1 hepsi short); haber son 24 saatin "
+            "haber ve sosyal medya özeti (duygu -2..+2, arama tabanlı yorum: tek başına karar gerekçesi yapma).\n"
             "gosterge_sinyalleri her kuralın oyu (+1 yukarı, -1 aşağı, 0 fikir yok); topluluk_skoru geçmiş sınamada kanıtlanan "
             "kuralların ağırlıklı oyu (-1..+1, 0 = kanıtlı fikir yok). gecmis_sinama, kuralların GÖRÜLMEMİŞ geçmiş veride 4 saatlik "
             "'al' isabeti (isabet_al) ile o dönemin yükseliş oranını (baz) ve anlamlılığını (z) gösterir: isabeti baz oranı "
@@ -202,14 +220,15 @@ def yanit_coz(metin):
     return dict(yon=yon, guven=guven, gerekce=str(d.get("gerekce", ""))[:200])
 
 
-def yz_tahmin(oz, post=None, sinyal=None, skor=None, sinama=None):
+def yz_tahmin(oz, post=None, sinyal=None, skor=None, sinama=None, duygu=None):
     """(tahmin|None, model, hata)."""
     anahtar = os.getenv("GEMINI_API_KEY", "")
     if not anahtar and post is None: return None, yz_xai.MODEL, "GEMINI_API_KEY yok"
-    metin_istem, hata = istem(oz, sinyal, skor, sinama), None
+    metin_istem, hata = istem(oz, sinyal, skor, sinama, duygu), None
+    yedek = os.getenv("YZ_MODEL_YEDEK")                    # 503'te ikinci denemede başka model (isteğe bağlı)
     for deneme in range(YZ_DENEME):
         try:
-            y = yz_xai.gemini_cagir(metin_istem, anahtar, post=post)
+            y = yz_xai.gemini_cagir(metin_istem, anahtar, post=post, model=yedek if deneme and yedek else None)
         except Exception as e:                              # ağ/HTTP (ör. 503): bekle, bir kez daha dene
             hata = f"{type(e).__name__}: {str(e)[:120]}"
             if deneme + 1 < YZ_DENEME and post is None: time.sleep(10)
@@ -252,12 +271,15 @@ def _isabet(yon, pct):
 def puanla(db, mum, now):
     """Ufku dolmuş tahminleri, hedef zamana kadar kapanmış son mumun fiyatıyla puanlar."""
     n = 0
-    for r in db.execute("SELECT id, fiyat, yon, kural_yon, hedef_ts, topluluk_yon FROM btc_tahmin WHERE sonuc_fiyat IS NULL AND hedef_ts <= ?", (now,)).fetchall():
+    for r in db.execute("SELECT id, fiyat, yon, kural_yon, hedef_ts, topluluk_yon, haber_yon, uzman_yon FROM btc_tahmin "
+                        "WHERE sonuc_fiyat IS NULL AND hedef_ts <= ?", (now,)).fetchall():
         kap = [m for m in mum if m[1] <= r[4] + 60]
         if not kap or kap[-1][1] < r[4] - 3600: continue      # o ana ait mum elde yok
         f = kap[-1][2]; pct = (f / r[1] - 1) * 100
-        db.execute("UPDATE btc_tahmin SET sonuc_fiyat=?, sonuc_pct=?, isabet=?, kural_isabet=?, topluluk_isabet=? WHERE id=?",
-                   (f, round(pct, 3), _isabet(r[2], pct), _isabet(r[3], pct), _isabet(r[5], pct), r[0]))
+        db.execute("UPDATE btc_tahmin SET sonuc_fiyat=?, sonuc_pct=?, isabet=?, kural_isabet=?, topluluk_isabet=?, "
+                   "haber_isabet=?, uzman_isabet=? WHERE id=?",
+                   (f, round(pct, 3), _isabet(r[2], pct), _isabet(r[3], pct), _isabet(r[5], pct), _isabet(r[6], pct),
+                    _isabet(r[7], pct), r[0]))
         n += 1
     db.commit()
     return n
@@ -268,7 +290,8 @@ def _poz(paper):
     return paper.position(BTC_MINT)
 
 
-def calistir(paper, quoter, s=None, post=None, now=None, durum_yolu="btc_durum.json", agirlik_yolu=None):
+def calistir(paper, quoter, s=None, post=None, now=None, durum_yolu="btc_durum.json", agirlik_yolu=None, duygu_fn=None,
+             haber_post=None):
     """Bir tur. Dönüş: dict(durum, karar, neden, tahmin, ...)."""
     if not acik(): return dict(durum="kapali")
     now = now or time.time()
@@ -294,8 +317,18 @@ def calistir(paper, quoter, s=None, post=None, now=None, durum_yolu="btc_durum.j
             pass                                             # teklif yoksa bu tur zarar kes ölçülemez
 
     sinama = agirlik_yukle(agirlik_yolu)
-    sinyal, skor, t_yon = topluluk_hesap(oz, sinama)
-    tahmin, model, hata = yz_tahmin(oz, post=post, sinyal=sinyal, skor=skor, sinama=sinama)
+    duygu, d_sinyal = {}, {}
+    try:
+        if duygu_fn is not None: duygu = duygu_fn(now, oz["r4"])
+        elif s is None: duygu = D.topla(None, now, oz["r4"])[0]       # canlı: Binance vadeli, Korku-Açgözlülük, HL
+    except Exception:
+        duygu = {}
+    haber, haber_hata = btc_haber.getir(paper, now, post=haber_post)
+    if haber: duygu["haber"] = {k: haber[k] for k in ("duygu", "ozet", "olaylar") if k in haber}
+    if duygu: d_sinyal = D.sinyaller(duygu)
+    sinyal, skor, t_yon = topluluk_hesap(oz, sinama, d_sinyal)
+    tahmin, model, hata = yz_tahmin(oz, post=post, sinyal=sinyal, skor=skor, sinama=sinama, duygu=duygu or None)
+    if haber_hata and not hata: hata = haber_hata
     k_yon = kural_yon(oz)
     k, neden = karar(oz, tahmin, bool(pos), poz_pct, paper.killed(), skor)
     sonuc = None
@@ -322,11 +355,15 @@ def calistir(paper, quoter, s=None, post=None, now=None, durum_yolu="btc_durum.j
             k, neden = "bekle", f"satış teklifi yok, pozisyon açık kaldı: {type(e).__name__}"
 
     db.execute("""INSERT INTO btc_tahmin(ts,fiyat,yon,guven,gerekce,kural_yon,ozellik,karar,karar_neden,hedef_ts,model,hata,
-                  topluluk_yon,topluluk_skor) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                  topluluk_yon,topluluk_skor,haber_yon,uzman_yon,duygu) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                (now, oz["fiyat"], tahmin and tahmin["yon"], tahmin and tahmin["guven"], tahmin and tahmin["gerekce"], k_yon,
-                json.dumps(dict(oz, sinyal=sinyal)), k, neden, now + UFUK_SN, model, hata, t_yon, skor))
+                json.dumps(dict(oz, sinyal=sinyal)), k, neden, now + UFUK_SN, model, hata, t_yon, skor,
+                SINYAL_YON[d_sinyal["haber"]] if haber else None,
+                SINYAL_YON[d_sinyal["uzman_hl"]] if (duygu.get("uzman_hl") or {}).get("n") else None,
+                json.dumps(duygu, ensure_ascii=False) if duygu else None))
     db.commit()
     d = dict(durum="ok", karar=k, neden=neden, tahmin=tahmin, kural_yon=k_yon, topluluk_yon=t_yon, topluluk_skor=skor,
+             duygu=duygu, haber=haber,
              sinyal=sinyal, sinama_var=sinama is not None, ozellik=oz, hata=hata, islem=(sonuc or {}).get("decision"))
     try:
         with open(durum_yolu + ".tmp", "w") as f: json.dump(dict(d, ts=now), f, ensure_ascii=False)
@@ -359,6 +396,7 @@ def ozet(paper, son=12, agirlik_yolu=None):
         btc_fiyat=guncel,
         yz=oran("isabet"), yz_guclu=oran("isabet", f"AND guven >= {MIN_GUVEN}"), kural=oran("kural_isabet"),
         topluluk=oran("topluluk_isabet"), sinama=_sinama_karti(agirlik_yukle(agirlik_yolu)),
+        haber=oran("haber_isabet"), uzman=oran("uzman_isabet"), duygu_son=_son_duygu(db),
         kapanan=len(pnl), kazanma_pct=round(sum(x > 0 for x in pnl) * 100 / len(pnl), 1) if pnl else None,
         son_tahmin=son_t[0] if son_t else None, tahminler=son_t,
         son_gecerli=next((t for t in son_t if t.get("yon")), None),
@@ -371,8 +409,23 @@ def ozet(paper, son=12, agirlik_yolu=None):
 def _sinama_karti(s):
     if not s: return None
     t = s.get("topluluk_sinama") or {}
+    d = s.get("duygu") or {}
+    dt = d.get("topluluk_sinama") or {}
     return dict(ts=s.get("ts"), kanit=s.get("kanit"), getiri_pct=t.get("getiri_pct"), tut_pct=t.get("tut_pct"),
-                islem=t.get("islem"), agirlik=s.get("agirlik"), ornek=s.get("ornek"))
+                islem=t.get("islem"), agirlik=s.get("agirlik"), ornek=s.get("ornek"),
+                duygu_kanit=d.get("kanit"), duygu_getiri_pct=dt.get("getiri_pct"), duygu_tut_pct=dt.get("tut_pct"),
+                duygu_ornek=d.get("ornek"), duygu_yetersiz=bool(d.get("yetersiz")))
+
+
+def _son_duygu(db):
+    r = db.execute("SELECT duygu FROM btc_tahmin WHERE duygu IS NOT NULL ORDER BY id DESC LIMIT 1").fetchone()
+    if not r: return None
+    try: d = json.loads(r[0])
+    except ValueError: return None
+    u = d.get("uzman_hl") or {}; h = d.get("haber") or {}
+    return dict(fonlama_pct=d.get("fonlama_pct"), ls_oran=d.get("ls_oran"), buyuk_oran=d.get("buyuk_oran"),
+                korku_acgozluluk=d.get("korku_acgozluluk"), uzman_long=u.get("long"), uzman_short=u.get("short"),
+                uzman_net=u.get("net_oran"), haber_duygu=h.get("duygu"), haber_ozet=h.get("ozet"))
 
 
 def main():

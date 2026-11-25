@@ -262,10 +262,10 @@ KURALLAR = ("rsi", "macd", "bollinger", "ema_kesisim", "trend_ema50", "momentum"
 def topluluk(sinyal, agirlik):
     """Ağırlıklı ortalama sinyal, [-1, 1]. Ağırlık yoksa ya da hepsi 0 ise 0 (fikir yok)."""
     if not agirlik: return 0.0
-    w = {a: max(0.0, float(agirlik.get(a, 0) or 0)) for a in KURALLAR}
+    w = {a: max(0.0, float(v or 0)) for a, v in agirlik.items()}       # teknik + duygu kuralları birlikte olabilir
     t = sum(w.values())
     if t <= 0: return 0.0
-    return sum(w[a] * sinyal.get(a, 0) for a in KURALLAR) / t
+    return sum(w[a] * sinyal.get(a, 0) for a in w) / t
 
 
 def yon(skor, esik=0.2):
