@@ -51,18 +51,32 @@ fun BtcOngoruKarti(url: String, key: String) {
                 }
                 val gerekce = t?.str("gerekce") ?: ""
                 if (gerekce.isNotEmpty()) Text(gerekce, color = Nx.Metin, fontSize = 13.sp)
-                if (t != null) Text("Karar: ${t.str("karar")} · ${t.str("karar_neden")}", color = Nx.Soluk, fontSize = 12.sp)
+                if (t != null) {
+                    val ty = t.str("topluluk_yon") ?: ""
+                    if (ty.isNotEmpty()) {
+                        val ad = when (ty) { "YUKARI" -> "yukarı"; "ASAGI" -> "aşağı"; else -> "belirsiz" }
+                        Text("Göstergeler: $ad (skor ${String.format(Locale("tr"), "%+.2f", t.optDouble("topluluk_skor", 0.0))})",
+                             color = Nx.Soluk, fontSize = 12.sp)
+                    }
+                    Text("Karar: ${t.str("karar")} · ${t.str("karar_neden")}", color = Nx.Soluk, fontSize = 12.sp)
+                }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     BtcKutu("Sanal bakiye", "$" + usd(d.optDouble("toplam", 0.0)), Modifier.weight(1f))
                     BtcKutu("K/Z", yuzde(d.dbl("kz_pct")), Modifier.weight(1f), if ((d.dbl("kz_pct") ?: 0.0) >= 0) Nx.Nane else Nx.Kirmizi)
                     BtcKutu("BTC'yi tutmak", yuzde(d.dbl("btc_tut_pct")), Modifier.weight(1f))
                 }
-                val yz = d.optJSONObject("yz"); val kural = d.optJSONObject("kural")
+                val yz = d.optJSONObject("yz"); val kural = d.optJSONObject("kural"); val topl = d.optJSONObject("topluluk")
                 val isabet = { o: JSONObject? -> if (o == null || o.optInt("n") == 0) "—" else "%" + String.format(Locale("tr"), "%.1f", o.optDouble("isabet_pct")) + " (${o.optInt("n")})" }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     BtcKutu("YZ isabeti", isabet(yz), Modifier.weight(1f))
+                    BtcKutu("Göstergeler", isabet(topl), Modifier.weight(1f))
                     BtcKutu("Basit kural", isabet(kural), Modifier.weight(1f))
                 }
+                val sn = d.optJSONObject("sinama")
+                Text(if (sn == null) "Gösterge sınaması henüz çalışmadı."
+                     else if (sn.optBoolean("kanit")) "Sınama: göstergeler görülmemiş veride ${yuzde(sn.dbl("getiri_pct"))} (BTC tutma ${yuzde(sn.dbl("tut_pct"))}) · kanıt var"
+                     else "Sınama: göstergeler BTC tutmayı geçemedi (${yuzde(sn.dbl("getiri_pct"))} / ${yuzde(sn.dbl("tut_pct"))}) · oy kullanmıyor",
+                     color = if (sn?.optBoolean("kanit") == true) Nx.Nane else Nx.Soluk, fontSize = 11.sp)
                 Text("Gerçek para yok. YZ, basit kuralı ve BTC'yi tutmayı yenemezse sistem kanıtlanmış sayılmaz.",
                      color = Nx.Soluk, fontSize = 11.sp)
             }
