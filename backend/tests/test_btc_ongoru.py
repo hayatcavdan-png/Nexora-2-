@@ -67,6 +67,26 @@ class YanitTest(unittest.TestCase):
         t = b.yanit_coz('Analiz: {"yon": "yukarı", "guven": 72, "gerekce": "trend"}')
         self.assertEqual(t["yon"], "YUKARI"); self.assertEqual(t["guven"], 72)
 
+    def test_turkce_karakterler_ve_bicimler(self):
+        self.assertEqual(b.yanit_coz('{"yon":"AŞAĞI","guven":70}')["yon"], "ASAGI")          # eski sürüm bunu düşürüyordu
+        self.assertEqual(b.yanit_coz('{"yon":"BELİRSİZ","guven":"45,0"}')["guven"], 45)
+        t = b.yanit_coz('```json\n{"yön":"Yukarı","güven":"%65","gerekce":"y"}\n```')
+        self.assertEqual((t["yon"], t["guven"]), ("YUKARI", 65))
+        self.assertEqual(b.yanit_coz('{"yon":"düşüş","guven":60}')["yon"], "ASAGI")
+
+    def test_hata_sonrasi_ikinci_deneme(self):
+        n = {"i": 0}
+        def post(govde):
+            n["i"] += 1
+            if n["i"] == 1: raise OSError("503")
+            return _post('{"yon":"YUKARI","guven":70,"gerekce":"x"}')(govde)
+        t, _, hata = b.yz_tahmin(b.ozellikler(_mum()), post=post)
+        self.assertEqual((t["yon"], hata, n["i"]), ("YUKARI", None, 2))
+
+    def test_okunamayan_yanitta_ham_metin_hataya_yazilir(self):
+        t, _, hata = b.yz_tahmin(b.ozellikler(_mum()), post=_post("bilmiyorum"))
+        self.assertIsNone(t); self.assertIn("bilmiyorum", hata)
+
     def test_gecersizler(self):
         for m in (None, "", "yukarı gider", '{"yon": "UP", "guven": 70}', '{"yon": "ASAGI", "guven": 140}', '{"yon": "ASAGI"}'):
             self.assertIsNone(b.yanit_coz(m), m)
@@ -135,6 +155,15 @@ class CalistirTest(unittest.TestCase):
         self.assertEqual(oz["yz"]["n"], 1); self.assertEqual(oz["yz"]["isabet_pct"], 100.0)
         self.assertEqual(oz["kapanan"], 1); self.assertGreater(oz["kz"], 0)
         self.assertIsNotNone(oz["btc_tut_pct"])
+
+    def test_ozet_son_gecerli_tahmin(self):
+        os.environ["BTC_ONGORU"] = "1"
+        mum = _mum(); f = mum[-1][2]
+        self._tur('{"yon":"BELIRSIZ","guven":40,"gerekce":"x"}', mum, f, mum[-1][1] + 10)
+        self._tur("bozuk", mum, f, mum[-1][1] + 3700)
+        oz = b.ozet(self.paper)
+        self.assertIsNone(oz["son_tahmin"]["yon"]); self.assertIn("okunamadı", oz["son_tahmin"]["hata"])
+        self.assertEqual(oz["son_gecerli"]["yon"], "BELIRSIZ")
 
     def test_yz_hatasinda_islem_yok(self):
         os.environ["BTC_ONGORU"] = "1"

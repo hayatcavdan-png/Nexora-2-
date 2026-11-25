@@ -181,6 +181,10 @@ def istem(oz, sinyal=None, skor=None, sinama=None):
             "\n\nVERİ:\n" + json.dumps(dict(oz, **ek), ensure_ascii=False, sort_keys=True))
 
 
+_TR = str.maketrans({"Ş": "S", "Ğ": "G", "İ": "I", "Ü": "U", "Ö": "O", "Ç": "C"})   # 'AŞAĞI' -> 'ASAGI'
+YZ_DENEME = 2                           # 5xx / ağ hatasında bir kez daha dene
+
+
 def yanit_coz(metin):
     """Model metninden {'yon','guven','gerekce'}; geçersizse None (işlem yapılmaz)."""
     if not metin: return None
@@ -188,8 +192,11 @@ def yanit_coz(metin):
     if not m: return None
     try: d = json.loads(m.group(0))
     except ValueError: return None
-    yon = str(d.get("yon", "")).strip().upper().replace("Ş", "S").replace("İ", "I")
-    try: guven = int(round(float(d.get("guven"))))
+    if not isinstance(d, dict): return None
+    d = {str(k).lower().replace("ü", "u").replace("ö", "o").replace("ç", "c"): v for k, v in d.items()}   # 'güven' -> 'guven'
+    yon = str(d.get("yon", "")).strip().upper().translate(_TR).replace("̇", "")
+    yon = {"YUKSELIS": "YUKARI", "DUSUS": "ASAGI", "YATAY": "BELIRSIZ", "NOTR": "BELIRSIZ"}.get(yon, yon)
+    try: guven = int(round(float(str(d.get("guven")).replace("%", "").replace(",", ".").strip())))
     except (TypeError, ValueError): return None
     if yon not in YONLER or not 0 <= guven <= 100: return None
     return dict(yon=yon, guven=guven, gerekce=str(d.get("gerekce", ""))[:200])
@@ -199,12 +206,19 @@ def yz_tahmin(oz, post=None, sinyal=None, skor=None, sinama=None):
     """(tahmin|None, model, hata)."""
     anahtar = os.getenv("GEMINI_API_KEY", "")
     if not anahtar and post is None: return None, yz_xai.MODEL, "GEMINI_API_KEY yok"
-    try:
-        y = yz_xai.gemini_cagir(istem(oz, sinyal, skor, sinama), anahtar, post=post)
-    except Exception as e:                                  # ağ/HTTP: bu tur işlem yok
-        return None, yz_xai.MODEL, f"{type(e).__name__}: {str(e)[:120]}"
-    t = yanit_coz(yz_xai.metin_cek(y))
-    return t, y.get("model", yz_xai.MODEL), (None if t else "yanıt okunamadı")
+    metin_istem, hata = istem(oz, sinyal, skor, sinama), None
+    for deneme in range(YZ_DENEME):
+        try:
+            y = yz_xai.gemini_cagir(metin_istem, anahtar, post=post)
+        except Exception as e:                              # ağ/HTTP (ör. 503): bekle, bir kez daha dene
+            hata = f"{type(e).__name__}: {str(e)[:120]}"
+            if deneme + 1 < YZ_DENEME and post is None: time.sleep(10)
+            continue
+        ham = yz_xai.metin_cek(y)
+        t = yanit_coz(ham)
+        if t: return t, y.get("model", yz_xai.MODEL), None
+        hata = "yanıt okunamadı: " + (ham or "")[:80].replace("\n", " ")
+    return None, yz_xai.MODEL, hata
 
 
 # ---------------------------------------------------------------- karar (saf)
@@ -347,6 +361,7 @@ def ozet(paper, son=12, agirlik_yolu=None):
         topluluk=oran("topluluk_isabet"), sinama=_sinama_karti(agirlik_yukle(agirlik_yolu)),
         kapanan=len(pnl), kazanma_pct=round(sum(x > 0 for x in pnl) * 100 / len(pnl), 1) if pnl else None,
         son_tahmin=son_t[0] if son_t else None, tahminler=son_t,
+        son_gecerli=next((t for t in son_t if t.get("yon")), None),
         islemler=[dict(ts=t["ts"], yon=t["side"], pnl=t["pnl"], neden=t["reason"]) for t in paper.trades(20)
                   if t["decision"] == "KOPYALANDI"],
         kurallar=dict(ufuk_saat=UFUK_SN // 3600, min_guven=MIN_GUVEN, zarar_kes_pct=ZARAR_KES_PCT, dusus_kapisi_pct=DUSUS_KAPISI,

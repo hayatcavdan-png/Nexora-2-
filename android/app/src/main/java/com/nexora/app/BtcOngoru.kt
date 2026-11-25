@@ -41,13 +41,24 @@ fun BtcOngoruKarti(url: String, key: String) {
             d == null -> YaziyorNoktalari()
             d.optBoolean("bos") -> Text(d.optString("mesaj", "Henüz veri yok"), color = Nx.Soluk, fontSize = 13.sp)
             else -> {
-                val t = d.optJSONObject("son_tahmin")
+                val son = d.optJSONObject("son_tahmin")
+                val gecerli = d.optJSONObject("son_gecerli")
+                val sonBos = son != null && (son.str("yon") ?: "").isEmpty()
+                val t = if (sonBos && gecerli != null) gecerli else son        // son tur YZ'siz geçtiyse son geçerli tahmini göster
                 val yon = t?.str("yon") ?: ""
                 val (ok, renk) = when (yon) { "YUKARI" -> "▲ Yukarı" to Nx.Nane; "ASAGI" -> "▼ Aşağı" to Nx.Kirmizi
                                               "BELIRSIZ" -> "◆ Belirsiz" to Nx.Soluk; else -> "— tahmin yok" to Nx.Soluk }
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(ok, color = renk, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-                    if (t != null && !t.isNull("guven")) Text("güven %${t.optInt("guven")} · 4 saat", color = Nx.Soluk, fontSize = 12.sp)
+                    if (t != null && !t.isNull("guven")) {
+                        val saat = java.text.SimpleDateFormat("HH:mm", Locale("tr")).format(java.util.Date((t.optDouble("ts", 0.0) * 1000).toLong()))
+                        Text("güven %${t.optInt("guven")} · 4 saat · $saat", color = Nx.Soluk, fontSize = 12.sp)
+                    }
+                }
+                if (sonBos) {
+                    val h = son?.str("hata") ?: ""
+                    Text("Son tur YZ yanıtı alınamadı" + (if (h.isNotEmpty()) " (${h.take(60)})" else "") + "; bir sonraki saat yeniden denenecek.",
+                         color = Nx.Kehribar, fontSize = 11.sp)
                 }
                 val gerekce = t?.str("gerekce") ?: ""
                 if (gerekce.isNotEmpty()) Text(gerekce, color = Nx.Metin, fontSize = 13.sp)
