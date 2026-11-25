@@ -176,7 +176,7 @@ fun KucukKutu(baslik: String, deger: String, renk: Color, modifier: Modifier) {
 private val ARALIK = listOf("1S" to 3600.0, "1G" to 86400.0, "7G" to 604800.0, "30G" to 2592000.0)
 
 fun LazyListScope.uyeAnaSayfa(v: Veri, gizle: Boolean, gizleDegis: () -> Unit, aralik: String, aralikSec: (String) -> Unit,
-                             git: (String) -> Unit, nexoMetni: String?) {
+                             git: (String) -> Unit, nexoMetni: String?, url: String = "", key: String = "") {
     item(key = "u_ust") {
         Row(Modifier.fillMaxWidth().padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
@@ -228,6 +228,7 @@ fun LazyListScope.uyeAnaSayfa(v: Veri, gizle: Boolean, gizleDegis: () -> Unit, a
             }
         }
     }
+    if (v.kurucu && url.isNotBlank()) item(key = "u_btc") { BtcOngoruKarti(url, key) }   // BTC öngörü (PAPER), /btc yalnızca kurucu
     item(key = "u_nexo") {
         val simdi = System.currentTimeMillis() / 1000.0
         val ref = degerAni(v.gecmis, simdi - 86400, v.baslangic)

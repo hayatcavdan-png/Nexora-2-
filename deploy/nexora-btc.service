@@ -1,0 +1,10 @@
+[Unit]
+Description=NEXORA BTC öngörü (PAPER: YZ tahmini + cbBTC sanal al/sat; BTC_ONGORU=1 olmadan hiçbir şey yapmaz)
+
+[Service]
+Type=oneshot
+User=nexora
+WorkingDirectory=/opt/nexora/backend
+EnvironmentFile=/etc/nexora.env
+ExecStart=/usr/bin/python3 -u -m nexora.btc_ongoru
+TimeoutStartSec=300
