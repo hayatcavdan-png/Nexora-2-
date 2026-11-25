@@ -10,7 +10,7 @@ def _mum(n=72, bas=100_000.0, adim=0.001, t0=1_800_000_000.0):
     out, f = [], bas
     for i in range(n):
         a = t0 + i * 3600
-        out.append((a, a + 3599.999, f, f * 1.001, f * 0.999))
+        out.append((a, a + 3599.999, f, f * 1.001, f * 0.999, 100.0 + i))
         f *= 1 + adim
     return out
 
@@ -25,7 +25,7 @@ class _Oturum:
     """Binance klines yanıtı taklidi."""
     def __init__(self, mum): self.mum = mum
     def get(self, url, params=None, timeout=None):
-        return _Yanit([[int(a * 1000), "0", str(y), str(d), str(k), "0", int(kts * 1000)] for a, kts, k, y, d in self.mum])
+        return _Yanit([[int(a * 1000), "0", str(y), str(d), str(k), str(h), int(kts * 1000)] for a, kts, k, y, d, h in self.mum])
 
 
 class _Quoter:
@@ -124,7 +124,7 @@ class CalistirTest(unittest.TestCase):
         self.assertEqual((d["karar"], d["islem"]), ("al", "KOPYALANDI"))
         pos = self.paper.position(b.BTC_MINT)
         self.assertAlmostEqual(pos["cost"], 50.0, places=2)           # özsermayenin yarısı (nakit - rezerv daha büyük)
-        self.assertTrue(json.load(open(self.durum))["karar"] == "al")
+        with open(self.durum) as f: self.assertEqual(json.load(f)["karar"], "al")
         # 5 saat sonra: fiyat yükselmiş, YZ aşağı diyor -> satış; ilk tahmin isabetli puanlanır
         mum2 = _mum(n=77, adim=0.001); f2 = mum2[-1][2]
         d2 = self._tur('{"yon":"ASAGI","guven":75,"gerekce":"y"}', mum2, f2, mum2[-1][1] + 10)
