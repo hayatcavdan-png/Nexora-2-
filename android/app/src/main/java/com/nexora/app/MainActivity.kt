@@ -246,7 +246,7 @@ fun App() {
                 else when (ekran) {
                     // ---- üye görünümü
                     "ana" -> uyeAnaSayfa(v, gizle, { gizle = !gizle; sp.edit().putBoolean("gizle", gizle).apply() }, aralik, { aralik = it },
-                                         { ekran = it }, nexoMetni)
+                                         { ekran = it }, nexoMetni, url, key)
                     "cuzdanlar" -> item(key = "cz") { KopyaCuzdanlarEkrani(url, key) }
                     "islemler" -> uyeIslemler(v, islemFiltre) { islemFiltre = it }
                     "profil" -> uyeProfil(v, url, key) { ekran = it }

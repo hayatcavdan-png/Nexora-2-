@@ -53,6 +53,12 @@ class ServerTests(unittest.TestCase):
         self.assertEqual((d["sinyaller"][0]["side"], d["sinyaller"][0]["source"]), ("BUY", "ws"))
         self.assertEqual(d["gecikme"]["ws"]["n"], 1)
         self.assertNotIn("token_delta", d["sinyaller"][0])
+    def test_btc_bos_sonra_ozet(self):
+        d = self.get("/btc")
+        self.assertTrue(d["bos"]); self.assertEqual(d["mod"], "PAPER")
+        Paper(os.path.join(self.d, "nexora_btc.db"), ekosistem="btc", dagit=False)
+        d = self.get("/btc")
+        self.assertEqual((d["toplam"], d["kz"], d["yz"]["n"], d["mod"]), (100.0, 0.0, 0, "PAPER"))
     def test_takip_requires_key(self):
         with self.assertRaises(urllib.error.HTTPError) as c: self.get("/takip", key="yanlis")
         self.assertEqual(c.exception.code, 401)
