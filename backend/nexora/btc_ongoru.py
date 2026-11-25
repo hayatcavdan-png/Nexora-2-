@@ -30,6 +30,9 @@ MAKS_ETKI_PCT = 1.0                     # cbBTC teklifinde izin verilen fiyat et
 YONLER = ("YUKARI", "ASAGI", "BELIRSIZ")
 TOPLULUK_ESIK = 0.2                     # topluluk skoru bu eşiği aşınca yön sayılır
 AGIRLIK_YOLU = os.getenv("BTC_AGIRLIK", "btc_agirlik.json")
+EK_GOSTERGE = ("bb_genislik_yuzdelik", "bb_genislik_yuzdelik_onceki", "stok_k", "stok_d", "cci20", "adx14", "pdi", "mdi",
+               "donchian_ust_pct", "donchian_alt_pct", "supertrend", "obv_egim", "vwap_sapma", "vwap_egim", "mfi14",
+               "trend4s_sapma", "trend4s_egim", "trend1g_sapma", "trend1g_egim")
 
 SEMA = """CREATE TABLE IF NOT EXISTS btc_tahmin(id INTEGER PRIMARY KEY AUTOINCREMENT, ts REAL, fiyat REAL, yon TEXT, guven INTEGER,
   gerekce TEXT, kural_yon TEXT, ozellik TEXT, karar TEXT, karar_neden TEXT, hedef_ts REAL, sonuc_fiyat REAL, sonuc_pct REAL,
@@ -51,7 +54,7 @@ def acik():
 
 
 # ---------------------------------------------------------------- veri
-def mumlar(s=None, limit=200, baslangic_ms=None, timeout=15):
+def mumlar(s=None, limit=500, baslangic_ms=None, timeout=15):
     """BTC/USDT 1 saatlik mumlar: [(acilis_ts, kapanis_ts, kapanis_fiyat, yuksek, dusuk, hacim)] (saniye). Hata: istisna.
     Son eleman henüz kapanmamış mum olabilir; çağıran kapanış zamanına göre süzer."""
     s = s or requests.Session()
@@ -110,7 +113,8 @@ def ozellikler(mum):
                 aralik_konum=round((k[-1] - d24) / (y24 - d24) * 100, 1) if y24 > d24 else 50.0,
                 rsi14=y(g["rsi14"], 1), macd_hist_pct=y(g["macd_hist_pct"], 4), macd_hist_onceki_pct=y(g["macd_hist_onceki_pct"], 4),
                 bb_b=y(g["bb_b"]), ema_fark_pct=y(g["ema_fark_pct"], 3), ema50_sapma=y(g["ema50_sapma"]),
-                ema50_egim=y(g["ema50_egim"], 3), atr_pct=y(g["atr_pct"], 3), hacim_oran=y(g["hacim_oran"]))
+                ema50_egim=y(g["ema50_egim"], 3), atr_pct=y(g["atr_pct"], 3), hacim_oran=y(g["hacim_oran"]),
+                **{a: y(g[a], 4) for a in EK_GOSTERGE})
 
 
 def agirlik_yukle(yol=None):
@@ -159,7 +163,13 @@ def istem(oz, sinyal=None, skor=None, sinama=None):
             "sma24_sapma fiyatın 24 saatlik ortalamaya % farkı; aralik_konum 24 saatlik dip-zirve aralığında % konum; "
             "rsi14 (30 altı aşırı satım, 70 üstü aşırı alım); macd_hist_pct ve macd_hist_onceki_pct MACD(12,26,9) histogramı "
             "(fiyatın %'si); bb_b Bollinger %B (0 alt bant, 1 üst bant); ema_fark_pct EMA9'un EMA21'e % farkı; "
-            "ema50_sapma ve ema50_egim uzun trend; atr_pct ortalama gerçek aralık; hacim_oran son saat hacmi / 24 saat ortalaması.\n"
+            "ema50_sapma ve ema50_egim uzun trend; atr_pct ortalama gerçek aralık; hacim_oran son saat hacmi / 24 saat ortalaması; "
+            "bb_genislik_yuzdelik Bollinger bant genişliğinin son 100 saatteki yüzdelik sırası (düşük = sıkışma); "
+            "stok_k/stok_d Stokastik(14,3); cci20 Emtia Kanal Endeksi (±100 dışı aşırı); adx14 trend gücü (25 üstü güçlü) ve "
+            "pdi/mdi yön göstergeleri; donchian_ust_pct/donchian_alt_pct fiyatın önceki 20 saatlik zirve/dibe % uzaklığı "
+            "(pozitif üst = kırılım); supertrend (10,3) yönü; obv_egim son 12 saatte hacim ağırlıklı alıcı(+)/satıcı(-) baskısı; "
+            "vwap_sapma/vwap_egim 24 saatlik hacim ağırlıklı ortalamaya göre konum ve eğim; mfi14 Para Akışı Endeksi; "
+            "trend4s_* 4 saatlik mumlarda EMA21'e göre trend; trend1g_* günlük mumlarda EMA7'ye göre trend.\n"
             "gosterge_sinyalleri her kuralın oyu (+1 yukarı, -1 aşağı, 0 fikir yok); topluluk_skoru geçmiş sınamada kanıtlanan "
             "kuralların ağırlıklı oyu (-1..+1, 0 = kanıtlı fikir yok). gecmis_sinama, kuralların GÖRÜLMEMİŞ geçmiş veride 4 saatlik "
             "'al' isabeti (isabet_al) ile o dönemin yükseliş oranını (baz) ve anlamlılığını (z) gösterir: isabeti baz oranı "

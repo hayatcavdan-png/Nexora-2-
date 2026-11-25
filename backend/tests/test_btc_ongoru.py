@@ -108,6 +108,7 @@ class CalistirTest(unittest.TestCase):
         self.durum = os.path.join(self.d, "durum.json")
 
     def tearDown(self):
+        self.paper.db.close()
         os.environ.clear(); os.environ.update(self._env)
 
     def _tur(self, metin, mum, fiyat, now):

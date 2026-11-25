@@ -59,6 +59,38 @@ class GostergeTest(unittest.TestCase):
     def test_yetersiz_mum(self):
         with self.assertRaises(ValueError): G.hesapla(_mum(n=59))
 
+    def test_yeni_gostergeler_yukselen_seride(self):
+        g = G.hesapla(_rejimli(400, blok=10_000))                 # 400 saat kesintisiz yükseliş
+        self.assertGreater(g["adx14"], 25); self.assertGreater(g["pdi"], g["mdi"])
+        self.assertEqual(g["supertrend"], 1)
+        self.assertGreater(g["stok_k"], 50); self.assertGreater(g["cci20"], 0); self.assertGreater(g["mfi14"], 50)
+        self.assertGreater(g["obv_egim"], 0); self.assertGreater(g["vwap_sapma"], 0)
+        self.assertGreater(g["trend4s_egim"], 0); self.assertGreater(g["trend1g_egim"], 0)
+        s = G.sinyaller(g)
+        self.assertEqual((s["adx_trend"], s["supertrend"], s["trend_4s"], s["trend_gunluk"], s["vwap"]), (1, 1, 1, 1, 1))
+        self.assertEqual(set(s), set(G.KURALLAR)); self.assertEqual(len(G.KURALLAR), 17)
+
+    def test_yeni_gostergeler_dusen_seride(self):
+        dus = [(a, kt, 1e10 / k, 1e10 / d, 1e10 / y, h) for a, kt, k, y, d, h in _rejimli(400, blok=10_000)]
+        g = G.hesapla(dus); s = G.sinyaller(g)
+        self.assertEqual((s["adx_trend"], s["supertrend"], s["trend_4s"], s["vwap"]), (-1, -1, -1, -1))
+        self.assertLess(g["obv_egim"], 0)
+
+    def test_donchian_kirilim_ve_sikisma(self):
+        m = [(i * 3600.0, i * 3600.0 + 3599, 100.0 + (0.01 if i % 2 else 0), 100.02, 99.98, 10.0) for i in range(120)]
+        m.append((120 * 3600.0, 120 * 3600.0 + 3599, 103.0, 103.1, 100.0, 10.0))   # dar aralıktan yukarı kırılım
+        g = G.hesapla(m); s = G.sinyaller(g)
+        self.assertGreater(g["donchian_ust_pct"], 0); self.assertEqual(s["donchian"], 1)
+        self.assertLessEqual(g["bb_genislik_yuzdelik_onceki"], 20); self.assertEqual(s["sikisma_kirilim"], 1)
+
+    def test_kisa_veride_uzun_kurallar_fikirsiz(self):
+        g = G.hesapla(_mum(n=60))
+        self.assertIsNone(g["trend1g_egim"]); self.assertEqual(G.sinyaller(g)["trend_gunluk"], 0)
+
+    def test_bonferroni_esigi(self):
+        self.assertAlmostEqual(S.z_esik(17), 2.26, delta=0.01)
+        self.assertGreater(S.z_esik(17), S.z_esik(6))
+
 
 class SinamaTest(unittest.TestCase):
     def test_gelecegi_gormez(self):
@@ -72,7 +104,7 @@ class SinamaTest(unittest.TestCase):
     def test_trendli_veride_trend_kurali_kanit_bulur(self):
         s = S.sina(_rejimli())
         self.assertGreater(s["agirlik"]["trend_ema50"] + s["agirlik"]["ema_kesisim"], 0)
-        self.assertGreaterEqual(s["kurallar"]["ema_kesisim"]["sinama"]["z"], S.MIN_Z)
+        self.assertGreaterEqual(s["kurallar"]["ema_kesisim"]["sinama"]["z"], S.z_esik())
         self.assertTrue(s["kanit"])
         self.assertEqual(s["egitim_ornek"] + s["sinama_ornek"], s["ornek"])
 
@@ -123,6 +155,7 @@ class CalistirToplulukTest(unittest.TestCase):
               self.agirlik)
 
     def tearDown(self):
+        self.paper.db.close()
         os.environ.clear(); os.environ.update(self._env)
 
     def test_istem_gostergeleri_ve_karneyi_tasir(self):
@@ -135,7 +168,8 @@ class CalistirToplulukTest(unittest.TestCase):
                        durum_yolu=os.path.join(self.d, "d.json"), agirlik_yolu=self.agirlik)
         self.assertEqual(d["topluluk_yon"], "ASAGI"); self.assertLessEqual(d["topluluk_skor"], -0.2)
         self.assertEqual(d["karar"], "bekle"); self.assertIn("göstergeler", d["neden"])
-        for anahtar in ("rsi14", "macd_hist_pct", "bb_b", "gosterge_sinyalleri", "topluluk_skoru", "gecmis_sinama"):
+        for anahtar in ("rsi14", "macd_hist_pct", "bb_b", "adx14", "supertrend", "mfi14", "gosterge_sinyalleri",
+                        "topluluk_skoru", "gecmis_sinama"):
             self.assertIn(anahtar, gonderilen["metin"])
         oz = b.ozet(self.paper, agirlik_yolu=self.agirlik)
         self.assertTrue(oz["sinama"]["kanit"]); self.assertEqual(oz["topluluk"]["n"], 0)
