@@ -48,9 +48,9 @@ def dogrula(metin, veri):
     return (not bilinmeyen), bilinmeyen
 
 
-def gemini_cagir(metin, api_key, post=None):
+def gemini_cagir(metin, api_key, post=None, model=None):
     """Ham metin gönderir, Interactions yanıtını döndürür. Ağ/HTTP hatası çağırana iletilir."""
-    govde = json.dumps({"model": MODEL, "input": metin}).encode("utf-8")
+    govde = json.dumps({"model": model or MODEL, "input": metin}).encode("utf-8")
     if post is not None:
         return post(govde)
     req = urllib.request.Request(URL, data=govde, method="POST", headers={

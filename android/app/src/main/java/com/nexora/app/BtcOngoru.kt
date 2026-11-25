@@ -83,6 +83,21 @@ fun BtcOngoruKarti(url: String, key: String) {
                     BtcKutu("Göstergeler", isabet(topl), Modifier.weight(1f))
                     BtcKutu("Basit kural", isabet(kural), Modifier.weight(1f))
                 }
+                val hb = d.optJSONObject("haber"); val uz = d.optJSONObject("uzman")
+                if ((hb?.optInt("n") ?: 0) > 0 || (uz?.optInt("n") ?: 0) > 0) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    BtcKutu("Haber/sosyal", isabet(hb), Modifier.weight(1f))
+                    BtcKutu("Uzman traderlar", isabet(uz), Modifier.weight(1f))
+                }
+                val du = d.optJSONObject("duygu_son")
+                if (du != null) {
+                    val parca = mutableListOf<String>()
+                    if (!du.isNull("korku_acgozluluk")) parca += "Korku-Açgözlülük ${du.optInt("korku_acgozluluk")}"
+                    if (!du.isNull("fonlama_pct")) parca += "fonlama %" + String.format(Locale("tr"), "%.4f", du.optDouble("fonlama_pct"))
+                    if (!du.isNull("uzman_long")) parca += "uzmanlar ${du.optInt("uzman_long")} long / ${du.optInt("uzman_short")} short"
+                    if (parca.isNotEmpty()) Text(parca.joinToString(" · "), color = Nx.Soluk, fontSize = 12.sp)
+                    val ho = du.str("haber_ozet") ?: ""
+                    if (ho.isNotEmpty()) Text("Haber (${du.optInt("haber_duygu")}): $ho", color = Nx.Metin, fontSize = 12.sp)
+                }
                 val sn = d.optJSONObject("sinama")
                 Text(if (sn == null) "Gösterge sınaması henüz çalışmadı."
                      else if (sn.optBoolean("kanit")) "Sınama: göstergeler görülmemiş veride ${yuzde(sn.dbl("getiri_pct"))} (BTC tutma ${yuzde(sn.dbl("tut_pct"))}) · kanıt var"

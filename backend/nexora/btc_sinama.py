@@ -15,7 +15,7 @@ Sunucuda:  cd /opt/nexora/backend && sudo -u nexora python3 -m nexora.btc_sinama
 import json, math, os, sys, time
 from statistics import NormalDist
 
-from nexora import btc_gosterge as G
+from nexora import btc_duygu as D, btc_gosterge as G
 
 UFUK = 4                 # saat
 PENCERE = 400            # gösterge hesabı için geriye bakılan mum (günlük trend için ~16 gün)
@@ -25,8 +25,8 @@ ALFA = 0.20               # tüm kurallar için birlikte yanlış alarm olasıl�
 
 
 def z_esik(kural_sayisi=None):
-    """Tek yönlü Bonferroni eşiği: 17 kuralda ~2,26."""
-    k = kural_sayisi or len(G.KURALLAR)
+    """Tek yönlü Bonferroni eşiği; varsayılan: tüm sınanan kurallar (17 teknik + 6 duygu = 23 -> ~2,38)."""
+    k = kural_sayisi or (len(G.KURALLAR) + len(D.KURALLAR))
     return NormalDist().inv_cdf(1 - ALFA / k)
 
 
@@ -70,37 +70,58 @@ def strateji(orn, pozisyon_fn, maliyet=MALIYET):
     return dict(getiri_pct=_r((deger - 1) * 100), tut_pct=_r((tut - 1) * 100), islem=islem, adim=adim)
 
 
-def agirliklar(orn):
+def agirliklar(orn, kurallar=None):
     """Kural ağırlığı = 'al' sinyalinin baz oranı üstündeki isabet farkı; z eşiğin altındaysa 0."""
     w, esik = {}, z_esik()
-    for k in G.KURALLAR:
+    for k in kurallar or G.KURALLAR:
         st = kural_istatistik(orn, k)
         w[k] = round(max(0.0, st["isabet_al"] - st["baz_yukari"]), 4) if st["z"] is not None and st["z"] >= esik else 0.0
     return w
 
 
+def _sina_genel(orn, kurallar, maliyet):
+    """Eğitim/sınama ayrımı, kural karneleri, topluluk stratejisi ve kanıt kararı."""
+    b = int(len(orn) * EGITIM_ORAN)
+    egitim, sinama = orn[:b], orn[b:]
+    w_egitim = agirliklar(egitim, kurallar)
+    topl = lambda s, w=w_egitim: G.topluluk(s, w) >= ESIK
+    kr = {}
+    for k in kurallar:
+        kr[k] = dict(egitim=kural_istatistik(egitim, k), sinama=kural_istatistik(sinama, k),
+                     strateji_sinama=strateji(sinama, lambda s, k=k: s[k] == 1, maliyet))
+    ts = strateji(sinama, topl, maliyet)
+    kanit = any(w_egitim.values()) and ts["getiri_pct"] > ts["tut_pct"] and ts["getiri_pct"] > 0
+    return dict(ornek=len(orn), egitim_ornek=len(egitim), sinama_ornek=len(sinama), kurallar=kr, egitim_agirlik=w_egitim,
+                topluluk_sinama=ts, kanit=bool(kanit), agirlik=agirliklar(orn, kurallar))
+
+
 def sina(mum, maliyet=MALIYET):
     orn = ornekler(mum)
     if len(orn) < 300: raise ValueError(f"sınama için yetersiz veri ({len(orn)} örnek)")
-    b = int(len(orn) * EGITIM_ORAN)
-    egitim, sinama = orn[:b], orn[b:]
-    w_egitim = agirliklar(egitim)
-    topl = lambda s, w=w_egitim: G.topluluk(s, w) >= ESIK
-    kurallar = {}
-    for k in G.KURALLAR:
-        kurallar[k] = dict(egitim=kural_istatistik(egitim, k), sinama=kural_istatistik(sinama, k),
-                           strateji_sinama=strateji(sinama, lambda s, k=k: s[k] == 1, maliyet))
-    ts = strateji(sinama, topl, maliyet)
-    kanit = any(w_egitim.values()) and ts["getiri_pct"] > ts["tut_pct"] and ts["getiri_pct"] > 0
-    return dict(
-        ts=time.time(), mum=len(mum), ornek=len(orn), egitim_ornek=len(egitim), sinama_ornek=len(sinama),
-        ufuk_saat=UFUK, maliyet_pct=maliyet * 100, esik=ESIK, z_esik=round(z_esik(), 2), kural_sayisi=len(G.KURALLAR),
-        kurallar=kurallar,
-        egitim_agirlik=w_egitim,
-        topluluk_sinama=ts,
-        kanit=bool(kanit),
-        agirlik=agirliklar(orn),              # canlı kullanım: tüm veriyle (sınama sonucu yukarıda ayrı raporlandı)
-    )
+    g = _sina_genel(orn, G.KURALLAR, maliyet)
+    return dict(g, ts=time.time(), mum=len(mum), ufuk_saat=UFUK, maliyet_pct=maliyet * 100, esik=ESIK,
+                z_esik=round(z_esik(), 2), kural_sayisi=len(G.KURALLAR) + len(D.KURALLAR))
+
+
+def duygu_ornekler(mum, seri):
+    """Duygu/konumlanma kurallarıyla örnekler; en az 3 özelliği bilinen anlar alınır."""
+    out = []
+    for i in range(4, len(mum) - UFUK):
+        t = mum[i][1]
+        o = D.ozellik(seri, t, (mum[i][2] / mum[i - 4][2] - 1) * 100)
+        if sum(o[k] is not None for k in ("fonlama_pct", "ls_yuzdelik", "buyuk_degisim_4s_pct", "oi_degisim_4s_pct",
+                                          "taker_4s", "korku_acgozluluk")) < 3:
+            continue
+        s = D.sinyaller(o)
+        out.append((i, {k: s[k] for k in D.KURALLAR}, mum[i + UFUK][2] / mum[i][2] - 1))
+    return out
+
+
+def sina_duygu(mum, seri, maliyet=MALIYET):
+    """Duygu kurallarının sınaması (Binance vadeli geçmişi ~20 gün). Yetersizse {'yetersiz': True, 'ornek': n}."""
+    orn = duygu_ornekler(mum, seri)
+    if len(orn) < 200: return dict(yetersiz=True, ornek=len(orn), kaynaklar=sorted(seri))
+    return dict(_sina_genel(orn, D.KURALLAR, maliyet), kaynaklar=sorted(seri))
 
 
 def _r(x, n=2): return None if x is None else round(x, n)
@@ -112,10 +133,8 @@ def yaz(sonuc, yol="btc_agirlik.json"):
     os.replace(yol + ".tmp", yol)
 
 
-def rapor(s):
-    print(f"{s['mum']} saatlik mum · {s['ornek']} örnek (eğitim {s['egitim_ornek']}, sınama {s['sinama_ornek']}) · "
-          f"ufuk {s['ufuk_saat']} saat · maliyet %{s['maliyet_pct']:.2f} gidiş-dönüş · {s['kural_sayisi']} kural, "
-          f"anlamlılık eşiği z ≥ {s['z_esik']}\n")
+def _bolum(s, baslik):
+    print(f"{baslik}  ({s['ornek']} örnek: eğitim {s['egitim_ornek']}, sınama {s['sinama_ornek']})")
     print(f"{'kural':<16}{'al n':>6}{'isabet%':>9}{'baz%':>7}{'z':>7}{'strateji%':>11}{'BTC tut%':>10}{'işlem':>7}   (görülmemiş son dönem)")
     for k, v in s["kurallar"].items():
         st, sr = v["sinama"], v["strateji_sinama"]
@@ -124,10 +143,22 @@ def rapor(s):
               f"{sr['getiri_pct']:>11}{sr['tut_pct']:>10}{sr['islem']:>7}")
     t = s["topluluk_sinama"]
     sifirsiz = lambda w: {k: v for k, v in w.items() if v} or "hiçbir kural eşiği geçmedi"
-    print(f"\nTopluluk (eğitim ağırlıkları: {sifirsiz(s['egitim_agirlik'])}):")
+    print(f"Topluluk (eğitim ağırlıkları: {sifirsiz(s['egitim_agirlik'])}):")
     print(f"  sınama dönemi getirisi %{t['getiri_pct']} · BTC tutma %{t['tut_pct']} · {t['islem']} işlem")
-    print(f"  KANIT: {'VAR, topluluk görülmemiş veride BTC tutmayı ve sıfırı geçti' if s['kanit'] else 'YOK, topluluk BTC tutmayı geçemedi; göstergeler kararlarda oy kullanmaz (YZ yalnızca bilgi olarak görür)'}")
-    print(f"  Canlı ağırlıklar (tüm veri): {sifirsiz(s['agirlik'])}")
+    print(f"  KANIT: {'VAR, görülmemiş veride BTC tutmayı ve sıfırı geçti' if s['kanit'] else 'YOK, BTC tutmayı ve sıfırı geçemedi; bu kurallar kararlarda oy kullanmaz (YZ yalnızca bilgi olarak görür)'}")
+    print(f"  Canlı ağırlıklar (tüm veri): {sifirsiz(s['agirlik'])}\n")
+
+
+def rapor(s):
+    print(f"{s['mum']} saatlik mum · ufuk {s['ufuk_saat']} saat · maliyet %{s['maliyet_pct']:.2f} gidiş-dönüş · "
+          f"{s['kural_sayisi']} kural, anlamlılık eşiği z ≥ {s['z_esik']}\n")
+    _bolum(s, "TEKNİK GÖSTERGELER")
+    d = s.get("duygu")
+    if not d: return
+    if d.get("yetersiz"):
+        print(f"DUYGU / KONUMLANMA: yetersiz veri ({d['ornek']} örnek; kaynaklar: {', '.join(d['kaynaklar']) or 'erişilemedi'})")
+    else:
+        _bolum(d, f"DUYGU / KONUMLANMA (Binance vadeli + Korku-Açgözlülük; kaynaklar: {', '.join(d['kaynaklar'])})")
 
 
 def main(argv):
@@ -136,6 +167,13 @@ def main(argv):
     mum = gecmis_mumlar(time.time() - gun * 86400, time.time())
     mum = [m for m in mum if m[1] <= time.time()]          # yalnızca kapanmış mumlar
     s = sina(mum)
+    try:
+        seri = D.seriler()
+        bas = min((v[0][0] for v in seri.values() if v), default=None)
+        s["duygu"] = sina_duygu([m for m in mum if bas is None or m[0] >= bas - 4 * 3600], seri) if seri else \
+            dict(yetersiz=True, ornek=0, kaynaklar=[])
+    except Exception as e:
+        s["duygu"] = dict(yetersiz=True, ornek=0, kaynaklar=[], hata=f"{type(e).__name__}")
     yaz(s)
     rapor(s)
     return 0
