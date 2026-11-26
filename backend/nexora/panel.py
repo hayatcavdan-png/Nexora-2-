@@ -202,6 +202,28 @@ def gece_olaylari(path, son):
 OZET_SAAT_UTC = 6     # günlük özet her gün 06:00 UTC'de (09:00 İstanbul) bir kez
 
 
+VERI_KESIK_SN = 15 * 60
+
+
+def veri_akisi_olayi(satir, son, now):
+    """Takip servisi çalışıyor ama canlı veri (WebSocket) VERI_KESIK_SN'den uzun süredir kesikse risk olayı.
+    Servis 'active' göründüğü için systemd tabanlı sağlık bunu yakalamaz (26.11: Helius kredisi bitti, gün boyu sinyal yok)."""
+    try:
+        d = json.loads(satir[0]["v"]) if satir else {}
+    except (ValueError, KeyError, TypeError, IndexError):
+        return None
+    bas = d.get("ws_kopuk_bas")
+    if d.get("ws") != "bağlı değil" or not bas: return None
+    t = float(bas) + VERI_KESIK_SN
+    if t > now or t <= son: return None
+    hata = d.get("ws_son_hata") or ""
+    neden = (" Sağlayıcı kota/hız sınırı (HTTP 429): Helius kredisi bitmiş olabilir; panelden kontrol edin."
+             if "429" in hata else (f" Son hata: {hata[:80]}." if hata else ""))
+    return dict(id=f"w{int(float(bas))}", ts=t, tur="risk", baslik="Canlı veri akışı kesik",
+                metin=f"Solana takibi {int((now - float(bas)) // 60)} dakikadır anlık veri alamıyor; yeni alımlar gecikir "
+                      f"ya da hiç yapılmaz.{neden}")
+
+
 def olaylar(paper_path, tracker_path, son=0.0, limit=20, now=None, kesif_path=None, ozet=False):
     """Bildirim olayları (ts > son): kopyalanan alım, kapanan pozisyon, günlük zarar sınırı, bot işareti.
     Uygulama son gördüğü ts'yi saklar ve yalnızca yenileri ister."""
@@ -216,6 +238,8 @@ def olaylar(paper_path, tracker_path, son=0.0, limit=20, now=None, kesif_path=No
                 if t <= now and t > son:
                     out.append(dict(id=f"n{int(float(nb))}", ts=t, tur="risk", baslik="Takip durdu",
                                     metin="Canlı takip 5 dakikadır çalışmıyor. Termux'ta: ./nexora durum"))
+            ws_olay = veri_akisi_olayi(_rows(c, "SELECT v FROM state WHERE k='takip_saglik'"), son, now)
+            if ws_olay: out.append(ws_olay)
             for g in _rows(c, "SELECT id, token, ts, neden FROM durum_gecis WHERE yeni='TAKILDI' AND ts > ?", (son,)):
                 tok = (g["token"] or "")[:4] + "…" + (g["token"] or "")[-4:]
                 out.append(dict(id=f"d{g['id']}", ts=g["ts"], tur="risk", baslik=f"Pozisyon satılamıyor: {tok}",

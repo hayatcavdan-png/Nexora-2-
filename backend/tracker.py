@@ -172,6 +172,7 @@ def main():
             paper.nabiz(saglik=dict(
                 baslangic=BASLANGIC, ws=("kapalı" if not USE_WS else "bağlı" if listener and listener.connected else "bağlı değil"),
                 ws_kopma=listener.kopma if listener else 0, ws_son_mesaj=listener.son_mesaj if listener else None,
+                ws_kopuk_bas=listener.kopuk_bas if listener else None, ws_son_hata=listener.son_hata if listener else None,
                 okunamayan=tr.failed_count(), cuzdan=len(tr.active_wallets()), bot=len(tr.bot_wallets()),
                 gecikme={k: dict(n=v["n"], p50=v["p50"], p95=v["p95"]) for k, v in st0.items()}))
             if decider and time.time() - last_mark >= MARK_EVERY:
