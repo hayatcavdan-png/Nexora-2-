@@ -7,12 +7,14 @@ set -euo pipefail
 [ "$(id -u)" -eq 0 ] || { echo "root olarak çalıştırın: sudo bash /opt/nexora/deploy/guncelle.sh"; exit 1; }
 cd /opt/nexora
 ONCE="$(sudo -u nexora git rev-parse HEAD)"
-sudo -u nexora git pull --ff-only -q
+sudo -u nexora git pull --ff-only -q || { echo "HATA: git pull başarısız; kod güncellenmedi, servislere dokunulmadı."; exit 1; }
 SONRA="$(sudo -u nexora git rev-parse HEAD)"
+UZAK="$(sudo -u nexora git rev-parse origin/main 2>/dev/null || true)"
+[ -z "$UZAK" ] || [ "$UZAK" = "$SONRA" ] || echo "UYARI: yerel sürüm ($(echo "$SONRA" | cut -c1-7)) origin/main ile aynı değil ($(echo "$UZAK" | cut -c1-7))."
 KURULAN="$(cat /opt/nexora/.kurulan 2>/dev/null || true)"
-if [ "$ONCE" = "$SONRA" ] && [ "$KURULAN" = "$SONRA" ]; then echo "Zaten güncel ($(sudo -u nexora git log -1 --format=%s))."; exit 0; fi
+if [ "$ONCE" = "$SONRA" ] && [ "$KURULAN" = "$SONRA" ]; then echo "Zaten güncel: $(sudo -u nexora git log -1 --format='%h %s')"; exit 0; fi
 [ -n "$KURULAN" ] && [ "$ONCE" = "$SONRA" ] && ONCE="$KURULAN"   # yarım kalan kurulum: başarısızsa son kurulan sürüme dön
-echo "Yeni sürüm: $(sudo -u nexora git log -1 --format=%s)"
+echo "Yeni sürüm: $(sudo -u nexora git log -1 --format='%h %s')"
 if ! (cd backend && sudo -u nexora python3 -m unittest discover -s tests -q 2>&1 | tail -3); then
   echo "Testler GEÇMEDİ: eski sürüme dönülüyor, servisler değişmedi."
   sudo -u nexora git reset -q --hard "$ONCE"; exit 1
@@ -26,3 +28,4 @@ sleep 5
 systemctl --no-pager --lines=0 status nexora-sunucu nexora-takip nexora-piyasa nexora-bnb nexora-base nexora-hl 2>/dev/null | grep -E "●|Active" || true
 journalctl -u nexora-takip -n 3 --no-pager -o cat || true
 echo "$SONRA" > /opt/nexora/.kurulan
+echo "KURULDU: $(echo "$SONRA" | cut -c1-7)"
