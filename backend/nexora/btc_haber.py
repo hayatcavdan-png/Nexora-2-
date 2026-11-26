@@ -11,6 +11,7 @@ from nexora import yz_xai
 
 URL = os.getenv("YZ_ARAMA_URL", "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent")
 ONBELLEK_SN = 3 * 3600
+GERI_CEKIL_SN = 6 * 3600                # 429 (kota) sonrası bu süre arama yapılmaz
 
 
 def acik():
@@ -69,11 +70,20 @@ def getir(paper, now=None, post=None):
             return json.loads(paper._get("haber_json")), None
     except (TypeError, ValueError):
         pass
+    try:
+        bekle = float(paper._get("haber_bekle_ts") or 0)
+    except (TypeError, ValueError):
+        bekle = 0.0
+    if now < bekle:
+        return None, None                                   # kota geri çekilmesi: sessizce atla
     anahtar = os.getenv("GEMINI_API_KEY", "")
     if not anahtar and post is None: return None, "GEMINI_API_KEY yok"
     try:
         h = cozumle(cagir(anahtar, post=post))
     except Exception as e:
+        if "429" in str(e):
+            paper._set("haber_bekle_ts", now + GERI_CEKIL_SN); paper.db.commit()
+            return None, "haber: kota doldu (429), 6 saat ara verildi"
         return None, f"haber: {type(e).__name__}: {str(e)[:100]}"
     if not h: return None, "haber: yanıt okunamadı"
     h["ts"] = now

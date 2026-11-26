@@ -116,6 +116,26 @@ class HaberTest(unittest.TestCase):
         self.assertIsNone(h); self.assertIn("503", hata)
 
 
+class HaberKotaTest(unittest.TestCase):
+    def setUp(self):
+        self._env = dict(os.environ); os.environ["BTC_HABER"] = "1"; self.d = tempfile.mkdtemp()
+        self.paper = Paper(os.path.join(self.d, "btc.db"), ekosistem="btc", dagit=False)
+
+    def tearDown(self):
+        self.paper.db.close(); os.environ.clear(); os.environ.update(self._env)
+
+    def test_429_sonrasi_alti_saat_ara(self):
+        n = {"i": 0}
+        def kota(g):
+            n["i"] += 1; raise OSError("HTTP Error 429: Too Many Requests")
+        h, hata = H.getir(self.paper, T0, post=kota)
+        self.assertIsNone(h); self.assertIn("429", hata)
+        self.assertEqual(H.getir(self.paper, T0 + 3600, post=kota), (None, None))     # bekleme: çağrı yok
+        self.assertEqual(n["i"], 1)
+        h, _ = H.getir(self.paper, T0 + 7 * 3600, post=_haber_yanit('{"duygu": 0, "ozet": "x"}'))
+        self.assertEqual(h["duygu"], 0)
+
+
 class DuyguSinamaTest(unittest.TestCase):
     def test_yetersiz_ve_yeterli(self):
         mum = _rejimli(520)
