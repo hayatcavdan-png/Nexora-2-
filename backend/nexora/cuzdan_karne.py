@@ -4,6 +4,8 @@ beklenen getiriyi ve bunun şanstan ayrışıp ayrışmadığını ölçer. Hiç
 Ölçüler (pozisyon başına getiri r = pnl / maliyet):
 - n, toplam $, ortalama getiri %, kazanma %, t = ort / (std / √n).
 - Hüküm: n < 10 'az veri'; t ≤ -2 'kanıtlı zarar'; t ≥ 2 'kanıtlı kâr'; aksi 'belirsiz'.
+- Defterde gerçekleşen K/Z (pnl) alış bacağının ağ ücretini içermez (portfoy_denetim de bunu ayrıca düşer);
+  karne her pozisyondan alış ücretini (CFG net_fee_usd) düşerek NAKİT etkisini gösterir.
 - Ek maliyet senaryosu: paper defteri Jupiter teklifindeki kaymayı içerir ama gerçek işlemdeki öncelik ücreti, başarısız
   işlem ve gecikme fiyat kaybını tam içermez. --ek X ile her pozisyondan X $ daha düşülerek sonuç yeniden hesaplanır.
 Ayrıca: alımlardaki al-sat (gidiş-dönüş) kaybı dağılımı ve haftalık toplam gidişat.
@@ -33,8 +35,13 @@ def hukum(st):
     return "belirsiz"
 
 
-def karne(satirlar, ek=0.0):
-    """satirlar: [(wallet, cost, pnl, closed_ts)]. Dönüş: (cüzdan satırları t'ye göre artan, genel)."""
+def karne(satirlar, ek=0.0, alis_ucreti=None):
+    """satirlar: [(wallet, cost, pnl, closed_ts)]. Dönüş: (cüzdan satırları t'ye göre artan, genel).
+    alis_ucreti: pozisyon başına düşülecek alış ağ ücreti (varsayılan CFG net_fee_usd)."""
+    if alis_ucreti is None:
+        from nexora.core import CFG
+        alis_ucreti = CFG["net_fee_usd"]
+    ek = ek + alis_ucreti
     grup = {}
     for w, cost, pnl, _ in satirlar:
         if not cost or cost <= 0 or pnl is None: continue
