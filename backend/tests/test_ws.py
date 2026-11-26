@@ -279,3 +279,35 @@ class KotaGeriCekilmeTest(unittest.TestCase):
     def test_normal_kopma_60_sn_ile_sinirli(self):
         b = self._bekleyisler("bağlantı kapandı", n=8)
         self.assertEqual(b, [1, 2, 4, 8, 16, 32, 60, 60])
+
+
+class VeriAkisiAlarmTest(unittest.TestCase):
+    def _satir(self, **d):
+        return [{"v": json.dumps(d)}]
+
+    def test_429_kesintisi_15_dk_sonra_alarm(self):
+        from nexora.panel import veri_akisi_olayi
+        s = self._satir(ws="bağlı değil", ws_kopuk_bas=1000.0, ws_son_hata="WSClosed: WebSocket reddedildi: HTTP 429")
+        self.assertIsNone(veri_akisi_olayi(s, 0, 1000 + 600))                   # 10 dk: henüz değil
+        o = veri_akisi_olayi(s, 0, 1000 + 3600)
+        self.assertEqual((o["id"], o["tur"], o["ts"]), ("w1000", "risk", 1900.0))
+        self.assertIn("Helius", o["metin"]); self.assertIn("60 dakikadır", o["metin"])
+        self.assertIsNone(veri_akisi_olayi(s, 1900.0, 1000 + 3600))             # uygulama zaten gördü
+
+    def test_bagliyken_ya_da_veri_yokken_alarm_yok(self):
+        from nexora.panel import veri_akisi_olayi
+        self.assertIsNone(veri_akisi_olayi(self._satir(ws="bağlı", ws_kopuk_bas=None), 0, 99999))
+        self.assertIsNone(veri_akisi_olayi([], 0, 99999))
+        self.assertIsNone(veri_akisi_olayi([{"v": "bozuk"}], 0, 99999))
+
+    def test_dinleyici_kopuk_basi_ve_hatayi_tutar(self):
+        from nexora.ws_listener import WSListener
+        from nexora.ws_client import WSClosed
+        class Dur:
+            def __init__(s): s.k = 0
+            def is_set(s): return s.k >= 2
+            def wait(s, d): s.k += 1
+        def baglan(url, timeout=None): raise WSClosed("HTTP 429")
+        l = WSListener("wss://x", ["W"], lambda w, s: None, connect=baglan, log=lambda m: None)
+        l.run_forever(Dur())
+        self.assertIsNotNone(l.kopuk_bas); self.assertIn("429", l.son_hata)

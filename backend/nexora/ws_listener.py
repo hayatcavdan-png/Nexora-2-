@@ -12,6 +12,8 @@ class WSListener:
         self.connected = False
         self.kopma = 0                 # yeniden bağlanma sayısı (sağlık ölçümü)
         self.son_mesaj = None          # son bildirim zamanı
+        self.kopuk_bas = None          # bağlantının koptuğu (ya da hiç kurulamadığı) an; bağlanınca None
+        self.son_hata = None           # son bağlantı hatası metni (ör. 'HTTP 429')
 
     def run_once(self, stop=None):
         ws = self.connect(self.url, timeout=self.ping_every)
@@ -21,7 +23,7 @@ class WSListener:
                 pending[i] = w
                 ws.send_text(json.dumps({"jsonrpc": "2.0", "id": i, "method": "logsSubscribe",
                     "params": [{"mentions": [w]}, {"commitment": self.commitment}]}))
-            self.connected = True
+            self.connected = True; self.kopuk_bas = None
             while not (stop and stop.is_set()):
                 try:
                     raw = ws.recv()
@@ -65,6 +67,8 @@ class WSListener:
                 self.run_once(stop)
             except (WSClosed, OSError, ValueError) as e:
                 self.kopma += 1
+                if self.kopuk_bas is None: self.kopuk_bas = time.time()
+                self.son_hata = f"{type(e).__name__}: {str(e)[:120]}"
                 kota = "429" in str(e)
                 if kota: delay = max(delay, 60)
                 self.log(f"WebSocket koptu ({type(e).__name__}: {str(e)[:80]}), {delay} sn sonra yeniden bağlanılacak"
