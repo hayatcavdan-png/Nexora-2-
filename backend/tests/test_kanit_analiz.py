@@ -10,7 +10,7 @@ class CuzdanKarneTest(unittest.TestCase):
         satir += [("iyi", 5.0, 0.6 + rnd.gauss(0, 0.2), 1.0) for _ in range(30)]
         satir += [("gurultu", 5.0, rnd.gauss(0, 1.0), 1.0) for _ in range(30)]
         satir += [("az", 5.0, -1.0, 1.0) for _ in range(5)]
-        cuz, genel = C.karne(satir)
+        cuz, genel = C.karne(satir, alis_ucreti=0.0)
         h = {d["wallet"]: d["hukum"] for d in cuz}
         self.assertEqual(h["kotu"], "kanıtlı zarar"); self.assertEqual(h["iyi"], "kanıtlı kâr")
         self.assertEqual(h["az"], "az veri"); self.assertIn(h["gurultu"], ("belirsiz", "kanıtlı zarar", "kanıtlı kâr"))
@@ -19,9 +19,14 @@ class CuzdanKarneTest(unittest.TestCase):
 
     def test_ek_maliyet_sonucu_kotulestirir(self):
         satir = [("w", 5.0, 0.05 + 0.01 * (i % 3), 1.0) for i in range(20)]
-        _, g0 = C.karne(satir); _, g1 = C.karne(satir, ek=0.2)
+        _, g0 = C.karne(satir, alis_ucreti=0.0); _, g1 = C.karne(satir, ek=0.2, alis_ucreti=0.0)
         self.assertGreater(g0["toplam"], 0); self.assertLess(g1["toplam"], 0)
         self.assertEqual(g1["hukum"], "kanıtlı zarar")
+
+    def test_alis_ucreti_varsayilan_duser(self):
+        satir = [("w", 5.0, 0.0, 1.0) for _ in range(4)]
+        _, g = C.karne(satir)
+        self.assertAlmostEqual(g["toplam"], -0.04)                                         # 4 x 0,01 $ alış ücreti
 
     def test_alsat_kaybi_ve_haftalik(self):
         k = C.alsat_kaybi(["etki %1.0, al-sat kaybı %2.5", "etki %0.2, al-sat kaybı %0.5", None, "kaynak sattı"])
