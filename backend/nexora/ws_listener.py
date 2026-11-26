@@ -55,15 +55,20 @@ class WSListener:
             self.connected = False
             ws.close()
 
-    def run_forever(self, stop):
+    def run_forever(self, stop, kota_ust=900):
+        """Kopunca üstel bekleme (en fazla 60 sn). Sağlayıcı 429 (kota/hız sınırı) dönerse ısrar etmemek için
+        bekleme kota_ust'e (15 dk) kadar uzar; kredi bitince her dakika deneyip sınırı uzatmayız, kota açılınca toparlanırız."""
         delay = 1
         while not stop.is_set():
-            start = time.time()
+            start = time.time(); kota = False
             try:
                 self.run_once(stop)
             except (WSClosed, OSError, ValueError) as e:
                 self.kopma += 1
-                self.log(f"WebSocket koptu ({type(e).__name__}: {str(e)[:80]}), {delay} sn sonra yeniden bağlanılacak")
+                kota = "429" in str(e)
+                if kota: delay = max(delay, 60)
+                self.log(f"WebSocket koptu ({type(e).__name__}: {str(e)[:80]}), {delay} sn sonra yeniden bağlanılacak"
+                         + (" (sağlayıcı kota/hız sınırı)" if kota else ""))
             if time.time() - start > 60: delay = 1
             stop.wait(delay)
-            delay = min(delay * 2, 60)
+            delay = min(delay * 2, kota_ust if kota else 60)

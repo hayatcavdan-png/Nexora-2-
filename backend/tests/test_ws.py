@@ -257,3 +257,25 @@ class RateLimitTests(unittest.TestCase):
         LiveTracker(self.c, Paper(), db, ["A", "B"])
         tr2 = LiveTracker(self.c, Paper(), db, ["B"])                    # A wallets.txt'ten çıkarıldı
         self.assertEqual(tr2.active_wallets(), ["B"])
+
+
+class KotaGeriCekilmeTest(unittest.TestCase):
+    def _bekleyisler(self, hata, n=6):
+        from nexora.ws_listener import WSListener
+        from nexora.ws_client import WSClosed
+        bekle = []
+        class Dur:
+            def __init__(s): s.k = 0
+            def is_set(s): return s.k >= n
+            def wait(s, d): bekle.append(d); s.k += 1
+        def baglan(url, timeout=None): raise WSClosed(hata)
+        WSListener("wss://x", ["W"], lambda w, s: None, connect=baglan, log=lambda m: None).run_forever(Dur())
+        return bekle
+
+    def test_429_bekleme_15_dakikaya_kadar_uzar(self):
+        b = self._bekleyisler("WebSocket reddedildi: HTTP 429", n=6)
+        self.assertEqual(b, [60, 120, 240, 480, 900, 900])
+
+    def test_normal_kopma_60_sn_ile_sinirli(self):
+        b = self._bekleyisler("bağlantı kapandı", n=8)
+        self.assertEqual(b, [1, 2, 4, 8, 16, 32, 60, 60])
