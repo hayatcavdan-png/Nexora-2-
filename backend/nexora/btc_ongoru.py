@@ -13,7 +13,7 @@ import json, math, os, re, sys, time
 
 import requests
 
-from nexora import btc_duygu as D, btc_gosterge as G, btc_haber, yz_xai
+from nexora import btc_duygu as D, btc_golge, btc_gosterge as G, btc_haber, yz_xai
 from nexora.constants import USDC_MINT
 
 BTC_MINT = os.getenv("BTC_MINT", "cbbtcf3aa214zXHbiAZQwf4122FBYbraNdFqgw4iMij")   # Coinbase Wrapped BTC (Solana)
@@ -362,7 +362,12 @@ def calistir(paper, quoter, s=None, post=None, now=None, durum_yolu="btc_durum.j
                 SINYAL_YON[d_sinyal["uzman_hl"]] if (duygu.get("uzman_hl") or {}).get("n") else None,
                 json.dumps(duygu, ensure_ascii=False) if duygu else None))
     db.commit()
+    try:
+        golge = btc_golge.adim(db, oz["fiyat"], now, k_yon, tahmin, t_yon)
+    except Exception:
+        golge = None                                         # gölge ölçümü asıl turu asla durdurmaz
     d = dict(durum="ok", karar=k, neden=neden, tahmin=tahmin, kural_yon=k_yon, topluluk_yon=t_yon, topluluk_skor=skor,
+             golge=golge,
              duygu=duygu, haber=haber,
              sinyal=sinyal, sinama_var=sinama is not None, ozellik=oz, hata=hata, islem=(sonuc or {}).get("decision"))
     try:
@@ -397,6 +402,7 @@ def ozet(paper, son=12, agirlik_yolu=None):
         yz=oran("isabet"), yz_guclu=oran("isabet", f"AND guven >= {MIN_GUVEN}"), kural=oran("kural_isabet"),
         topluluk=oran("topluluk_isabet"), sinama=_sinama_karti(agirlik_yukle(agirlik_yolu)),
         haber=oran("haber_isabet"), uzman=oran("uzman_isabet"), duygu_son=_son_duygu(db),
+        golge=btc_golge.karne(db),
         kapanan=len(pnl), kazanma_pct=round(sum(x > 0 for x in pnl) * 100 / len(pnl), 1) if pnl else None,
         son_tahmin=son_t[0] if son_t else None, tahminler=son_t,
         son_gecerli=next((t for t in son_t if t.get("yon")), None),

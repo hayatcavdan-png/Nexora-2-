@@ -98,6 +98,26 @@ fun BtcOngoruKarti(url: String, key: String) {
                     val ho = du.str("haber_ozet") ?: ""
                     if (ho.isNotEmpty()) Text("Haber (${du.optInt("haber_duygu")}): $ho", color = Nx.Metin, fontSize = 12.sp)
                 }
+                val gl = d.optJSONArray("golge")
+                if (gl != null && gl.length() > 0) {
+                    val adlar = mapOf("kural" to "Basit kural", "yz_her" to "YZ (her yukarı)", "topluluk" to "Kanıtlı göstergeler")
+                    Text("Gölge portföyler (aynı kurallarla sanal 100 $)", color = Nx.Soluk, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    var tut: Double? = null
+                    for (i in 0 until gl.length()) {
+                        val g = gl.getJSONObject(i)
+                        if (tut == null) tut = g.dbl("tut_pct")
+                        val kz = g.optDouble("kz_pct", 0.0)
+                        Row(Modifier.fillMaxWidth()) {
+                            Text((adlar[g.optString("ad")] ?: g.optString("ad")) + (if (g.optBoolean("pozisyonda")) " · pozisyonda" else ""),
+                                 color = Nx.Metin, fontSize = 12.sp, modifier = Modifier.weight(1f))
+                            Text(yuzde(kz) + " · ${g.optInt("islem")} işlem", color = if (kz >= 0) Nx.Nane else Nx.Kirmizi, fontSize = 12.sp)
+                        }
+                    }
+                    Row(Modifier.fillMaxWidth()) {
+                        Text("BTC'yi tutmak (aynı başlangıç)", color = Nx.Soluk, fontSize = 12.sp, modifier = Modifier.weight(1f))
+                        Text(yuzde(tut), color = Nx.Soluk, fontSize = 12.sp)
+                    }
+                }
                 val sn = d.optJSONObject("sinama")
                 Text(if (sn == null) "Gösterge sınaması henüz çalışmadı."
                      else if (sn.optBoolean("kanit")) "Sınama: göstergeler görülmemiş veride ${yuzde(sn.dbl("getiri_pct"))} (BTC tutma ${yuzde(sn.dbl("tut_pct"))}) · kanıt var"
