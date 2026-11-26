@@ -127,6 +127,23 @@ fun BtcOngoruKarti(url: String, key: String) {
                      color = Nx.Soluk, fontSize = 11.sp)
             }
         }
+        val tr = veri?.optJSONObject("trend")
+        if (tr != null) {
+            Text("📈 Günlük trend (SMA100) · PAPER", color = Nx.Metin, fontSize = 15.sp, fontWeight = FontWeight.Bold,
+                 modifier = Modifier.padding(top = 6.dp))
+            val sonT = tr.optJSONObject("son")
+            val piyasada = tr.optBoolean("piyasada")
+            Text(if (piyasada) "BTC'de (trend yukarı)" else "Nakitte (trend aşağı ya da henüz karar yok)",
+                 color = if (piyasada) Nx.Nane else Nx.Soluk, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+            if (sonT != null) Text("${sonT.str("gun")} · ${sonT.str("karar")} · ${sonT.str("neden")}", color = Nx.Soluk, fontSize = 12.sp)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                BtcKutu("Sanal bakiye", "$" + usd(tr.optDouble("toplam", 0.0)), Modifier.weight(1f))
+                BtcKutu("K/Z", yuzde(tr.dbl("kz_pct")), Modifier.weight(1f), if ((tr.dbl("kz_pct") ?: 0.0) >= 0) Nx.Nane else Nx.Kirmizi)
+                BtcKutu("BTC'yi tutmak", yuzde(tr.dbl("btc_tut_pct")), Modifier.weight(1f))
+            }
+            Text("Sınama (görülmemiş 2023–2026): getiri %184, en büyük düşüş %-36 · BTC tutma %195 / %-53. Geçmiş sonuç, garanti değil.",
+                 color = Nx.Soluk, fontSize = 11.sp)
+        }
     }
 }
 

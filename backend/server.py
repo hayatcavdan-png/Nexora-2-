@@ -294,12 +294,13 @@ class H(BaseHTTPRequestHandler):
             except (OSError, ValueError): durum = None
             self._send(200, dict(stratejiler=out, durum=durum)); return
         if parts.path == "/btc":                           # BTC öngörü (PAPER): YZ tahmini, isabet karnesi, cbBTC sanal portföy
-            from nexora import btc_ongoru
-            yol = os.getenv("BTC_DB", "nexora_btc.db")
+            from nexora import btc_ongoru, btc_trend_motor
+            yol, tyol = os.getenv("BTC_DB", "nexora_btc.db"), os.getenv("BTC_TREND_DB", "nexora_btc_trend.db")
+            trend = btc_trend_motor.ozet(Paper(tyol, ekosistem="btc_trend", dagit=False)) if os.path.exists(tyol) else None
             if not os.path.exists(yol):
-                self._send(200, dict(acik=btc_ongoru.acik(), bos=True, mod="PAPER",
+                self._send(200, dict(acik=btc_ongoru.acik(), bos=True, mod="PAPER", trend=trend,
                                      mesaj="BTC öngörü henüz çalışmadı" + ("" if btc_ongoru.acik() else " (BTC_ONGORU=1 değil)"))); return
-            self._send(200, btc_ongoru.ozet(Paper(yol, ekosistem="btc", dagit=False))); return
+            self._send(200, dict(btc_ongoru.ozet(Paper(yol, ekosistem="btc", dagit=False)), trend=trend)); return
         if parts.path == "/bildirim":                      # N32: borsada listesiz token sinyalleri (yalnızca bildirim)
             from nexora.bildirim import Bildirim
             self._send(200, dict(son=Bildirim(os.getenv("BILDIRIM_DB", "nexora_bildirim.db")).son(20))); return

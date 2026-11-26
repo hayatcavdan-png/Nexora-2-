@@ -59,6 +59,11 @@ class ServerTests(unittest.TestCase):
         Paper(os.path.join(self.d, "nexora_btc.db"), ekosistem="btc", dagit=False)
         d = self.get("/btc")
         self.assertEqual((d["toplam"], d["kz"], d["yz"]["n"], d["mod"]), (100.0, 0.0, 0, "PAPER"))
+    def test_btc_trend_bolumu(self):
+        self.assertIsNone(self.get("/btc")["trend"])
+        Paper(os.path.join(self.d, "nexora_btc_trend.db"), ekosistem="btc_trend", dagit=False)
+        t = self.get("/btc")["trend"]
+        self.assertEqual((t["mod"], t["toplam"], t["kural"]), ("PAPER", 100.0, "SMA100 (günlük, uzun/nakit)"))
     def test_takip_requires_key(self):
         with self.assertRaises(urllib.error.HTTPError) as c: self.get("/takip", key="yanlis")
         self.assertEqual(c.exception.code, 401)
