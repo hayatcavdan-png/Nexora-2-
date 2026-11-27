@@ -68,6 +68,8 @@ CREATE TABLE IF NOT EXISTS trades(id INTEGER PRIMARY KEY AUTOINCREMENT, ts REAL,
   wallet TEXT, token TEXT, side TEXT, qty REAL, price REAL, fee REAL, pnl REAL, decision TEXT, reason TEXT);
 CREATE TABLE IF NOT EXISTS pos_iz(id INTEGER PRIMARY KEY AUTOINCREMENT, token TEXT, wallet TEXT, opened_ts REAL, cost REAL,
   min_pct REAL, max_pct REAL, marks INTEGER DEFAULT 0, tam INTEGER, status TEXT, closed_ts REAL, pnl REAL);
+CREATE TABLE IF NOT EXISTS pos_yol(iz_id INTEGER, ts REAL, pct REAL);
+CREATE INDEX IF NOT EXISTS pos_yol_iz ON pos_yol(iz_id, ts);
 CREATE TABLE IF NOT EXISTS token_bilgi(event_id TEXT PRIMARY KEY, token TEXT, ts REAL, yas_sn REAL, likidite REAL,
   mcap REAL, sahip REAL, organik REAL, organik_etiket TEXT, top_pct REAL, dev_pct REAL, sus INTEGER, launchpad TEXT, hata TEXT);
 CREATE TABLE IF NOT EXISTS ayar_gecmis(id INTEGER PRIMARY KEY AUTOINCREMENT, ts REAL, ayar TEXT, eski TEXT, yeni TEXT, kaynak TEXT);
@@ -546,6 +548,8 @@ class Paper:
                 pct = pnl / pos["cost"] * 100
                 self.db.execute("""UPDATE pos_iz SET marks=marks+1, min_pct=MIN(COALESCE(min_pct, ?), ?),
                     max_pct=MAX(COALESCE(max_pct, ?), ?) WHERE id=?""", (pct, pct, pct, pct, iz))
+                # 27.11: fiyat yolu (yalnızca kayıt; takip eden stop sınaması için sıralı ölçüm gerekir)
+                self.db.execute("INSERT INTO pos_yol(iz_id, ts, pct) VALUES(?,?,?)", (iz, time.time(), round(pct, 3)))
                 for e in STOP_ESIKLERI:
                     if pct <= -e:
                         self.db.execute("INSERT OR IGNORE INTO stop_tetik(iz_id,esik,ts,pnl) VALUES(?,?,?,?)",
