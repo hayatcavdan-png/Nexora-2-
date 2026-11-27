@@ -78,16 +78,19 @@ fun HlEkrani(url: String, key: String) {
         d?.optJSONArray("cuzdanlar")?.let { a ->
             if (a.length() > 0) NeonKart(Modifier.fillMaxWidth()) {
                 Text("Trader'lar", color = Nx.Metin, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                Text("adres · kapanan · ort (biz) · trader ort · açık — ayrıntı için dokunun", color = Nx.Soluk, fontSize = 11.sp)
+                Text("adres · ölçüm · TOPLAM ort (açıklar dahil, sıralama buna göre) · kapanan ort · açık K/Z — ayrıntı için dokunun", color = Nx.Soluk, fontSize = 11.sp)
                 for (i in 0 until minOf(a.length(), 40)) {
                     val m = a.getJSONObject(i); val w = m.optString("wallet")
                     Row(Modifier.fillMaxWidth().clickable { secili = if (secili == w) "" else w }.padding(vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically) {
                         Text(w.take(6) + "…" + w.takeLast(4), color = Nx.Metin, fontSize = 12.sp, fontFamily = FontFamily.Monospace, modifier = Modifier.weight(1.3f))
-                        Text("${m.optInt("n")}", color = Nx.Soluk, fontSize = 12.sp, modifier = Modifier.weight(0.5f))
+                        val tn = if (m.has("toplam_n")) m.optInt("toplam_n") else m.optInt("n")
+                        Text("$tn", color = Nx.Soluk, fontSize = 12.sp, modifier = Modifier.weight(0.5f))
+                        Text(if (m.isNull("toplam_ort")) "—" else hlYuzde(m.optDouble("toplam_ort")), color = renk(m, "toplam_ort"), fontSize = 12.sp,
+                             fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
                         Text(if (m.isNull("ort")) "—" else hlYuzde(m.optDouble("ort")), color = renk(m, "ort"), fontSize = 12.sp, modifier = Modifier.weight(1f))
-                        Text(if (m.isNull("kaynak_ort")) "—" else hlYuzde(m.optDouble("kaynak_ort")), color = Nx.Soluk, fontSize = 12.sp, modifier = Modifier.weight(1f))
-                        Text("${m.optInt("acik")}", color = Nx.Soluk, fontSize = 12.sp, modifier = Modifier.weight(0.4f))
+                        Text(if (m.isNull("acik_ort")) "${m.optInt("acik")}" else hlYuzde(m.optDouble("acik_ort")),
+                             color = renk(m, "acik_ort"), fontSize = 12.sp, modifier = Modifier.weight(1f))
                     }
                     if (secili == w) TraderDetay(url, key, w)
                 }
@@ -111,8 +114,9 @@ fun HlEkrani(url: String, key: String) {
                                  (if (s.isNull("gecikme_pct")) "" else " · gecikme " + hlYuzde(s.optDouble("gecikme_pct"), 3)),
                                  color = Nx.Soluk, fontSize = 11.sp)
                         }
-                        Text(if (s.optString("durum") == "acik") "açık" else if (s.isNull("getiri_pct")) "—" else hlYuzde(s.optDouble("getiri_pct")),
-                             color = if (s.optString("durum") == "acik") Nx.Soluk else renk(s, "getiri_pct"), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                        val sAcik = s.optString("durum") == "acik"
+                        Text(if (sAcik) (if (s.isNull("anlik_pct")) "açık" else "açık " + hlYuzde(s.optDouble("anlik_pct"))) else if (s.isNull("getiri_pct")) "—" else hlYuzde(s.optDouble("getiri_pct")),
+                             color = if (sAcik) renk(s, "anlik_pct") else renk(s, "getiri_pct"), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                     }
                 }
             }
@@ -187,6 +191,8 @@ private fun TraderDetay(url: String, key: String, w: String) {
                  (if (o.isNull("kaldirac_medyan")) "" else " · kaldıraç ~${o.optDouble("kaldirac_medyan").toInt()}x") +
                  (if (o.isNull("tutma_dk_medyan")) "" else " · tutma ~${o.optDouble("tutma_dk_medyan").toInt()} dk"),
                  color = Nx.Metin, fontSize = 12.sp)
+            if (!o.isNull("toplam_ort")) Text("Açıklar şu anki fiyatla dahil: toplam ort ${hlYuzde(o.optDouble("toplam_ort"))}" +
+                 (if (o.isNull("acik_ort")) "" else " · açıkların ort ${hlYuzde(o.optDouble("acik_ort"))}"), color = renk(o, "toplam_ort"), fontSize = 12.sp)
         }
         val f = SimpleDateFormat("dd.MM HH:mm", Locale.getDefault())
         d?.optJSONArray("olcumler")?.let { a ->
@@ -198,8 +204,9 @@ private fun TraderDetay(url: String, key: String, w: String) {
                          (if (x.isNull("kaldirac")) "" else " ${x.optDouble("kaldirac").toInt()}x") +
                          (if (x.isNull("en_kotu_pct")) "" else " · en kötü ${hlYuzde(x.optDouble("en_kotu_pct"), 1)}"),
                          color = Nx.Soluk, fontSize = 11.sp, modifier = Modifier.weight(1f))
-                    Text(if (x.optString("durum") == "acik") "açık" else if (g.isNaN()) "—" else hlYuzde(g),
-                         color = if (g.isNaN() || x.optString("durum") == "acik") Nx.Soluk else if (g >= 0) Nx.Yesil else Nx.Kirmizi, fontSize = 11.sp)
+                    val xAcik = x.optString("durum") == "acik"
+                    Text(if (xAcik) (if (x.isNull("anlik_pct")) "açık" else "açık " + hlYuzde(x.optDouble("anlik_pct"))) else if (g.isNaN()) "—" else hlYuzde(g),
+                         color = if (xAcik) renk(x, "anlik_pct") else if (g.isNaN()) Nx.Soluk else if (g >= 0) Nx.Yesil else Nx.Kirmizi, fontSize = 11.sp)
                 }
             }
         }
