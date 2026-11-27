@@ -64,6 +64,12 @@ class ServerTests(unittest.TestCase):
         Paper(os.path.join(self.d, "nexora_btc_trend.db"), ekosistem="btc_trend", dagit=False)
         t = self.get("/btc")["trend"]
         self.assertEqual((t["mod"], t["toplam"], t["kural"]), ("PAPER", 100.0, "SMA100 (günlük, uzun/nakit)"))
+    def test_hl_paper_bos_sonra_ozet(self):
+        self.assertTrue(self.get("/hl-paper")["bos"])
+        from nexora import hl, hl_paper
+        o = hl.Olcer(os.path.join(self.d, "nexora_hl.db")); hl_paper.HlPaper(o.db); o.db.close()
+        d = self.get("/hl-paper")
+        self.assertEqual((d["mod"], d["varlik"], d["baslangic"]), ("PAPER", 100.0, 100.0))
     def test_takip_requires_key(self):
         with self.assertRaises(urllib.error.HTTPError) as c: self.get("/takip", key="yanlis")
         self.assertEqual(c.exception.code, 401)

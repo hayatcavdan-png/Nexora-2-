@@ -42,7 +42,7 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {   // BiometricPr
 private val ANA_SEKMELER = setOf("ana", "cuzdanlar", "islemler", "profil")
 private val YONETICI = setOf("yonetici", "karne", "kesfet", "portfoy", "bot", "sistem", "hl", "rapor", "yol", "hazir", "takip")
 private val ALT_EKRAN = mapOf("rapor" to "Günlük Rapor", "yol" to "Yol Haritası", "takip" to "Takip Edilen Cüzdanlar", "uye" to "Hesabım", "hazir" to "Hazırlık Karnesi",
-                                    "hl" to "Hyperliquid Takibi", "sistem" to "Sistem Sağlığı", "ayarlar" to "Ayarlar")
+                                    "hl" to "Hyperliquid Takibi", "hlana" to "Hyperliquid", "sistem" to "Sistem Sağlığı", "ayarlar" to "Ayarlar")
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -219,7 +219,7 @@ fun App() {
     }
 
     val yonetici = ekran in YONETICI
-    val menuSecili = if (ekran in ANA_SEKMELER) ekran else if (ekran == "asistan") "ana" else "profil"
+    val menuSecili = if (ekran in ANA_SEKMELER) ekran else if (ekran == "asistan" || ekran == "hlana") "ana" else "profil"
     Box(Modifier.fillMaxSize()) {
     AiArkaplan()
     Scaffold(containerColor = Color.Transparent,
@@ -232,7 +232,7 @@ fun App() {
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
                 if (ekran in ALT_EKRAN) item(key = "alt_bas") {
-                    SayfaBasligi(ALT_EKRAN[ekran]!!, when (ekran) { "takip" -> "Analiz ve takip durumu"; "uye" -> "Giriş, güvenlik ve bağlantılar"; "hazir" -> "Gerçek paraya geçiş ölçütleri"; "hl" -> "Büyük trader'lar · gölge ölçüm"; "sistem" -> "Servisler, sürüm ve canlı tutarlılık"; "ayarlar" -> "Bildirimler, kilit, görünüm, sunucu"; else -> "NEXORA" }, geri = { ekran = ust(ekran) })
+                    SayfaBasligi(ALT_EKRAN[ekran]!!, when (ekran) { "takip" -> "Analiz ve takip durumu"; "uye" -> "Giriş, güvenlik ve bağlantılar"; "hazir" -> "Gerçek paraya geçiş ölçütleri"; "hl" -> "Büyük trader'lar · gölge ölçüm"; "hlana" -> "Paper kopya · long/short"; "sistem" -> "Servisler, sürüm ve canlı tutarlılık"; "ayarlar" -> "Bildirimler, kilit, görünüm, sunucu"; else -> "NEXORA" }, geri = { ekran = ust(ekran) })
                 }
                 val bagliDegil = !v.bagli && v.guncelleme == 0.0
                 if (v.hata.isNotEmpty() && !(bagliDegil && ekran == "ana")) item(key = "hata") { Text(v.hata, color = Nx.Kirmizi, fontSize = 13.sp) }
@@ -319,7 +319,7 @@ fun App() {
                         item(key = "sistem_tut") { TutarlilikKarti(url, key) }
                         item(key = "sistem") { SistemEkrani(url, key) }
                     } else item(key = "sistem_yok") { BilgiKutusu("Sunucuya bağlı değil.") }
-                    "hl" -> if (v.bagli) item(key = "hl") { HlEkrani(url, key) } else item(key = "hl_yok") { BilgiKutusu("Sunucuya bağlı değil.") }
+                    "hl", "hlana" -> if (v.bagli) item(key = "hl") { HlEkrani(url, key) } else item(key = "hl_yok") { BilgiKutusu("Sunucuya bağlı değil.") }
                     "rapor" -> {
                         if (v.bagli) item(key = "teshis") { TeshisKarti(url, key) }
                         if (v.bagli) item(key = "teshis_yz") { YzAnalizKarti(url, key, "teshis") }

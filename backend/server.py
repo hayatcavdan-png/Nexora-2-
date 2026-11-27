@@ -368,6 +368,9 @@ class H(BaseHTTPRequestHandler):
         if parts.path == "/hl-cuzdan":                      # trader detayı (yalnızca kurucu)
             from nexora import hl
             self._send(200, hl.cuzdan_detay(os.getenv("HL_DB", "nexora_hl.db"), (parse_qs(parts.query).get("w") or [""])[0])); return
+        if parts.path == "/hl-paper":                       # 5.35.0: ana sayfa Hyperliquid paper kartı (yalnızca kurucu, hafif)
+            from nexora import hl_paper
+            self._send(200, hl_paper.ozet(os.getenv("HL_DB", "nexora_hl.db")) or {"bos": True}); return
         if parts.path == "/hl":                             # N39: Hyperliquid gölge ölçümü (yalnızca kurucu)
             from nexora import hl
             self._send(200, hl.ekran(os.getenv("HL_DB", "nexora_hl.db"))); return
