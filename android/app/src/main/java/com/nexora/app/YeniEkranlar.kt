@@ -181,7 +181,7 @@ fun LazyListScope.uyeAnaSayfa(v: Veri, gizle: Boolean, gizleDegis: () -> Unit, a
         Row(Modifier.fillMaxWidth().padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Logo(20.sp)
-                Text("Solana kopya işlem", color = Nx.Soluk, fontSize = 12.sp, modifier = Modifier.padding(start = 2.dp))
+                Text(if (v.kurucu && url.isNotBlank()) "Paper kopya işlem" else "Solana kopya işlem", color = Nx.Soluk, fontSize = 12.sp, modifier = Modifier.padding(start = 2.dp))
             }
             Box {
                 IconButton({ git("islemler") }, Modifier.size(48.dp).clip(RoundedCornerShape(14.dp)).background(Nx.Yuzey2)) {
@@ -192,7 +192,8 @@ fun LazyListScope.uyeAnaSayfa(v: Veri, gizle: Boolean, gizleDegis: () -> Unit, a
             }
         }
     }
-    item(key = "u_bakiye") {
+    val ikili = v.kurucu && url.isNotBlank()     // 5.35.0: kurucu ana sayfası iki paper hesap kutusuyla başlar
+    if (!ikili) item(key = "u_bakiye") {
         val simdi = System.currentTimeMillis() / 1000.0
         val eskiVar = v.gecmis.isNotEmpty() && v.gecmis.first().ts <= simdi - 86400
         val ref24 = if (eskiVar) degerAni(v.gecmis, simdi - 86400, v.baslangic) else v.baslangic
@@ -208,7 +209,7 @@ fun LazyListScope.uyeAnaSayfa(v: Veri, gizle: Boolean, gizleDegis: () -> Unit, a
                 drawContent()
             }.padding(20.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Sanal bakiye (paper)", color = Color(0xFFEDE9FE), fontSize = 13.sp, modifier = Modifier.weight(1f))
+                Text("Solana memecoin · sanal bakiye (paper)", color = Color(0xFFEDE9FE), fontSize = 13.sp, modifier = Modifier.weight(1f))
                 IconButton(gizleDegis, Modifier.size(32.dp)) {
                     Icon(if (gizle) Icons.Filled.Lock else Icons.Filled.Search, "Gizle", tint = Color(0xFFEDE9FE), modifier = Modifier.size(18.dp))
                 }
@@ -228,7 +229,7 @@ fun LazyListScope.uyeAnaSayfa(v: Veri, gizle: Boolean, gizleDegis: () -> Unit, a
             }
         }
     }
-    if (v.kurucu && url.isNotBlank()) item(key = "u_btc") { BtcOngoruKarti(url, key) }   // BTC öngörü (PAPER), /btc yalnızca kurucu
+    if (ikili) item(key = "u_paper") { PaperHesaplarKarti(v, url, key, gizle, gizleDegis, git) { MemeDetay(v, gizle, aralik, aralikSec, git) } }
     item(key = "u_nexo") {
         val simdi = System.currentTimeMillis() / 1000.0
         val ref = degerAni(v.gecmis, simdi - 86400, v.baslangic)
@@ -249,7 +250,8 @@ fun LazyListScope.uyeAnaSayfa(v: Veri, gizle: Boolean, gizleDegis: () -> Unit, a
             }
         }
     }
-    item(key = "u_kutu") {
+    if (ikili) item(key = "u_btc") { BtcOngoruKarti(url, key) }   // BTC öngörü (PAPER), /btc yalnızca kurucu
+    if (!ikili) item(key = "u_kutu") {
         val kapanan = v.kapananlar
         val bugunBas = Calendar.getInstance().apply { set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0) }.timeInMillis / 1000.0
         val bugunKz = kapanan.filter { it.ts >= bugunBas }.sumOf { it.kz }
@@ -259,15 +261,15 @@ fun LazyListScope.uyeAnaSayfa(v: Veri, gizle: Boolean, gizleDegis: () -> Unit, a
             KucukKutu("Bugün", if (gizle) "••" else isaretli(bugunKz), kzRenk(bugunKz), Modifier.weight(1f))
         }
     }
-    item(key = "u_son_bas") {
+    if (!ikili) item(key = "u_son_bas") {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text("Son hareketler", color = Nx.Metin, fontSize = 17.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
             TextButton({ git("islemler") }) { Text("Tümü", color = Nx.Gok) }
         }
     }
     val son = v.islemler.filter { it.karar == "KOPYALANDI" }.take(3)
-    if (son.isEmpty()) item(key = "u_son_bos") { BilgiKutusu("Henüz kopyalanan işlem yok. NEXO uygun bir hamle bekliyor.") }
-    items(son, key = { "us_" + it.ts + it.token + it.yon }) { i -> HareketSatiri(v, i) }
+    if (!ikili && son.isEmpty()) item(key = "u_son_bos") { BilgiKutusu("Henüz kopyalanan işlem yok. NEXO uygun bir hamle bekliyor.") }
+    if (!ikili) items(son, key = { "us_" + it.ts + it.token + it.yon }) { i -> HareketSatiri(v, i) }
 }
 
 @Composable
@@ -693,5 +695,48 @@ fun LazyListScope.yoneticiPaneli(v: Veri, url: String, key: String, git: (String
                 }
             }
         }
+    }
+}
+
+
+/** 5.35.0 · Ana sayfa Solana memecoin ayrıntısı (eski büyük kartın içeriği): değişim, K/Z, grafik, aralık, kutular, son hareketler. */
+@Composable
+fun MemeDetay(v: Veri, gizle: Boolean, aralik: String, aralikSec: (String) -> Unit, git: (String) -> Unit) {
+    val simdi = System.currentTimeMillis() / 1000.0
+    val eskiVar = v.gecmis.isNotEmpty() && v.gecmis.first().ts <= simdi - 86400
+    val ref24 = if (eskiVar) degerAni(v.gecmis, simdi - 86400, v.baslangic) else v.baslangic
+    val d24 = if (ref24 > 0) (v.toplam - ref24) / ref24 * 100 else 0.0
+    val sure = (ARALIK.firstOrNull { it.first == aralik } ?: ARALIK[1]).second
+    val bas = degerAni(v.gecmis, simdi - sure, v.baslangic)
+    val pencere = listOf(Nokta2(simdi - sure, bas)) + v.gecmis.filter { it.ts > simdi - sure }
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text((if (d24 >= 0) "▲ %" else "▼ %") + String.format(java.util.Locale("tr"), "%.2f", kotlin.math.abs(d24)) + if (eskiVar) " · 24 saat" else " · başlangıçtan",
+             color = if (d24 >= 0) Nx.UstMetin else Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold,
+             modifier = Modifier.clip(RoundedCornerShape(50)).background(if (d24 >= 0) Nx.Nane else Nx.Kirmizi).padding(horizontal = 10.dp, vertical = 5.dp))
+        Text("K/Z " + (if (gizle) "••" else isaretli(v.kz) + "$"), color = Color(0xFFEDE9FE), fontSize = 13.sp,
+             modifier = Modifier.clip(RoundedCornerShape(50)).background(Color(0xFF6D28D9)).padding(horizontal = 10.dp, vertical = 5.dp))
+    }
+    DegerGrafigi(pencere, bas, Modifier.fillMaxWidth().height(130.dp))
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        ARALIK.forEach { (ad, _) -> Hap(ad, ad == aralik, Modifier.weight(1f), secRenk = Nx.Gok) { aralikSec(ad) } }
+    }
+    val bugunBas = Calendar.getInstance().apply { set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0) }.timeInMillis / 1000.0
+    val bugunKz = v.kapananlar.filter { it.ts >= bugunBas }.sumOf { it.kz }
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        MiniKutu("Açık işlem", "${v.pozisyonlar.size}", Nx.Metin, Modifier.weight(1f))
+        MiniKutu("Kazanma", v.basariOrani?.let { "%" + it.toInt() } ?: "—", Nx.Nane, Modifier.weight(1f))
+        MiniKutu("Bugün", if (gizle) "••" else isaretli(bugunKz), kzRenk(bugunKz), Modifier.weight(1f))
+    }
+    Text("Son hareketler", color = Nx.Soluk, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+    val son = v.islemler.filter { it.karar == "KOPYALANDI" }.take(3)
+    if (son.isEmpty()) Text("Henüz kopyalanan işlem yok. NEXO uygun bir hamle bekliyor.", color = Nx.Soluk, fontSize = 12.sp)
+    son.forEach { HareketSatiri(v, it) }
+}
+
+@Composable
+private fun MiniKutu(baslik: String, deger: String, renk: Color, modifier: Modifier) {
+    Column(modifier.clip(RoundedCornerShape(14.dp)).background(Nx.Yuzey2).padding(horizontal = 10.dp, vertical = 8.dp)) {
+        Text(baslik, color = Nx.Soluk, fontSize = 11.sp, maxLines = 1)
+        Text(deger, color = renk, fontSize = 17.sp, fontWeight = FontWeight.Bold, fontFamily = Orbitron, maxLines = 1)
     }
 }
