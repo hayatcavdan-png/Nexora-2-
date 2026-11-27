@@ -74,6 +74,7 @@ fun HlEkrani(url: String, key: String) {
                 if (o.optInt("kapanan") < 30) Text("Örneklem küçük: 30 kapanan ölçümden önce karar verilmez.", color = Nx.Kehribar, fontSize = 12.sp)
             }
         }
+        d?.optJSONObject("paper")?.let { HlPaperKarti(it) }
         YzAnalizKarti(url, key, "hl", tetik)
         d?.optJSONArray("cuzdanlar")?.let { a ->
             if (a.length() > 0) NeonKart(Modifier.fillMaxWidth()) {
@@ -210,5 +211,58 @@ private fun TraderDetay(url: String, key: String, w: String) {
                 }
             }
         }
+    }
+}
+
+
+/** 5.34.0: Hyperliquid PAPER kopya hesabı. Gerçek işlem yok; uygun trader'ların long/short sinyalleri sanal hesapta kopyalanır. */
+@Composable
+private fun HlPaperKarti(p: JSONObject) {
+    val k = p.optJSONObject("kurallar") ?: JSONObject()
+    val kap = p.optJSONObject("kapanan") ?: JSONObject()
+    NeonKart(Modifier.fillMaxWidth()) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("Paper kopya hesabı", color = Nx.Metin, fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+            Box(Modifier.clip(RoundedCornerShape(50)).background(Nx.Kehribar.copy(alpha = 0.18f)).padding(horizontal = 8.dp, vertical = 2.dp)) {
+                Text("PAPER", color = Nx.Kehribar, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+            }
+        }
+        Text("Gerçek para yok. Uygun trader long/short açınca kendi kurallarımızla kopyalanır: kaldıraç ${k.optDouble("kaldirac", 3.0).toInt()}x, " +
+             "pozisyon başı varlığın %${k.optDouble("poz_pct", 5.0).toInt()}'i teminat, en fazla ${k.optInt("maks_poz", 5)} pozisyon. " +
+             "Ücret ve fonlama dahil; fiyat %${k.optDouble("tasfiye_pct", 32.3)} ters giderse tasfiye.", color = Nx.Soluk, fontSize = 12.sp)
+        val kz = p.optDouble("kz", 0.0)
+        Text(String.format(Locale.US, "%.2f $", p.optDouble("varlik", 100.0)), color = Nx.Metin, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+        Text(String.format(Locale.US, "%+.2f $ (%+.2f%%) · başlangıç %.0f $", kz, p.optDouble("kz_pct", 0.0), p.optDouble("baslangic", 100.0)),
+             color = if (kz >= 0) Nx.Yesil else Nx.Kirmizi, fontSize = 13.sp)
+        SatirKV("Kapanan işlem", "${kap.optInt("n")}" + (if (kap.isNull("ort")) "" else
+                String.format(Locale.US, " · ort %+.3f $ · kazanan %%%d", kap.optDouble("ort"), kap.optInt("kazanma"))))
+        SatirKV("Tasfiye", "${p.optInt("tasfiye")}")
+        val uy = p.optJSONArray("uygun")
+        SatirKV("Uygun trader", "${uy?.length() ?: 0} (≥${k.optInt("min_olcum", 30)} ölçüm, toplam ort > 0)")
+        if ((uy?.length() ?: 0) == 0) Text("Şu an kopyalanmaya uygun trader yok; ölçüm biriktikçe uygun olanlar otomatik kopyalanır.",
+                                           color = Nx.Kehribar, fontSize = 12.sp)
+        val poz = p.optJSONArray("pozisyonlar")
+        if (poz != null && poz.length() > 0) {
+            Text("Açık pozisyonlar", color = Nx.Metin, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 6.dp))
+            for (i in 0 until poz.length()) PaperSatir(poz.getJSONObject(i), "anlik_pnl")
+        }
+        val son = p.optJSONArray("son_kapanan")
+        if (son != null && son.length() > 0) {
+            Text("Son kapananlar", color = Nx.Metin, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 6.dp))
+            for (i in 0 until minOf(son.length(), 10)) PaperSatir(son.getJSONObject(i), "pnl")
+        }
+        if (kap.optInt("n") < 30) Text("Örneklem küçük: 30 kapanan işlemden önce sonuçtan kâr/zarar kararı çıkarılmaz.", color = Nx.Soluk, fontSize = 11.sp)
+    }
+}
+
+@Composable
+private fun PaperSatir(x: JSONObject, alan: String) {
+    val long = x.optInt("yon") > 0
+    Row(Modifier.fillMaxWidth().padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text((if (long) "LONG " else "SHORT ") + x.optString("coin"), color = if (long) Nx.Yesil else Nx.Kirmizi, fontSize = 12.sp,
+             fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+        Text(String.format(Locale.US, "%.2f $", x.optDouble("buyukluk")) + (if (x.isNull("neden")) "" else " · " + x.optString("neden")),
+             color = Nx.Soluk, fontSize = 11.sp, modifier = Modifier.weight(1.4f))
+        Text(if (x.isNull(alan)) "—" else String.format(Locale.US, "%+.3f $", x.optDouble(alan)), color = renk(x, alan), fontSize = 12.sp)
     }
 }

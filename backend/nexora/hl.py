@@ -217,6 +217,7 @@ class Olcer:
     def tur(self, cuzdanlar):
         """Bir yoklama turu: tüm cüzdanların yeni dolumları. Dönüş: dict(acilan, kapanan, hata)."""
         now = self.saat(); ortalar = self.ist.ortalar(); acilan = kapanan = hata = 0
+        self.son_ortalar = ortalar
         for w in cuzdanlar:
             try:
                 a, k = self.isle(w, self.ist.dolumlar(w, self._imlec(w, now)), ortalar, now); acilan += a; kapanan += k
@@ -300,7 +301,9 @@ def ekran(db_yol="nexora_hl.db", liste_yolu="hl_cuzdanlar.txt", now=None, gun=14
     """Uygulama ekranı için: özet, trader tablosu (kapanan + açık), son 25 ölçüm."""
     now = now or time.time()
     r = rapor(db_yol, now, gun)
-    out = dict(ozet=r, liste=len(liste_oku(liste_yolu)), cuzdanlar=[], son=[], ucret_pct=UCRET_PCT)
+    from nexora import hl_paper
+    out = dict(ozet=r, liste=len(liste_oku(liste_yolu)), cuzdanlar=[], son=[], ucret_pct=UCRET_PCT,
+               paper=hl_paper.ozet(db_yol, now))
     if r is None: return out
     c = sqlite3.connect(f"file:{db_yol}?mode=ro", uri=True); c.row_factory = sqlite3.Row
     try:
