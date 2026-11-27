@@ -83,7 +83,8 @@ def vwap(seviyeler, usd):
 
 
 GOC = ["giris_defter REAL", "cikis_defter REAL", "getiri_defter_pct REAL", "fonlama_pct REAL", "getiri_net_pct REAL",
-       "kaldirac REAL", "tasfiye_px REAL", "en_kotu_pct REAL", "en_iyi_pct REAL", "boyut_usd REAL"]
+       "kaldirac REAL", "tasfiye_px REAL", "en_kotu_pct REAL", "en_iyi_pct REAL", "boyut_usd REAL",
+       "anlik_pct REAL", "anlik_ts REAL"]   # 27.11: açık ölçümün şu anki K/Z'si (ücret dahil) — sıralamada açıklar da sayılır
 
 
 def _perf(row, pencere):
@@ -206,6 +207,7 @@ class Olcer:
             if h < (sg["en_kotu_pct"] or 0) or h > (sg["en_iyi_pct"] or 0):
                 self.db.execute("UPDATE hl_sinyal SET en_kotu_pct=MIN(COALESCE(en_kotu_pct,0),?), en_iyi_pct=MAX(COALESCE(en_iyi_pct,0),?) WHERE id=?",
                                 (round(h, 4), round(h, 4), sg["id"]))
+            self.db.execute("UPDATE hl_sinyal SET anlik_pct=?, anlik_ts=? WHERE id=?", (round(h - 2 * UCRET_PCT, 4), now, sg["id"]))
             if sg["px_30dk"] is None and now - sg["giris_ts"] >= 1800:
                 g = sg["yon"] * (mid / sg["giris_px"] - 1) * 100 - 2 * UCRET_PCT
                 self.db.execute("UPDATE hl_sinyal SET px_30dk=?, getiri_30dk_pct=? WHERE id=?", (mid, round(g, 4), sg["id"]))
@@ -307,18 +309,23 @@ def ekran(db_yol="nexora_hl.db", liste_yolu="hl_cuzdanlar.txt", now=None, gun=14
         c.close()
     cz = {}
     for x in rows:
-        m = cz.setdefault(x["wallet"], dict(wallet=x["wallet"], acik=0, g=[], k=[]))
-        if x["durum"] == "acik": m["acik"] += 1
+        m = cz.setdefault(x["wallet"], dict(wallet=x["wallet"], acik=0, g=[], k=[], a=[]))
+        if x["durum"] == "acik":
+            m["acik"] += 1
+            if x.get("anlik_pct") is not None: m["a"].append(x["anlik_pct"])
         elif x["getiri_pct"] is not None:
             m["g"].append(x["getiri_pct"])
             if x["kaynak_getiri_pct"] is not None: m["k"].append(x["kaynak_getiri_pct"])
+    ort = lambda v: round(sum(v) / len(v), 3) if v else None
     for m in cz.values():
-        g, k = m.pop("g"), m.pop("k")
-        m.update(n=len(g), ort=round(sum(g) / len(g), 3) if g else None, medyan=round(_md(g), 3) if g else None,
-                 pozitif=round(100 * sum(v > 0 for v in g) / len(g)) if g else None, kaynak_ort=round(sum(k) / len(k), 3) if k else None)
-    out["cuzdanlar"] = sorted(cz.values(), key=lambda m: (-(m["n"] > 0), -(m["ort"] or 0), -m["acik"]))
+        g, k, a = m.pop("g"), m.pop("k"), m.pop("a")
+        m.update(n=len(g), ort=ort(g), medyan=round(_md(g), 3) if g else None,
+                 pozitif=round(100 * sum(v > 0 for v in g) / len(g)) if g else None, kaynak_ort=ort(k),
+                 acik_ort=ort(a), en_kotu_acik=round(min(a), 3) if a else None,
+                 toplam_n=len(g) + len(a), toplam_ort=ort(g + a))          # açıklar şu anki fiyatla: zararı açık tutan iyi görünmez
+    out["cuzdanlar"] = sorted(cz.values(), key=lambda m: (-(m["toplam_n"] > 0), -(m["toplam_ort"] or 0), -m["acik"]))
     out["son"] = [dict(wallet=x["wallet"], coin=x["coin"], yon="long" if x["yon"] > 0 else "short", giris_ts=x["giris_ts"],
-                       durum=x["durum"], getiri_pct=x["getiri_pct"], kaynak_getiri_pct=x["kaynak_getiri_pct"],
+                       durum=x["durum"], getiri_pct=x["getiri_pct"], kaynak_getiri_pct=x["kaynak_getiri_pct"], anlik_pct=x.get("anlik_pct"),
                        gecikme_pct=round(x["yon"] * (x["giris_px"] / x["kaynak_px"] - 1) * 100, 4) if x["kaynak_px"] else None)
                   for x in rows[:25]]
     return out
@@ -337,9 +344,12 @@ def cuzdan_detay(db_yol, wallet, now=None, gun=30):
     kap = [r for r in rows if r["durum"] == "kapandi" and r["getiri_pct"] is not None]
     g = [r.get("getiri_net_pct") if r.get("getiri_net_pct") is not None else r["getiri_pct"] for r in kap]
     k = [r["kaldirac"] for r in rows if r.get("kaldirac")]
+    a = [r["anlik_pct"] for r in rows if r["durum"] == "acik" and r.get("anlik_pct") is not None]
     ozet = dict(n=len(kap), acik=len(rows) - len(kap), ort=round(sum(g) / len(g), 3) if g else None,
+                acik_ort=round(sum(a) / len(a), 3) if a else None,
+                toplam_ort=round(sum(g + a) / len(g + a), 3) if (g or a) else None,
                 medyan=round(_md(g), 3) if g else None, pozitif=round(100 * sum(x > 0 for x in g) / len(g)) if g else None,
                 kaldirac_medyan=_md(k), tutma_dk_medyan=_md([(r["cikis_ts"] - r["giris_ts"]) / 60 for r in kap if r.get("cikis_ts")]))
     al = ("coin", "yon", "giris_ts", "cikis_ts", "durum", "getiri_pct", "getiri_net_pct", "kaynak_getiri_pct", "fonlama_pct",
-          "kaldirac", "en_kotu_pct", "en_iyi_pct", "neden")
+          "kaldirac", "en_kotu_pct", "en_iyi_pct", "neden", "anlik_pct")
     return dict(wallet=wallet, ozet=ozet, olcumler=[{a: r.get(a) for a in al} for r in rows[:60]])

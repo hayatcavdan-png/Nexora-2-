@@ -84,6 +84,27 @@ class EkranTests(unittest.TestCase):
         m = e["cuzdanlar"][0]; self.assertEqual((m["n"], m["acik"]), (1, 1)); self.assertIsNotNone(m["kaynak_ort"])
         self.assertIsNone(hl.ekran("/yok/h.db", now=1)["ozet"])
 
+    def test_acik_zarar_siralamaya_girer(self):
+        """A: 1 kârlı kapanış + 2 ağır zararda açık; B: 1 küçük kârlı kapanış. Eskiden A üstteydi, şimdi B üstte."""
+        A, B = W, "0xbbb0000000000000000000000000000000000002"
+        now = [10_000.0]; ist = FakeIst(); dd = tempfile.mkdtemp(); yol = os.path.join(dd, "h.db")
+        ist.mids.update(BTC=100.0, ETH=10.0, SOL=20.0, DOGE=1.0)
+        o = hl.Olcer(yol, ist, saat=lambda: now[0])
+        ist.fills[A] = [d_(1, 9990, "BTC", "B", 1, 0, 100.0), d_(2, 9991, "ETH", "B", 1, 0, 10.0), d_(3, 9992, "SOL", "B", 1, 0, 20.0)]
+        ist.fills[B] = [d_(4, 9993, "DOGE", "B", 1, 0, 1.0)]
+        o.tur([A, B])
+        ist.fills[A].append(d_(5, 10_050, "BTC", "A", 1, 1, 110.0)); ist.fills[B].append(d_(6, 10_051, "DOGE", "A", 1, 1, 1.01))
+        ist.mids.update(BTC=110.0, DOGE=1.01, ETH=8.0, SOL=16.0); now[0] = 10_060; o.tur([A, B])   # A'nın açıkları %-20
+        e = hl.ekran(yol, os.path.join(dd, "l.txt"), now=10_100)
+        m = {x["wallet"]: x for x in e["cuzdanlar"]}
+        self.assertGreater(m[A]["ort"], m[B]["ort"])                         # yalnız kapananlara bakınca A iyi görünür
+        self.assertAlmostEqual(m[A]["acik_ort"], -20 - 2 * hl.UCRET_PCT, places=3)
+        self.assertLess(m[A]["toplam_ort"], 0); self.assertEqual(m[A]["toplam_n"], 3)
+        self.assertEqual(e["cuzdanlar"][0]["wallet"], B)                      # açıklar dahil sıralama
+        det = hl.cuzdan_detay(yol, A, now=10_100)
+        self.assertLess(det["ozet"]["toplam_ort"], 0)
+        self.assertTrue(any(x["anlik_pct"] is not None for x in det["olcumler"] if x["durum"] == "acik"))
+
 
 d_ = d
 
