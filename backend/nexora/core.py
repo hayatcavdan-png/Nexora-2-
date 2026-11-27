@@ -21,7 +21,10 @@ CFG = dict(
     min_liquidity_usd=50_000,
     base_slippage=0.005,     # %0.5
     net_fee_usd=0.01,        # ağ + priority fee tahmini
-    stop_loss_pct=0.12,      # pozisyon başına zarar kesme: teklife göre net zarar bu oranı aşarsa kaynaktan bağımsız satılır
+    stop_loss_pct=0.40,      # pozisyon başına zarar kesme (felaket koruması): net zarar bu oranı aşarsa kaynaktan bağımsız satılır.
+                             # 27.11.2026: %12 -> %40 (sahip onayıyla). stop_sinama: kural öncesi 315 pozisyonda %12 toplamı
+                             # +18,17 $'dan +0,76 $'a düşürüyordu (114 kesim, 19'u kârla kapanacaktı); %40 en iyi eşik (+12,55 $).
+                             # Kural devredeyken 65 pozisyon -20,67 $; zarar kesme satışlarında ortalama 6 puan kayma.
     max_price_impact_pct=3.0,     # Jupiter teklifinde izin verilen en yüksek fiyat etkisi
     max_roundtrip_loss_pct=6.0,   # al-hemen-sat teklif kaybı (spread+etki+ücret) üst sınırı
     fee_reserve_usd=1.0,          # SOL işlem ücretleri için her zaman ayrılan nakit (alımda kullanılmaz)
